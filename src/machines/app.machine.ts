@@ -9,11 +9,13 @@
  *   scene ──▶ viewer, acquisition          viewer ──▶ places, cameras, acquisition
  *   places, cameras ──▶ viewer             sites ──▶ viewer
  *   (demande de partage) ──▶ viewer ──▶ share          viewer ──▶ activity
+ *   scans ──▶ viewer
  */
 
 import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate';
 import { PROJECT } from '../config/project.ts';
 import { QUALITY_PROFILES } from '../domain/quality.ts';
+import { SCAN_HEIGHT } from '../domain/scans.ts';
 import { resolveScene } from '../domain/scene.ts';
 import { DEFAULT_VIEW, encodeView, viewUrl, type View } from '../domain/view.ts';
 import type { SupportReport } from '../services/capabilities.ts';
@@ -25,6 +27,7 @@ import { camerasMachine, type CamerasEmitted } from './cameras.machine.ts';
 import { chromeMachine, type PanelId } from './chrome.machine.ts';
 import { compatibilityMachine } from './compatibility.machine.ts';
 import { placesMachine, type PlacesEmitted } from './places.machine.ts';
+import { scansMachine, type ScansEmitted } from './scans.machine.ts';
 import { sceneMachine, type SceneEmitted } from './scene.machine.ts';
 import { shareMachine } from './share.machine.ts';
 import { sitesMachine, type SitesEmitted } from './sites.machine.ts';
@@ -38,7 +41,8 @@ export type AppEvent =
   | ViewerEmitted
   | PlacesEmitted
   | CamerasEmitted
-  | SitesEmitted;
+  | SitesEmitted
+  | ScansEmitted;
 
 export interface AppInput {
   /** Vue lue dans l'URL au chargement. */
@@ -78,6 +82,7 @@ export const appMachine = setup({
       places: 'places';
       cameras: 'cameras';
       sites: 'sites';
+      scans: 'scans';
       acquisition: 'acquisition';
       activity: 'activity';
       share: 'share';
@@ -92,6 +97,7 @@ export const appMachine = setup({
     places: placesMachine,
     cameras: camerasMachine,
     sites: sitesMachine,
+    scans: scansMachine,
     acquisition: acquisitionMachine,
     activity: activityMachine,
     share: shareMachine,
@@ -185,6 +191,7 @@ export const appMachine = setup({
           }),
         },
         { id: 'sites', src: 'sites' },
+        { id: 'scans', src: 'scans' },
         {
           id: 'acquisition',
           src: 'acquisition',
@@ -281,6 +288,17 @@ export const appMachine = setup({
           actions: sendTo('viewer', ({ event }) => ({
             type: 'viewer.flyoverRequested',
             flyover: { x: event.site.x, y: event.site.y, height: SITE_HEIGHT, orbit: true },
+          })),
+        },
+
+        /* ---- scans 3D : le viewer les dessine, la caméra vient tourner autour ---- */
+        'scans.changed': {
+          actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.scansChanged', scans: event.scans })),
+        },
+        'scans.flyRequested': {
+          actions: sendTo('viewer', ({ event }) => ({
+            type: 'viewer.flyoverRequested',
+            flyover: { x: event.scan.x, y: event.scan.y, height: SCAN_HEIGHT, orbit: true },
           })),
         },
 

@@ -1,8 +1,9 @@
-import { TagIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
+import { CubeTransparentIcon, TagIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import type { ReactNode } from 'react';
 import { camerasFeed } from '../../machines/cameras.machine.ts';
 import { placesStatus, type LayerFeed } from '../../machines/places.machine.ts';
+import { hasScans, scansFeed } from '../../machines/scans.machine.ts';
 import { CAMERA_SOURCE } from '../../services/cameras.ts';
 import { useChild } from '../actors.ts';
 import { ago, count } from '../format.ts';
@@ -94,6 +95,26 @@ function CamerasRow() {
   );
 }
 
+/** Scans 3D : la ligne n'existe que si ce poste en possède. */
+function ScansRow() {
+  const scans = useChild('scans');
+  const available = useSelector(scans, hasScans);
+  const feed = useSelector(scans, scansFeed);
+  const list = useSelector(scans, (snapshot) => snapshot.context.scans);
+  if (!available) return null;
+
+  return (
+    <LayerRow
+      icon={<CubeTransparentIcon aria-hidden="true" />}
+      name="Scans 3D"
+      count={list.length}
+      feed={feed}
+      meta={`${list.map((scan) => scan.name).join(', ')} · essai local`}
+      onToggle={() => scans.send({ type: 'scans.toggled' })}
+    />
+  );
+}
+
 /** Calques en superposition. */
 export function LayersPanel() {
   return (
@@ -101,6 +122,7 @@ export function LayersPanel() {
       <div className="data-toggle-list">
         <PlacesRow />
         <CamerasRow />
+        <ScansRow />
       </div>
     </Panel>
   );

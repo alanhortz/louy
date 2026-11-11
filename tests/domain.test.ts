@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { flightCellAt, flightDatesUrl, parseFlightDates } from '../src/domain/acquisition.ts';
 import { toLambert, toWgs84 } from '../src/domain/lambert2008.ts';
 import { parsePlaces } from '../src/domain/places.ts';
+import { parseScans } from '../src/domain/scans.ts';
 import { DEFAULT_SCENE, normalizeScene, resolveScene } from '../src/domain/scene.ts';
 import { FLAP_CHAR_MS, FLAP_MAX_TOTAL_MS, planSplitFlap } from '../src/domain/splitFlap.ts';
 import { SERVICE_PATTERN, directTileUrl, edgeTileUrl, parseTilePath } from '../src/domain/tiles.ts';
@@ -149,6 +150,16 @@ describe('lieux OpenStreetMap', () => {
     expect(places.map((place) => place.label)).toEqual(['Namur', 'Dinant']);
     expect(places[0]!.rank).toBeGreaterThan(places[1]!.rank);
     expect(places[0]!.id).toBe('osm:1');
+  });
+});
+
+describe('manifeste des scans 3D', () => {
+  const scan = { id: 'veves', name: 'Château de Vêves', x: 693807, y: 601258, splats: '/local/scans/veves.ply', credit: 'essai' };
+
+  it('garde les scans complets et écarte le reste', () => {
+    expect(parseScans([scan, { ...scan, x: 'ouest' }, { id: 'vide' }, null])).toEqual([scan]);
+    expect(parseScans({ scans: [scan] })).toEqual([]);
+    expect(parseScans(null)).toEqual([]);
   });
 });
 

@@ -2,11 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { createActor, createMachine, fromPromise, sendTo, waitFor, type AnyActorLogic, type AnyEventObject } from 'xstate';
 import { createTelemetryInspector } from '../src/app/inspector.ts';
 import type { Place, PlaceTier } from '../src/domain/places.ts';
+import type { Scan } from '../src/domain/scans.ts';
 import { DEFAULT_SCENE } from '../src/domain/scene.ts';
 import { activityMachine } from '../src/machines/activity.machine.ts';
 import { camerasMachine, frameState } from '../src/machines/cameras.machine.ts';
 import { chromeMachine } from '../src/machines/chrome.machine.ts';
 import { placesMachine, placesStatus } from '../src/machines/places.machine.ts';
+import { hasScans, scansFeed, scansMachine } from '../src/machines/scans.machine.ts';
 import { sceneMachine } from '../src/machines/scene.machine.ts';
 import { shareMachine } from '../src/machines/share.machine.ts';
 import { sitesMachine } from '../src/machines/sites.machine.ts';
@@ -189,6 +191,36 @@ describe('machine des sites touristiques', () => {
     send({ type: 'sites.opened' });
     expect(actor.getSnapshot().matches('open')).toBe(true);
     expect(loadIndex).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('machine des scans 3D', () => {
+  const veves: Scan = { id: 'veves', name: 'Château de Vêves', x: 693807, y: 601258, splats: '/local/scans/veves.ply', credit: 'essai' };
+  const withScans = (scans: Scan[]) =>
+    underParent(scansMachine.provide({ actors: { loadScans: fromPromise(async () => scans) } }));
+
+  it('ne propose rien quand ce poste n’a aucun scan', async () => {
+    const { actor, send, announced } = withScans([]);
+    await waitFor(actor, (snapshot) => snapshot.matches('absent'));
+    send({ type: 'scans.toggled' });
+    expect(hasScans(actor.getSnapshot())).toBe(false);
+    expect(announced.filter((event) => event.type.startsWith('scans.'))).toEqual([]);
+  });
+
+  it('affiche les scans et emmène la caméra au premier, puis les retire', async () => {
+    const { actor, send, announced } = withScans([veves]);
+    await waitFor(actor, (snapshot) => snapshot.matches('hidden'));
+    expect(scansFeed(actor.getSnapshot())).toBe('off');
+
+    send({ type: 'scans.toggled' });
+    expect(scansFeed(actor.getSnapshot())).toBe('nominal');
+    expect(announced.slice(-2)).toMatchObject([
+      { type: 'scans.changed', scans: [veves] },
+      { type: 'scans.flyRequested', scan: { x: 693807, y: 601258 } },
+    ]);
+
+    send({ type: 'scans.toggled' });
+    expect(announced.at(-1)).toEqual({ type: 'scans.changed', scans: [] });
   });
 });
 

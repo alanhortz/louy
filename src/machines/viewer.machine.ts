@@ -54,12 +54,14 @@ function remembered(context: ViewerContext, event: ViewerEvent): Partial<ViewerC
       return { overlays: { ...context.overlays, [event.layer]: event.features } };
     case 'viewer.overlayActivated':
       return { active: { ...context.active, [event.layer]: event.id } };
+    case 'viewer.scansChanged': return { scans: event.scans };
     default: return {};
   }
 }
 
 const COMMANDS = [
-  'viewer.sceneChanged', 'viewer.overlayChanged', 'viewer.overlayActivated', 'viewer.poseApplied',
+  'viewer.sceneChanged', 'viewer.overlayChanged', 'viewer.overlayActivated', 'viewer.scansChanged',
+  'viewer.poseApplied',
 ] as const;
 
 const viewer = setup({
@@ -86,6 +88,7 @@ export const viewerMachine = viewer.createMachine({
     mount: null,
     overlays: { places: [], cameras: [] },
     active: { places: null, cameras: null },
+    scans: [],
     loading: true,
     points: 0,
     failure: null,

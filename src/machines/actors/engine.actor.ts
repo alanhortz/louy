@@ -7,6 +7,7 @@
 import { fromCallback } from 'xstate';
 import { EDGE_PREFIX, TILE_ENDPOINT } from '../../config/project.ts';
 import type { QualityProfile } from '../../domain/quality.ts';
+import type { Scan } from '../../domain/scans.ts';
 import type { SceneSource } from '../../domain/scene.ts';
 import { directTileUrl, edgeTileUrl } from '../../domain/tiles.ts';
 import type { Pose } from '../../domain/view.ts';
@@ -28,6 +29,7 @@ export type EngineCommand =
   | { type: 'viewer.sceneChanged'; source: SceneSource }
   | { type: 'viewer.overlayChanged'; layer: OverlayName; features: OverlayFeature[] }
   | { type: 'viewer.overlayActivated'; layer: OverlayName; id: string | null }
+  | { type: 'viewer.scansChanged'; scans: Scan[] }
   | { type: 'viewer.poseApplied'; pose: Pose; sharpen?: boolean }
   | { type: 'viewer.flyoverRequested'; flyover: Flyover }
   | { type: 'viewer.orbitStopped' }
@@ -54,6 +56,7 @@ export interface EngineInput {
   orbitStart: boolean;
   overlays: Record<OverlayName, OverlayFeature[]>;
   active: Record<OverlayName, string | null>;
+  scans: Scan[];
 }
 
 const OVERLAYS: readonly OverlayName[] = ['places', 'cameras'];
@@ -92,12 +95,14 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
       engine.setOverlayFeatures(layer, input.overlays[layer]);
       engine.setOverlayActive(layer, input.active[layer]);
     }
+    engine.setScans(input.scans);
 
     receive((command) => {
       switch (command.type) {
         case 'viewer.sceneChanged': return engine.setSource(command.source);
         case 'viewer.overlayChanged': return engine.setOverlayFeatures(command.layer, command.features);
         case 'viewer.overlayActivated': return engine.setOverlayActive(command.layer, command.id);
+        case 'viewer.scansChanged': return engine.setScans(command.scans);
         case 'viewer.poseApplied': return engine.setPose(command.pose, { sharpen: command.sharpen });
         case 'viewer.flyoverRequested': return engine.flyOver(command.flyover);
         case 'viewer.orbitStopped': return engine.stopOrbit();

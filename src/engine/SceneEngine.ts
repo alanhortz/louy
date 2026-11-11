@@ -10,6 +10,7 @@
 import { Color, Group, PerspectiveCamera, Scene as ThreeScene, Vector3, WebGLRenderer } from 'three';
 
 import type { QualityProfile } from '../domain/quality.ts';
+import type { Scan } from '../domain/scans.ts';
 import type { SceneSource } from '../domain/scene.ts';
 import type { TileUrlBuilder } from '../domain/tiles.ts';
 import * as T from '../domain/tiling.ts';
@@ -22,6 +23,7 @@ import { TileTree } from './core/TileTree.js';
 import mntLut from './lut/mnt.json';
 import mnsLut from './lut/mns.json';
 import { OverlayLayer, type OverlayFeature, type OverlayStyle } from './OverlayLayer.ts';
+import type { SplatLayer } from './SplatLayer.ts';
 
 const DEG = Math.PI / 180;
 const METRES = new Intl.NumberFormat('fr-BE', { maximumFractionDigits: 0 });
@@ -114,6 +116,9 @@ export class SceneEngine {
   readonly #probe = new Vector3();
 
   #source: SceneSource;
+  #scans: readonly Scan[] = [];
+  #splats: SplatLayer | null = null;
+  #disposed = false;
   #raf = 0;
   #last = performance.now();
   #idleFrames = IDLE_FRAMES;
@@ -253,7 +258,20 @@ export class SceneEngine {
     this.#wake();
   }
 
+  /** Scans 3D à dessiner par-dessus le relief ; le moteur de splats n'est chargé qu'au premier. */
+  setScans(scans: readonly Scan[]): void {
+    this.#scans = scans;
+    if (this.#splats) {
+      this.#splats.setScans(scans);
+      this.#wake();
+    } else if (scans.length > 0) {
+      void this.#loadSplats();
+    }
+  }
+
   dispose(): void {
+    this.#disposed = true;
+    this.#splats?.dispose();
     cancelAnimationFrame(this.#raf);
     this.#teardown.abort();
     this.#resizeObserver.disconnect();
@@ -286,6 +304,14 @@ export class SceneEngine {
   #orbit(turns: number): void {
     this.#controls.autoRotateBudget = turns * 2 * Math.PI;
     this.#controls.autoRotate = ORBIT_SPEED;
+  }
+
+  async #loadSplats(): Promise<void> {
+    const { SplatLayer } = await import('./SplatLayer.ts');
+    if (this.#disposed || this.#splats) return;
+    this.#splats = new SplatLayer(this.#renderer, () => this.#wake());
+    this.#splats.setScans(this.#scans);
+    this.#wake();
   }
 
   /** Force quelques images : quelque chose a changé hors de la navigation. */
@@ -412,6 +438,7 @@ export class SceneEngine {
       describe: (tile: TileLike) => this.#describe(tile),
     });
     this.#edl.render(this.#scene, this.#camera);
+    this.#splats?.render(this.#camera);
 
     const frame = { project: this.#project, distance };
     for (const overlay of this.#overlays.values()) overlay.update(frame);
