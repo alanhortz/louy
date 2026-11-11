@@ -89,6 +89,8 @@ export interface Flyover {
   /** Hauteur de la caméra au-dessus du lieu, en mètres. */
   height: number;
   orbit: boolean;
+  /** Cap de la vue, en degrés ; à défaut, le cap courant est conservé. */
+  azimuth?: number;
 }
 
 interface TileLike { level: number; i: number; j: number }
@@ -224,11 +226,11 @@ export class SceneEngine {
   }
 
   /** Amène la caméra à `height` mètres au-dessus d'un lieu, en orbite si demandé. */
-  flyOver({ x, y, height, orbit }: Flyover): void {
+  flyOver({ x, y, height, orbit, azimuth }: Flyover): void {
     this.setPose({
       x, y,
       distance: height / Math.cos(FLYOVER_TILT * DEG),
-      azimuth: this.getPose().azimuth,
+      azimuth: azimuth ?? this.getPose().azimuth,
       tilt: FLYOVER_TILT,
     });
     if (orbit) this.#orbit(Infinity);

@@ -15,7 +15,7 @@
 import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate';
 import { PROJECT } from '../config/project.ts';
 import { QUALITY_PROFILES } from '../domain/quality.ts';
-import { SCAN_HEIGHT } from '../domain/scans.ts';
+import { scanFlyover } from '../domain/scans.ts';
 import { resolveScene } from '../domain/scene.ts';
 import { DEFAULT_VIEW, encodeView, viewUrl, type View } from '../domain/view.ts';
 import type { SupportReport } from '../services/capabilities.ts';
@@ -296,10 +296,8 @@ export const appMachine = setup({
           actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.scansChanged', scans: event.scans })),
         },
         'scans.flyRequested': {
-          actions: sendTo('viewer', ({ event }) => ({
-            type: 'viewer.flyoverRequested',
-            flyover: { x: event.scan.x, y: event.scan.y, height: SCAN_HEIGHT, orbit: true },
-          })),
+          actions: sendTo('viewer', ({ event }) =>
+            ({ type: 'viewer.flyoverRequested', flyover: scanFlyover(event.scan) })),
         },
 
         /* ---- partage : on capture d'abord la pose exacte, orbite comprise ---- */

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { flightCellAt, flightDatesUrl, parseFlightDates } from '../src/domain/acquisition.ts';
 import { toLambert, toWgs84 } from '../src/domain/lambert2008.ts';
 import { parsePlaces } from '../src/domain/places.ts';
-import { parseScans } from '../src/domain/scans.ts';
+import { SCAN_HEIGHT, parseScans, scanFlyover } from '../src/domain/scans.ts';
 import { DEFAULT_SCENE, normalizeScene, resolveScene } from '../src/domain/scene.ts';
 import { FLAP_CHAR_MS, FLAP_MAX_TOTAL_MS, planSplitFlap } from '../src/domain/splitFlap.ts';
 import { SERVICE_PATTERN, directTileUrl, edgeTileUrl, parseTilePath } from '../src/domain/tiles.ts';
@@ -160,6 +160,13 @@ describe('manifeste des scans 3D', () => {
     expect(parseScans([scan, { ...scan, x: 'ouest' }, { id: 'vide' }, null])).toEqual([scan]);
     expect(parseScans({ scans: [scan] })).toEqual([]);
     expect(parseScans(null)).toEqual([]);
+  });
+
+  it('ouvre un scan sur son cadrage, ou à l’aplomb de son ancrage', () => {
+    const view = { x: 693700, y: 601300, height: 123, azimuth: 220 };
+    expect(parseScans([{ ...scan, view }, { ...scan, view: { x: 1 } }])).toEqual([{ ...scan, view }]);
+    expect(scanFlyover({ ...scan, view })).toEqual({ ...view, orbit: true });
+    expect(scanFlyover(scan)).toEqual({ x: scan.x, y: scan.y, height: SCAN_HEIGHT, azimuth: undefined, orbit: true });
   });
 });
 
