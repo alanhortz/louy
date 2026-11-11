@@ -37,7 +37,11 @@ export const POSE_LIMITS = {
   tilt: { min: 2, max: 88 },
 } as const;
 
-/** Vue d'accueil : la citadelle de Namur, au confluent de la Sambre et de la Meuse. */
+/**
+ * Vue d'accueil : la citadelle de Namur, au confluent de la Sambre et de la Meuse.
+ * Sa distance est un plafond : à l'ouverture, le moteur s'approche jusqu'à ce que
+ * le relief s'affiche à sa résolution native (voir `SceneEngine.setPose`).
+ */
 export const DEFAULT_VIEW: View = {
   pose: { x: 685070, y: 627918, distance: 1800, azimuth: 0, tilt: 58 },
   scene: DEFAULT_SCENE,
@@ -99,6 +103,10 @@ export function decodeView(fragment: string, fallback: View = DEFAULT_VIEW): Vie
     cameraId: cameraId && /^\d{1,6}$/.test(cameraId) ? cameraId : null,
   };
 }
+
+/** Un fragment d'URL désigne-t-il un point de vue précis ? Sinon, on ouvre sur la vue d'accueil. */
+export const hasPose = (fragment: string): boolean =>
+  new URLSearchParams(fragment.replace(/^#/, '')).has('c');
 
 /** Lien absolu vers une vue. */
 export function viewUrl(view: View, base: string): string {

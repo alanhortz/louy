@@ -43,6 +43,8 @@ export type AppEvent =
 export interface AppInput {
   /** Vue lue dans l'URL au chargement. */
   view: View;
+  /** Aucun point de vue dans l'URL : on ouvre sur la vue d'accueil, à pleine précision. */
+  startsAtHome: boolean;
   buffer: TelemetryBuffer;
 }
 
@@ -108,8 +110,13 @@ export const appMachine = setup({
     isSupported: ({ event }) => (event as unknown as { output: SupportReport }).output.supported,
   },
   actions: {
-    /** L'URL suit la vue : recharger ou copier la barre d'adresse la restitue. */
+    /**
+     * L'URL suit la vue : recharger ou copier la barre d'adresse la restitue.
+     * Tant que la vue d'accueil n'est pas posée, on n'écrit rien : sa pose réelle
+     * (rapprochée pour la pleine précision) n'est connue que du moteur.
+     */
     syncUrl: ({ context }) => {
+      if (context.startsAtHome) return;
       history.replaceState(null, '', `#${encodeView(context.view)}`);
     },
   },
@@ -154,6 +161,7 @@ export const appMachine = setup({
             quality: QUALITY_PROFILES[context.support?.profile ?? 'desktop'](),
             source: resolveScene(context.view.scene),
             pose: context.view.pose,
+            sharpStart: context.startsAtHome,
           }),
         },
         { id: 'scene', src: 'scene', input: ({ context }) => context.view.scene },
@@ -200,7 +208,10 @@ export const appMachine = setup({
         /* ---- la vue s'est posée : tout ce qui dépend du lieu est prévenu ---- */
         'viewer.viewSettled': {
           actions: [
-            assign({ view: ({ context, event }) => ({ ...context.view, pose: event.pose }) }),
+            assign({
+              view: ({ context, event }) => ({ ...context.view, pose: event.pose }),
+              startsAtHome: false,
+            }),
             sendTo('places', ({ event }) => ({ type: 'places.viewChanged', distance: event.pose.distance })),
             sendTo('cameras', ({ event }) => ({ type: 'cameras.viewChanged', x: event.pose.x, y: event.pose.y })),
             sendTo('acquisition', ({ event }) => ({
@@ -291,7 +302,7 @@ export const appMachine = setup({
         },
 
         'app.homeRequested': {
-          actions: sendTo('viewer', { type: 'viewer.poseApplied', pose: DEFAULT_VIEW.pose }),
+          actions: sendTo('viewer', { type: 'viewer.poseApplied', pose: DEFAULT_VIEW.pose, sharpen: true }),
         },
       },
     },

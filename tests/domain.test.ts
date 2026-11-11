@@ -6,7 +6,7 @@ import { DEFAULT_SCENE, normalizeScene, resolveScene } from '../src/domain/scene
 import { FLAP_CHAR_MS, FLAP_MAX_TOTAL_MS, planSplitFlap } from '../src/domain/splitFlap.ts';
 import { SERVICE_PATTERN, directTileUrl, edgeTileUrl, parseTilePath } from '../src/domain/tiles.ts';
 import { MAX_LEVEL, isValidAddress, paddedExtent, tileExtent } from '../src/domain/tiling.ts';
-import { DEFAULT_VIEW, decodeView, encodeView, type View } from '../src/domain/view.ts';
+import { DEFAULT_VIEW, decodeView, encodeView, hasPose, type View } from '../src/domain/view.ts';
 
 describe('projection Lambert 2008', () => {
   it('projette l’origine de la projection sur ses fausses coordonnées', () => {
@@ -177,5 +177,13 @@ describe('affichage à palettes', () => {
 
   it('ne planifie rien quand le texte ne change pas', () => {
     expect(planSplitFlap('RELIEF', 'RELIEF')).toMatchObject({ durationMs: 0 });
+  });
+});
+
+describe('vue d’accueil', () => {
+  it('distingue un lien qui désigne un point de vue d’une simple ouverture du site', () => {
+    expect(hasPose('')).toBe(false);
+    expect(hasPose('#s=2021-2022.mns.ortho.last&o=p')).toBe(false);
+    expect(hasPose('#c=685070,627918,1800,0,58')).toBe(true);
   });
 });

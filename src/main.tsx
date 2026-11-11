@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createActor } from 'xstate';
 import { createTelemetryInspector } from './app/inspector.ts';
-import { decodeView } from './domain/view.ts';
+import { decodeView, hasPose } from './domain/view.ts';
 import { appMachine } from './machines/app.machine.ts';
 import { TelemetryBuffer } from './services/telemetry.ts';
 import './styles/index.css';
@@ -24,7 +24,7 @@ buffer.push({
 
 const app = createActor(appMachine, {
   id: 'app',
-  input: { view: decodeView(location.hash), buffer },
+  input: { view: decodeView(location.hash), startsAtHome: !hasPose(location.hash), buffer },
   inspect: createTelemetryInspector(buffer),
 });
 app.start();

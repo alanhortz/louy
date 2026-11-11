@@ -28,7 +28,7 @@ export type EngineCommand =
   | { type: 'viewer.sceneChanged'; source: SceneSource }
   | { type: 'viewer.overlayChanged'; layer: OverlayName; features: OverlayFeature[] }
   | { type: 'viewer.overlayActivated'; layer: OverlayName; id: string | null }
-  | { type: 'viewer.poseApplied'; pose: Pose }
+  | { type: 'viewer.poseApplied'; pose: Pose; sharpen?: boolean }
   | { type: 'viewer.flyoverRequested'; flyover: Flyover }
   | { type: 'viewer.orbitStopped' }
   | { type: 'viewer.poseCaptureRequested' };
@@ -50,6 +50,7 @@ export interface EngineInput {
   quality: QualityProfile;
   source: SceneSource;
   pose: Pose;
+  sharpStart: boolean;
   overlays: Record<OverlayName, OverlayFeature[]>;
   active: Record<OverlayName, string | null>;
 }
@@ -65,6 +66,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
         quality: input.quality,
         source: input.source,
         pose: input.pose,
+        sharpStart: input.sharpStart,
         tileUrl: TILE_ENDPOINT === 'edge' ? edgeTileUrl(EDGE_PREFIX) : directTileUrl,
         listeners: {
           onReady: () => sendBack({ type: 'engine.ready' }),
@@ -94,7 +96,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
         case 'viewer.sceneChanged': return engine.setSource(command.source);
         case 'viewer.overlayChanged': return engine.setOverlayFeatures(command.layer, command.features);
         case 'viewer.overlayActivated': return engine.setOverlayActive(command.layer, command.id);
-        case 'viewer.poseApplied': return engine.setPose(command.pose);
+        case 'viewer.poseApplied': return engine.setPose(command.pose, { sharpen: command.sharpen });
         case 'viewer.flyoverRequested': return engine.flyOver(command.flyover);
         case 'viewer.orbitStopped': return engine.stopOrbit();
         case 'viewer.poseCaptureRequested':

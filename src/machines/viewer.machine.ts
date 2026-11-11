@@ -39,6 +39,8 @@ export interface ViewerInput {
   quality: QualityProfile;
   source: SceneSource;
   pose: Pose;
+  /** Ouvrir la vue de départ à la précision maximale du relief. */
+  sharpStart: boolean;
 }
 
 /** Ce que chaque commande laisse en mémoire, pour un moteur démarré plus tard. */
@@ -115,7 +117,8 @@ export const viewerMachine = viewer.createMachine({
         },
         'engine.viewSettled': {
           actions: [
-            assign({ pose: ({ event }) => event.pose }),
+            // la vue de départ est posée : un moteur redémarré reprendra cette pose telle quelle
+            assign({ pose: ({ event }) => event.pose, sharpStart: false }),
             sendParent(({ event }): ViewerEmitted => ({ type: 'viewer.viewSettled', pose: event.pose })),
           ],
         },

@@ -74,6 +74,8 @@ export interface EngineOptions {
   tileUrl: TileUrlBuilder;
   source: SceneSource;
   pose: Pose;
+  /** Ouvrir à la précision maximale : la pose de départ est rapprochée si nécessaire. */
+  sharpStart: boolean;
   listeners: EngineListeners;
 }
 
@@ -172,8 +174,8 @@ export class SceneEngine {
     this.#resizeObserver = new ResizeObserver(() => this.#resize());
     this.#resizeObserver.observe(this.#canvas);
 
-    this.setPose(options.pose);
     this.#resize();
+    this.setPose(options.pose, { sharpen: options.sharpStart });
     this.#loop();
   }
 
@@ -187,9 +189,14 @@ export class SceneEngine {
     this.#wake();
   }
 
-  setPose(pose: Pose): void {
+  /**
+   * Place la caméra. Avec `sharpen`, la distance est ramenée au besoin à celle
+   * où le lieu visé s'affiche à la résolution native du relief.
+   */
+  setPose(pose: Pose, { sharpen = false } = {}): void {
+    const distance = sharpen ? Math.min(pose.distance, this.#nativeDistance()) : pose.distance;
     this.#controls.autoRotate = 0;
-    this.#controls.goTo(pose.x - T.ORIGIN.x, -(pose.y - T.ORIGIN.y), pose.distance, {
+    this.#controls.goTo(pose.x - T.ORIGIN.x, -(pose.y - T.ORIGIN.y), distance, {
       azimuth: -pose.azimuth * DEG,
       polar: pose.tilt * DEG,
     });
@@ -257,6 +264,19 @@ export class SceneEngine {
   }
 
   /* -------------------------------------------------------------- interne -- */
+
+  /**
+   * Distance de visée sous laquelle le quadtree descend à son dernier niveau au
+   * point visé : le relief y est alors dessiné à sa résolution native (50 cm
+   * pour le LiDAR 2021-2022). Plus loin, afficher cette précision demanderait
+   * des dizaines de millions de points pour un détail plus fin qu'un pixel.
+   */
+  #nativeDistance(): number {
+    const pixelsPerMeter = (this.#size.height * 0.5) / Math.tan((this.#camera.fov * DEG) / 2);
+    const coarserSpacing = T.tileSpacing(this.#source.maxLevel - 1);
+    // marge de 10 % : le niveau le plus fin est atteint franchement, pas à la limite
+    return (coarserSpacing * pixelsPerMeter / this.#quality.screenSpaceError) * 0.9;
+  }
 
   /** Force quelques images : quelque chose a changé hors de la navigation. */
   #wake(): void {
