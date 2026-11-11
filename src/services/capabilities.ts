@@ -35,6 +35,8 @@ export interface SupportReport {
   compact: boolean;
   /** Le pointeur principal est un doigt : les gestes expliqués sont tactiles. */
   touch: boolean;
+  /** Le visiteur a demandé à son système de limiter les animations. */
+  reducedMotion: boolean;
 }
 
 function hasWebGL2(): boolean {
@@ -135,5 +137,6 @@ export async function probeCapabilities(): Promise<SupportReport> {
     profile: isHandheld() ? 'mobile' : 'desktop',
     compact: matchMedia(COMPACT_LAYOUT).matches,
     touch: matchMedia('(pointer: coarse)').matches,
+    reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
   };
 }

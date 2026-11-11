@@ -41,6 +41,8 @@ export interface ViewerInput {
   pose: Pose;
   /** Ouvrir la vue de départ à la précision maximale du relief. */
   sharpStart: boolean;
+  /** Ouvrir par un tour complet autour du lieu visé. */
+  orbitStart: boolean;
 }
 
 /** Ce que chaque commande laisse en mémoire, pour un moteur démarré plus tard. */
@@ -118,7 +120,7 @@ export const viewerMachine = viewer.createMachine({
         'engine.viewSettled': {
           actions: [
             // la vue de départ est posée : un moteur redémarré reprendra cette pose telle quelle
-            assign({ pose: ({ event }) => event.pose, sharpStart: false }),
+            assign({ pose: ({ event }) => event.pose, sharpStart: false, orbitStart: false }),
             sendParent(({ event }): ViewerEmitted => ({ type: 'viewer.viewSettled', pose: event.pose })),
           ],
         },
@@ -145,7 +147,12 @@ export const viewerMachine = viewer.createMachine({
         /** Le moteur tourne, les premières tuiles ne sont pas encore arrivées. */
         starting: {
           on: {
-            'engine.ready': 'live',
+            'engine.ready': [
+              { guard: ({ context }) => context.orbitStart, target: 'live.orbiting' },
+              { target: 'live' },
+            ],
+            // le visiteur a pris la main avant même l'arrivée des premières tuiles
+            'engine.orbitEnded': { actions: assign({ orbitStart: false }) },
             'viewer.flyoverRequested': { target: 'live.orbiting', actions: 'command' },
           },
         },

@@ -15,6 +15,7 @@ const OPTIMISTIC_REPORT: SupportReport = {
   profile: 'desktop',
   compact: false,
   touch: false,
+  reducedMotion: false,
 };
 
 export const compatibilityMachine = setup({

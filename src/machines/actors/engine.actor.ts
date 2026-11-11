@@ -51,6 +51,7 @@ export interface EngineInput {
   source: SceneSource;
   pose: Pose;
   sharpStart: boolean;
+  orbitStart: boolean;
   overlays: Record<OverlayName, OverlayFeature[]>;
   active: Record<OverlayName, string | null>;
 }
@@ -67,6 +68,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
         source: input.source,
         pose: input.pose,
         sharpStart: input.sharpStart,
+        orbitStart: input.orbitStart,
         tileUrl: TILE_ENDPOINT === 'edge' ? edgeTileUrl(EDGE_PREFIX) : directTileUrl,
         listeners: {
           onReady: () => sendBack({ type: 'engine.ready' }),

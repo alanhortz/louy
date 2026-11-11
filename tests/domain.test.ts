@@ -112,6 +112,10 @@ describe('vue partageable', () => {
     expect(decodeView(encodeView(view))).toEqual(view);
   });
 
+  it('ramène à 0 un cap qui s’arrondit à 360°', () => {
+    expect(encodeView({ ...view, pose: { ...view.pose, azimuth: 359.7 } })).toContain(',426,0,58');
+  });
+
   it('produit un lien lisible', () => {
     expect(encodeView(view)).toBe('c=688879,605554,426,137,58&s=2013-2014.mnt.infrared.2019&o=c&cam=519');
   });

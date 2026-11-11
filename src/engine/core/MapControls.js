@@ -39,6 +39,10 @@ export class MapControls {
     this.groundProbe = null;
     /** Orbite automatique autour de la cible, en radians par seconde (0 = arret). */
     this.autoRotate = 0;
+    /** Angle restant a parcourir en orbite, en radians ; Infinity = sans fin. */
+    this.autoRotateBudget = Infinity;
+    /** Appele quand l'orbite a parcouru tout son angle. */
+    this.onAutoRotateEnd = () => {};
     /** Appele a chaque geste de l'utilisateur (pointeur, molette, clavier). */
     this.onUserInput = () => {};
 
@@ -198,7 +202,17 @@ export class MapControls {
     }
 
     const orbiting = this.autoRotate !== 0 && dt > 0;
-    if (orbiting) this.azimuth += this.autoRotate * dt;
+    if (orbiting) {
+      // le dernier pas est raccourci : l'orbite s'arrete exactement sur son angle
+      const step = Math.sign(this.autoRotate)
+        * Math.min(Math.abs(this.autoRotate * dt), this.autoRotateBudget);
+      this.azimuth += step;
+      this.autoRotateBudget -= Math.abs(step);
+      if (this.autoRotateBudget <= 0) {
+        this.autoRotate = 0;
+        this.onAutoRotateEnd();
+      }
+    }
 
     const a = 1 - Math.pow(1 - this.damping, Math.max(1, dt * 60));
     const moved = orbiting

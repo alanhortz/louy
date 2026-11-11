@@ -69,7 +69,9 @@ function normalizePose(values: number[], fallback: Pose): Pose {
 export function encodeView(view: View): string {
   const { pose, scene, overlays, cameraId } = view;
   const params = new URLSearchParams();
-  params.set('c', [pose.x, pose.y, pose.distance, pose.azimuth, pose.tilt].map(Math.round).join(','));
+  // un cap de 359,6° s'arrondit à 360 : on le ramène à 0
+  const azimuth = Math.round(pose.azimuth) % 360;
+  params.set('c', [pose.x, pose.y, pose.distance, azimuth, pose.tilt].map(Math.round).join(','));
   params.set('s', [scene.campaign, scene.surface, scene.tint, scene.vintage].join('.'));
   const visible = (Object.keys(OVERLAY_CODES) as OverlayId[])
     .filter((id) => overlays[id])

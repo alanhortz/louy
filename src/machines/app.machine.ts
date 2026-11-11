@@ -162,6 +162,8 @@ export const appMachine = setup({
             source: resolveScene(context.view.scene),
             pose: context.view.pose,
             sharpStart: context.startsAtHome,
+            // la vue d'accueil s'ouvre par un tour de la citadelle, sauf si le visiteur évite les animations
+            orbitStart: context.startsAtHome && !context.support?.reducedMotion,
           }),
         },
         { id: 'scene', src: 'scene', input: ({ context }) => context.view.scene },

@@ -76,6 +76,8 @@ export interface EngineOptions {
   pose: Pose;
   /** Ouvrir à la précision maximale : la pose de départ est rapprochée si nécessaire. */
   sharpStart: boolean;
+  /** Ouvrir par un tour complet autour du lieu visé. */
+  orbitStart: boolean;
   listeners: EngineListeners;
 }
 
@@ -146,6 +148,7 @@ export class SceneEngine {
     this.#controls.maxDistance = POSE_LIMITS.distance.max;
     this.#controls.groundProbe = (x: number, z: number) => this.#groundAt(x, z);
     this.#controls.onUserInput = () => this.#endOrbit();
+    this.#controls.onAutoRotateEnd = () => this.#listeners.onOrbitEnded();
 
     this.#edl = new EyeDomeLighting(this.#renderer);
     this.#edl.strength = EDL_STRENGTH;
@@ -176,6 +179,7 @@ export class SceneEngine {
 
     this.#resize();
     this.setPose(options.pose, { sharpen: options.sharpStart });
+    if (options.orbitStart) this.#orbit(1);
     this.#loop();
   }
 
@@ -222,7 +226,7 @@ export class SceneEngine {
       azimuth: this.getPose().azimuth,
       tilt: FLYOVER_TILT,
     });
-    this.#controls.autoRotate = orbit ? ORBIT_SPEED : 0;
+    if (orbit) this.#orbit(Infinity);
     // la destination est connue : on l'annonce sans attendre la fin de l'orbite
     this.#unsettled = false;
     this.#listeners.onViewSettled(this.getPose());
@@ -276,6 +280,12 @@ export class SceneEngine {
     const coarserSpacing = T.tileSpacing(this.#source.maxLevel - 1);
     // marge de 10 % : le niveau le plus fin est atteint franchement, pas à la limite
     return (coarserSpacing * pixelsPerMeter / this.#quality.screenSpaceError) * 0.9;
+  }
+
+  /** Met la caméra en orbite autour du point visé, pour `turns` tours. */
+  #orbit(turns: number): void {
+    this.#controls.autoRotateBudget = turns * 2 * Math.PI;
+    this.#controls.autoRotate = ORBIT_SPEED;
   }
 
   /** Force quelques images : quelque chose a changé hors de la navigation. */
