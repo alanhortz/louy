@@ -166,7 +166,9 @@ export async function summarize(): Promise<TelemetrySummary> {
 
 /**
  * Exporte tout l'historique en un seul fichier `.ndjson.gz` : des membres gzip
- * concaténés forment un flux gzip valide, aucun recompactage n'est nécessaire.
+ * concaténés forment un fichier gzip valide, que `gunzip` lit d'une traite —
+ * aucun recompactage n'est nécessaire. (Pour le relire dans le navigateur, voir
+ * `readAll` : `DecompressionStream` ne décode qu'un membre à la fois.)
  */
 export async function exportArchive(): Promise<Blob> {
   const batches = await readBatches();

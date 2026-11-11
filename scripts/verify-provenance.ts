@@ -15,7 +15,8 @@ import { join } from 'node:path';
 import { decodeInvisible, decodeWords, sign, type DecodedProvenance } from '../build/entropy/codec.ts';
 
 const target = process.argv[2] ?? 'dist';
-const secret = process.env.PROVENANCE_SECRET;
+// une variable vide (secret GitHub non défini) vaut absence de clef
+const secret = process.env.PROVENANCE_SECRET || undefined;
 
 /** Renvoie le HTML d'entrée et tous les scripts d'une construction locale ou d'un site. */
 async function collect(): Promise<{ html: string; scripts: string[] }> {

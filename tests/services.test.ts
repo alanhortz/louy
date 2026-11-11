@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto';
+import { gunzipSync } from 'node:zlib';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { identifyBrowser } from '../src/services/capabilities.ts';
 import { nearestCamera, type RoadCamera } from '../src/services/cameras.ts';
@@ -111,9 +112,11 @@ describe('télémétrie locale', () => {
     buffer.push({ k: 'state', a: 'viewer', n: 'detached' });
     await persist(buffer.drain());
 
-    const archive = await exportArchive();
-    const stream = archive.stream().pipeThrough(new DecompressionStream('gzip'));
-    const lines = (await new Response(stream).text()).trim().split('\n');
+    // L'archive concatène un membre gzip par lot. On la relit comme le fera son
+    // destinataire, avec gunzip : `DecompressionStream`, lui, refuse par
+    // spécification tout ce qui suit le premier membre.
+    const archive = Buffer.from(await (await exportArchive()).arrayBuffer());
+    const lines = gunzipSync(archive).toString('utf8').trim().split('\n');
     expect(lines.map((line) => JSON.parse(line).a)).toEqual(['app', 'viewer']);
   });
 
