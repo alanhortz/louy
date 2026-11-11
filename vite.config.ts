@@ -8,6 +8,9 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: false,
+    // Aucun fichier incorporé en `data:` : la politique de sécurité du site
+    // (`font-src 'self'`) refuserait une police ainsi incorporée.
+    assetsInlineLimit: 0,
     rolldownOptions: {
       output: {
         // Les bibliothèques changent rarement : isolées, elles restent en cache

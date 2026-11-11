@@ -19,6 +19,11 @@
 .overlay > * { position: absolute; left: 0; top: 0; will-change: transform; }
 
 /* ---- noms de lieux ---- */
+/* estompés sous le bandeau du haut : ils ne se mêlent pas à la marque ni aux actions */
+.overlay-places {
+  -webkit-mask-image: linear-gradient(180deg, transparent 96px, #000 168px);
+  mask-image: linear-gradient(180deg, transparent 96px, #000 168px);
+}
 .place-label {
   position: absolute;
   transform: translate(-50%, -50%);
