@@ -208,7 +208,8 @@ button.chip { pointer-events: auto; cursor: pointer; }
 @media (max-width: 720px) {
   .brand { top: calc(16px + var(--safe-top)); gap: 3px; }
   .brand-name { font-size: 16px; letter-spacing: 5px; }
-  .brand-tagline { font-size: 7px; letter-spacing: 1.4px; max-width: 46vw; }
+  /* sur une seule ligne : la marque garde une hauteur fixe, les onglets se placent dessous */
+  .brand-tagline { font-size: 7px; letter-spacing: 1px; white-space: nowrap; }
   .brand-sponsor { font-size: 7px; letter-spacing: 0.8px; }
   .top-actions { top: calc(16px + var(--safe-top)); left: auto; right: calc(var(--edge) + var(--safe-right)); transform: none; }
   .top-actions button { width: 40px; height: 40px; }

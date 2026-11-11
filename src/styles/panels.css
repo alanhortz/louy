@@ -175,9 +175,22 @@
   }
   .stack { display: contents; }
   .panel { flex: 0 0 100%; order: 2; }
-  .panel.collapsed { flex: 1 1 0; width: auto; min-width: 0; order: 1; }
-  .panel.collapsed .panel-inner { padding: 10px 10px 8px 12px; }
-  .panel.collapsed .panel-header { gap: 6px; padding: 0; }
+  /* Un onglet replié n'est plus que son titre : sa largeur suit le texte, et le
+     bouton, invisible, recouvre tout l'onglet — quatre onglets tiennent sur 360 px. */
+  .panel.collapsed { flex: 1 1 auto; width: auto; min-width: 0; order: 1; }
+  .panel.collapsed .panel-inner { padding: 11px 6px; }
+  .panel.collapsed .panel-header { justify-content: center; gap: 0; margin: 0; padding: 0; }
+  .panel.collapsed .panel-title { letter-spacing: 1.4px; }
+  .panel.collapsed .panel-divider { display: none; }
+  .panel.collapsed .panel-collapse-btn {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    height: auto;
+    border-radius: var(--panel-radius);
+    opacity: 0;
+  }
+  .panel.collapsed .panel-collapse-btn:focus-visible { opacity: 1; background: none; color: transparent; }
   .panel-body { overflow-y: visible; }
   .scene-btn { padding: 10px 9px; }
 }
