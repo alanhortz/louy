@@ -54,7 +54,7 @@ export class PointMaterialCache {
       uHeightScale: { value: 1.0 },
       // plafond large : vue de pres, une tuile grossiere en attente de ses filles reste
       // une surface pleine plutot qu'un semis de points sur fond noir
-      uSizeClamp: { value: new Vector2(1.0, 40.0) },
+      uSizeClamp: { value: new Vector2(1.0, 22.0) },
       uViewport: { value: 800 },
       uRound: { value: 0 },
     };
