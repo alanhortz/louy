@@ -1,5 +1,6 @@
 import { useSelector } from '@xstate/react';
 import { PROJECT } from '../../config/project.ts';
+import sponsorMark from '../assets/sorcery-systems.svg';
 import { RETENTION_MS } from '../../services/telemetry.ts';
 import { useChild } from '../actors.ts';
 import { bytes, date } from '../format.ts';
@@ -68,6 +69,7 @@ export function AboutPanel() {
 
       <div className="about-heading">Crédits</div>
       <p>
+        <img className="about-sponsor-mark" src={sponsorMark} alt="" width="11" height="12" />
         Projet sponsorisé par <a href={PROJECT.sponsor.url} target="_blank" rel="noopener">{PROJECT.sponsor.name}</a>.{' '}
         Interface inspirée de <a href="https://github.com/bilawalsidhu/gods-eye-view" target="_blank" rel="noreferrer">God’s Eye View</a> de
         Bilawal Sidhu (MIT). © {PROJECT.author}, logiciel libre sous licence AGPL-3.0 — code source

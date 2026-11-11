@@ -159,20 +159,20 @@
 @media (max-width: 720px) {
   .stacks {
     position: fixed;
-    top: calc(92px + var(--safe-top));
+    top: calc(62px + var(--safe-top));
     left: calc(var(--edge) + var(--safe-left));
     right: calc(var(--edge) + var(--safe-right));
     z-index: 100;
-    max-height: calc(100dvh - 160px - var(--safe-top) - var(--safe-bottom));
     display: flex;
     flex-wrap: wrap;
     align-content: flex-start;
     gap: 8px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
     pointer-events: none;
-    scrollbar-width: none;
   }
+  /* Le panneau déplié défile lui-même : sur iOS, un conteneur sans événements de
+     pointeur (la colonne) ne se laisse pas faire défiler au doigt. */
+  .panel:not(.collapsed) { max-height: calc(100dvh - 200px - var(--safe-top) - var(--safe-bottom)); }
+  .panel-body { -webkit-overflow-scrolling: touch; touch-action: pan-y; }
   .stack { display: contents; }
   .panel { flex: 0 0 100%; order: 2; }
   /* Un onglet replié n'est plus que son titre : sa largeur suit le texte, et le
@@ -191,6 +191,5 @@
     opacity: 0;
   }
   .panel.collapsed .panel-collapse-btn:focus-visible { opacity: 1; background: none; color: transparent; }
-  .panel-body { overflow-y: visible; }
   .scene-btn { padding: 10px 9px; }
 }
