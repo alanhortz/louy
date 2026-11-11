@@ -69,7 +69,10 @@ export class MapControls {
     d.addEventListener('pointermove', (e) => this.#move(e), { signal });
     d.addEventListener('pointerup', (e) => this.#up(e), { signal });
     d.addEventListener('pointercancel', (e) => this.#up(e), { signal });
-    d.addEventListener('wheel', (e) => this.#wheel(e), { passive: false, signal });
+    // La molette est ecoutee sur le conteneur du canvas : les entites posees sur la
+    // carte (marqueurs, etiquettes) sont ses voisines, et zoomer au-dessus d'un
+    // marqueur doit zoomer la carte.
+    (d.parentElement ?? d).addEventListener('wheel', (e) => this.#wheel(e), { passive: false, signal });
     window.addEventListener('keydown', (e) => {
       if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
       this._keys.add(e.key);
