@@ -1,0 +1,22 @@
+# En-têtes des fichiers statiques (Cloudflare Workers Static Assets).
+
+# Fichiers au nom haché par la construction : immuables.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Données récoltées : stables, rafraîchies à chaque déploiement.
+/data/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/favicon.svg
+  Cache-Control: public, max-age=604800
+
+# La page elle-même est toujours revalidée : un déploiement est visible aussitôt.
+/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://trafiroutes.wallonie.be; connect-src 'self' https://geoservices.wallonie.be https://overpass-api.de https://overpass.private.coffee https://overpass.kumi.systems; worker-src 'self' blob:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'

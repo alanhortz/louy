@@ -1,0 +1,109 @@
+/* Panneau des caméras routières — GEV `#cctv-panel`. */
+
+.cctv-frame-wrap {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(0, 244, 255, 0.09), transparent 44%),
+    linear-gradient(180deg, rgba(8, 14, 19, 0.88), rgba(4, 7, 11, 0.96));
+  min-height: 150px;
+  flex-shrink: 0;
+}
+.cctv-frame-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 24%,
+    rgba(0, 212, 255, 0.08) 44%,
+    rgba(170, 244, 255, 0.14) 50%,
+    rgba(0, 212, 255, 0.08) 56%,
+    transparent 76%
+  );
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.cctv-frame-wrap.loading::after { opacity: 1; animation: cctv-frame-shimmer 1.4s linear infinite; }
+.cctv-frame-wrap.loading:not(.has-frame)::before {
+  content: 'ACQUISITION DE L’IMAGE';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 2.2px;
+  color: rgba(145, 237, 255, 0.62);
+  pointer-events: none;
+}
+@keyframes cctv-frame-shimmer { to { transform: translateX(100%); } }
+
+.cctv-frame {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+.cctv-frame.active { opacity: 1; }
+
+.cctv-source-badge {
+  align-self: flex-start;
+  border: 1px solid rgba(0, 212, 255, 0.32);
+  border-radius: 999px;
+  background: rgba(0, 212, 255, 0.09);
+  color: #9defff;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 1.3px;
+  padding: 4px 8px;
+}
+.cctv-source-badge[data-frame-state='loading'] {
+  color: #ffe59b;
+  border-color: rgba(255, 205, 92, 0.45);
+  background: rgba(255, 205, 92, 0.1);
+}
+.cctv-source-badge[data-frame-state='error'] {
+  color: #ffb0b0;
+  border-color: rgba(255, 102, 102, 0.5);
+  background: rgba(255, 72, 72, 0.11);
+}
+
+.cctv-meta {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+}
+
+.cctv-controls { display: flex; gap: 8px; }
+.cctv-controls .glass-select { flex: 1; padding: 6px 8px; }
+
+.cctv-summary-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 1.7px;
+  color: var(--text-dim);
+}
+.cctv-summary {
+  min-height: 38px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  line-height: 1.45;
+  color: #a8f7ff;
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.18);
+}
+
+@media (max-width: 720px) {
+  .cctv-frame { height: 120px; }
+  .cctv-frame-wrap { min-height: 120px; }
+}

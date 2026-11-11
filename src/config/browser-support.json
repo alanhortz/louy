@@ -1,0 +1,59 @@
+{
+  "_": "Table de compatibilité, lue à la fois par l'application et par le garde-fou ES5 injecté dans index.html. L'ordre de `minimum` compte : les navigateurs se font passer les uns pour les autres.",
+  "minimum": [
+    {
+      "id": "ios",
+      "name": "Safari sur iPhone et iPad",
+      "version": "16.4",
+      "hint": "Mettez iOS ou iPadOS à jour en version 16.4 ou ultérieure (Réglages › Général › Mise à jour logicielle). Sur iPhone, tous les navigateurs partagent le moteur de Safari.",
+      "pattern": "(?:iPhone|iPad|iPod).*?OS (\\d+[_.]\\d+)"
+    },
+    {
+      "id": "samsung",
+      "name": "Samsung Internet",
+      "version": "21",
+      "hint": "Mettez Samsung Internet à jour depuis le Galaxy Store ou le Play Store.",
+      "pattern": "SamsungBrowser\\/(\\d+(?:\\.\\d+)?)"
+    },
+    {
+      "id": "edge",
+      "name": "Edge",
+      "version": "108",
+      "hint": "Mettez Edge à jour via le menu … › Aide et commentaires › À propos de Microsoft Edge.",
+      "pattern": "Edg(?:e|A|iOS)?\\/(\\d+)"
+    },
+    {
+      "id": "firefox",
+      "name": "Firefox",
+      "version": "121",
+      "hint": "Mettez Firefox à jour depuis votre magasin d'applications, ou via le menu ☰ › Aide › À propos de Firefox.",
+      "pattern": "(?:Firefox|FxiOS)\\/(\\d+)"
+    },
+    {
+      "id": "chrome",
+      "name": "Chrome",
+      "version": "108",
+      "hint": "Mettez Chrome à jour depuis le Play Store ou via le menu ⋮ › Aide › À propos de Google Chrome.",
+      "pattern": "(?:Chrome|CriOS)\\/(\\d+)"
+    },
+    {
+      "id": "safari",
+      "name": "Safari sur Mac",
+      "version": "16.4",
+      "hint": "Mettez macOS à jour (Safari 16.4 ou ultérieur), ou utilisez une version récente de Chrome ou de Firefox.",
+      "pattern": "Version\\/(\\d+(?:\\.\\d+)?).*Safari"
+    }
+  ],
+  "features": {
+    "modules": "les modules JavaScript",
+    "webgl2": "WebGL 2 (rendu 3D)",
+    "workers": "les Web Workers en modules",
+    "offscreenCanvas": "OffscreenCanvas (décodage des tuiles hors du fil principal)",
+    "imageBitmap": "createImageBitmap",
+    "compression": "Compression Streams",
+    "indexedDb": "IndexedDB",
+    "pointerEvents": "les Pointer Events"
+  },
+  "title": "Votre navigateur est trop ancien pour ce viewer",
+  "intro": "L’Oûy affiche un nuage de plusieurs millions de points en 3D, directement dans le navigateur. Il lui faut un navigateur récent."
+}

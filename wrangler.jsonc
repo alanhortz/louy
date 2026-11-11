@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "louy",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // seules les routes du relais passent par le Worker : le site statique est servi sans l'invoquer
+    "run_worker_first": ["/edge/*"]
+  },
+  "observability": { "enabled": true }
+  // Une fois le domaine ajouté à Cloudflare, décommentez :
+  // "routes": [{ "pattern": "louy.be", "custom_domain": true }]
+}

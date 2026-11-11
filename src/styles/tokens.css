@@ -1,0 +1,87 @@
+/*
+ * Langage visuel repris de God's Eye View (https://github.com/bilawalsidhu/gods-eye-view)
+ * — Copyright (c) 2026 Bilawal Sidhu, licence MIT (voir NOTICE.md).
+ * Les jetons ci-dessous et les règles marquées « GEV » en sont issus.
+ *
+ * Seul écart voulu : le verre est plus opaque et les textes secondaires plus
+ * clairs, car ils se lisent ici sur une orthophoto claire et non sur un globe
+ * nocturne.
+ */
+
+:root {
+  --bg-dark: #0a0a0f;
+  --glass-bg: rgba(12, 12, 20, 0.84);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-hover: rgba(255, 255, 255, 0.15);
+  --accent: #00d4ff;
+  --accent-dim: rgba(0, 212, 255, 0.15);
+  --accent-glow: rgba(0, 212, 255, 0.4);
+  --text-primary: #e8eaed;
+  --text-secondary: rgba(232, 234, 237, 0.66);
+  --text-dim: rgba(232, 234, 237, 0.48);
+  --font-mono: 'JetBrains Mono Variable', 'SF Mono', 'Fira Code', monospace;
+  --font-sans: 'Inter Variable', -apple-system, BlinkMacSystemFont, sans-serif;
+  --panel-radius: 16px;
+  --btn-radius: 10px;
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  --edge: 52px;
+  --stack-top: max(26vh, 172px);
+  --collapsed-width: 176px;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+@media (max-width: 720px) {
+  :root { --edge: 16px; }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-dark);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+button, select, input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 1px solid color-mix(in srgb, var(--accent) 80%, transparent);
+  outline-offset: 2px;
+}
+
+[hidden] { display: none !important; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

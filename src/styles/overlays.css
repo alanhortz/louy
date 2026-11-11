@@ -1,0 +1,98 @@
+/* Entités posées sur la carte : noms de lieux et caméras. */
+
+.stage { position: fixed; inset: 0; }
+/* voiles haut et bas : la marque et la ligne de statut restent lisibles sur l'imagerie */
+.stage::before, .stage::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 150px;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(10, 10, 15, 0.78), transparent);
+  pointer-events: none;
+}
+.stage::after { inset: auto 0 0 0; height: 90px; background: linear-gradient(0deg, rgba(10, 10, 15, 0.7), transparent); }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+
+.overlay-root { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.overlay { position: absolute; inset: 0; }
+.overlay > * { position: absolute; left: 0; top: 0; will-change: transform; }
+
+/* ---- noms de lieux ---- */
+.place-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgba(232, 240, 244, 0.86);
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.85), 0 1px 1px rgba(0, 0, 0, 0.9);
+}
+.place-label[data-kind='town'] { font-size: 11px; color: rgba(232, 240, 244, 0.94); }
+.place-label[data-kind='city'] {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 2.2px;
+  color: #dff9ff;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.85), 0 0 16px rgba(0, 212, 255, 0.35);
+}
+
+/* ---- caméras : icône 24 px, active ×1,25 ; vignette 104×77 sous filet cyan — GEV ---- */
+.camera-marker {
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.camera-marker-icon { opacity: 0.88; transition: transform var(--transition-fast); }
+.camera-marker.active { z-index: 2; }
+.camera-marker.active .camera-marker-icon { opacity: 0.95; transform: scale(1.25); }
+.camera-marker:hover .camera-marker-icon { transform: scale(1.15); }
+
+.camera-card {
+  position: absolute;
+  left: 50%;
+  bottom: calc(50% + 22px);
+  width: 104px;
+  height: 77px;
+  margin-left: -52px;
+  border-radius: 4px;
+  background: rgba(4, 12, 16, 0.82);
+  overflow: hidden;
+  pointer-events: none;
+}
+.camera-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(107, 232, 255, 0.95);
+}
+.camera-card img { position: absolute; left: 4px; top: 4px; width: 96px; height: 54px; object-fit: cover; }
+.camera-card span {
+  position: absolute;
+  left: 4px;
+  top: 61px;
+  font: 600 10px/13px var(--font-mono);
+  color: rgba(210, 236, 244, 0.95);
+  white-space: nowrap;
+}
+/* filet de rappel entre la vignette et l'icône */
+.camera-marker:has(.camera-card:not([hidden]))::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: calc(50% + 10px);
+  width: 1px;
+  height: 12px;
+  background: rgba(107, 232, 255, 0.6);
+}

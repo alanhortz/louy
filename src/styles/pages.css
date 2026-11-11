@@ -1,0 +1,63 @@
+/* À propos, écran d'attente et avis de navigateur incompatible. */
+
+.about p, .about li {
+  font-size: 12px;
+  line-height: 1.55;
+  color: rgba(232, 234, 237, 0.72);
+}
+.about a { color: var(--accent); text-decoration: none; }
+.about a:hover { text-decoration: underline; }
+.about ul { padding-left: 16px; }
+.about-heading {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 1.7px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.about-figures {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  line-height: 1.5;
+  color: #a8f7ff;
+}
+
+.splash, .notice {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow-y: auto;
+}
+.splash-text {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse { 50% { opacity: 0.35; } }
+
+.notice-card { --panel-width: min(560px, 100%); animation: none; }
+.notice-card .panel-inner { padding: 24px; gap: 14px; }
+.notice h1 { font-size: 20px; font-weight: 600; line-height: 1.3; letter-spacing: 0.2px; }
+.notice p, .notice li { font-size: 14px; line-height: 1.6; color: rgba(232, 234, 237, 0.78); }
+.notice ul { padding-left: 18px; }
+.notice-required {
+  padding: 12px 14px;
+  border: 1px solid rgba(0, 212, 255, 0.32);
+  border-radius: 10px;
+  background: rgba(0, 212, 255, 0.07);
+}
+.notice-required strong { color: var(--accent); }
+.notice-detected {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}

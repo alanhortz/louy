@@ -1,0 +1,84 @@
+/* Lignes de calque et pastille d'état textuelle — GEV `.data-toggle-*`. */
+
+.data-toggle-list { display: flex; flex-direction: column; gap: 2px; }
+
+.data-toggle-row {
+  padding: 8px 10px 6px;
+  border-radius: 8px;
+  transition: background var(--transition-fast);
+}
+.data-toggle-row:hover { background: rgba(255, 255, 255, 0.03); }
+
+.data-toggle-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.data-toggle-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.data-toggle-right { display: flex; align-items: center; gap: 10px; }
+
+.data-icon { font-size: 16px; line-height: 1; }
+.data-name {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.data-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  min-width: 30px;
+  text-align: right;
+}
+
+.data-toggle-btn {
+  padding: 3px 10px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  outline: none;
+  min-width: 38px;
+  text-align: center;
+}
+.data-toggle-btn:is(.feed-loading, .feed-degraded, .feed-unavailable) { min-width: 82px; letter-spacing: 0.8px; }
+.data-toggle-btn:hover { border-color: var(--glass-border-hover); background: rgba(255, 255, 255, 0.06); }
+.data-toggle-btn:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+.data-toggle-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.15);
+}
+.data-toggle-btn.active.feed-degraded {
+  color: #ffad72;
+  border-color: rgba(255, 137, 72, 0.78);
+  background: rgba(255, 112, 48, 0.1);
+  box-shadow: 0 0 10px rgba(255, 112, 48, 0.12);
+}
+.data-toggle-btn.active.feed-unavailable {
+  color: #ff8585;
+  border-color: rgba(255, 92, 92, 0.78);
+  background: rgba(255, 60, 60, 0.1);
+  box-shadow: 0 0 10px rgba(255, 60, 60, 0.12);
+}
+
+.data-toggle-meta {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  padding-left: 26px;
+  margin-top: 2px;
+}
+
+@media (max-width: 720px) {
+  .data-toggle-btn { padding: 8px 12px; }
+}

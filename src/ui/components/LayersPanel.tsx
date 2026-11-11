@@ -1,0 +1,105 @@
+import { useSelector } from '@xstate/react';
+import { camerasFeed } from '../../machines/cameras.machine.ts';
+import { placesStatus, type LayerFeed } from '../../machines/places.machine.ts';
+import { CAMERA_SOURCE } from '../../services/cameras.ts';
+import { useChild } from '../actors.ts';
+import { ago, count } from '../format.ts';
+import { Panel } from './Panel.tsx';
+
+const FEED_LABEL: Record<LayerFeed, string> = {
+  off: 'OFF',
+  nominal: 'ON',
+  loading: 'CHARGEMENT',
+  degraded: 'PARTIEL',
+  unavailable: 'INDISPONIBLE',
+};
+
+interface LayerRowProps {
+  icon: string;
+  name: string;
+  count: number;
+  feed: LayerFeed;
+  meta: string;
+  onToggle: () => void;
+}
+
+/** Une ligne de calque : la pastille dit l'état en toutes lettres, sans icône ni curseur. */
+function LayerRow({ icon, name, count: total, feed, meta, onToggle }: LayerRowProps) {
+  const active = feed !== 'off';
+  return (
+    <div className="data-toggle-row">
+      <div className="data-toggle-top">
+        <div className="data-toggle-left">
+          <span className="data-icon" aria-hidden="true">{icon}</span>
+          <span className="data-name">{name}</span>
+        </div>
+        <div className="data-toggle-right">
+          <span className="data-count">{count(active ? total : 0)}</span>
+          <button
+            type="button"
+            className={`data-toggle-btn ${active ? `active feed-${feed}` : ''}`}
+            aria-pressed={active}
+            aria-label={`${name} : ${FEED_LABEL[feed]}`}
+            onClick={onToggle}
+          >
+            {FEED_LABEL[feed]}
+          </button>
+        </div>
+      </div>
+      <div className="data-toggle-meta">{meta}</div>
+    </div>
+  );
+}
+
+function PlacesRow() {
+  const places = useChild('places');
+  const status = useSelector(places, placesStatus, (a, b) =>
+    a.feed === b.feed && a.count === b.count && a.origin === b.origin && a.refreshing === b.refreshing);
+
+  const provenance = status.origin === null
+    ? (status.feed === 'loading' ? 'chargement…' : 'jamais chargé')
+    : status.origin === 'snapshot'
+      ? (status.refreshing ? 'instantané · mise à jour…' : 'instantané')
+      : `${status.origin === 'cache' ? 'cache du navigateur' : 'en direct'} · ${ago(status.storedAt ?? Date.now())}`;
+
+  return (
+    <LayerRow
+      icon="🏷️"
+      name="Noms de lieux"
+      count={status.count}
+      feed={status.feed}
+      meta={`OpenStreetMap · ${provenance}`}
+      onToggle={() => places.send({ type: 'places.toggled' })}
+    />
+  );
+}
+
+function CamerasRow() {
+  const cameras = useChild('cameras');
+  const feed = useSelector(cameras, camerasFeed);
+  const total = useSelector(cameras, (snapshot) => snapshot.context.cameras.length);
+  const loadedAt = useSelector(cameras, (snapshot) => snapshot.context.loadedAt);
+
+  return (
+    <LayerRow
+      icon="📹"
+      name="Caméras routières"
+      count={total}
+      feed={feed}
+      meta={`${CAMERA_SOURCE} · ${loadedAt === null ? 'jamais chargé' : ago(loadedAt)}`}
+      onToggle={() => cameras.send({ type: 'cameras.toggled' })}
+    />
+  );
+}
+
+/** Calques en superposition. */
+export function LayersPanel() {
+  return (
+    <Panel id="layers" title="Calques">
+      <div className="data-toggle-list">
+        <PlacesRow />
+        <CamerasRow />
+      </div>
+    </Panel>
+  );
+}

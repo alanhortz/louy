@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr-BE">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0a0a0f" />
+    <meta name="color-scheme" content="dark" />
+    <title>L’Oûy — la Wallonie vue par le LiDAR</title>
+    <meta name="description" content="Survolez la Wallonie en 3D, au demi-mètre près : le relief LiDAR du Service public de Wallonie, campagne par campagne, directement dans le navigateur." />
+    <meta property="og:title" content="L’Oûy — la Wallonie vue par le LiDAR" />
+    <meta property="og:description" content="Survolez la Wallonie en 3D, au demi-mètre près, campagne LiDAR par campagne." />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="fr_BE" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <style>
+      html, body { margin: 0; height: 100%; background: #0a0a0f; color: #e8eaed; }
+      #boot-notice, .boot-notice {
+        max-width: 34rem; margin: 0 auto; padding: 12vh 1.5rem 2rem;
+        font: 16px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      #boot-notice h1, .boot-notice h1 { font-size: 1.35rem; line-height: 1.3; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="boot-notice" hidden></div>
+    <noscript>
+      <div class="boot-notice">
+        <h1>L’Oûy a besoin de JavaScript</h1>
+        <p>Ce viewer dessine le relief de la Wallonie en 3D dans votre navigateur<!--entropy-->. Activez JavaScript pour l’utiliser.</p>
+      </div>
+    </noscript>
+    <!--support-gate-->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

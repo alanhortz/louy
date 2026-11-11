@@ -1,0 +1,157 @@
+/* Bandeau « RENDU » : tuiles d'habillage et puces de sélection — GEV `.style-btn`, `.map-stack-chip`. */
+
+.dock {
+  position: fixed;
+  left: 50%;
+  bottom: calc(2vh + var(--safe-bottom));
+  z-index: 105;
+  transform: translateX(-50%);
+  --panel-width: min(560px, calc(100vw - 2 * var(--edge)));
+}
+.dock.collapsed { --collapsed-width: 200px; }
+.dock .panel { animation: none; }
+
+.button-grid {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.button-grid::-webkit-scrollbar { display: none; }
+
+.style-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1 0 auto;
+  padding: 14px 16px 10px;
+  min-width: 78px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--btn-radius);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  overflow: hidden;
+  outline: none;
+}
+.style-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.style-btn:hover {
+  border-color: var(--glass-border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+}
+.style-btn:hover::before { opacity: 1; }
+.style-btn:active { transform: translateY(0); }
+.style-btn:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+.style-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow:
+    0 0 20px rgba(0, 212, 255, 0.15),
+    0 0 0 1px rgba(0, 212, 255, 0.1) inset;
+}
+.style-btn.active .btn-icon { color: var(--accent); text-shadow: 0 0 12px var(--accent-glow); }
+.style-btn.active .btn-label { color: var(--text-primary); }
+
+.btn-icon {
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+.btn-label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.3px;
+  transition: color var(--transition-fast);
+}
+
+.dock-sections {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 14px;
+  margin-top: 4px;
+}
+.dock-section { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.dock-section-title {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 1.35px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.chip-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+
+.map-stack-chip {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  padding: 4px 7px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+  outline: none;
+}
+.map-stack-chip:hover, .map-stack-chip:focus-visible {
+  border-color: var(--glass-border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+.map-stack-chip:focus-visible { outline: 1px solid color-mix(in srgb, var(--accent) 80%, transparent); outline-offset: 2px; }
+.map-stack-chip.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.15);
+}
+
+.glass-select {
+  width: 100%;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  color: var(--text-primary);
+  padding: 4px 8px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  outline: none;
+}
+.glass-select:disabled { opacity: 0.45; }
+.glass-select option { background: #12121a; }
+
+@media (max-width: 720px) {
+  .dock { bottom: calc(20px + var(--safe-bottom)); max-height: calc(100dvh - 180px); --panel-width: calc(100vw - 2 * var(--edge) - var(--safe-left) - var(--safe-right)); }
+  .dock.collapsed { --collapsed-width: var(--panel-width); }
+  .dock-sections { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dock-section-wide { grid-column: 1 / -1; }
+  .map-stack-chip { padding: 9px 7px; }
+  .glass-select { padding: 9px 8px; font-size: 16px; }
+  .style-btn { min-width: 70px; padding: 12px 10px 9px; }
+}

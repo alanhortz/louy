@@ -1,0 +1,277 @@
+/* Éléments flottants : marque, actions, indicateur, pastilles d'état, ligne de statut. */
+
+/* ---- marque ---- */
+.brand {
+  position: fixed;
+  top: calc(28px + var(--safe-top));
+  left: calc(var(--edge) + var(--safe-left));
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  user-select: none;
+}
+.brand-name {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 7px;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  text-shadow: 0 0 24px var(--accent-glow);
+}
+.brand-name em { font-style: normal; color: var(--accent); }
+.brand-tagline {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2.4px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.brand-repo {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+.brand-repo:hover, .brand-repo:focus-visible { color: var(--accent); }
+.brand-repo svg { width: 12px; height: 12px; fill: currentColor; }
+
+/* ---- actions rondes — GEV `#top-center-actions` ---- */
+.top-actions {
+  position: fixed;
+  top: calc(32px + var(--safe-top));
+  left: 50%;
+  z-index: 100;
+  display: flex;
+  gap: 8px;
+  transform: translateX(-50%);
+}
+.top-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  color: var(--text-secondary);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  outline: none;
+}
+.top-actions button:hover, .top-actions button:focus-visible {
+  border-color: var(--glass-border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  transform: scale(1.1);
+}
+.top-actions button:active { transform: scale(0.95); }
+.top-actions button:disabled { cursor: wait; opacity: 0.55; transform: none; }
+.top-actions svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---- indicateur en haut à droite — GEV `#style-indicator` ---- */
+.indicator {
+  position: fixed;
+  top: calc(32px + var(--safe-top));
+  right: calc(36px + var(--safe-right));
+  z-index: 100;
+  pointer-events: none;
+  user-select: none;
+  text-align: right;
+}
+.indicator-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.indicator-value {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 5px;
+  color: var(--accent);
+  text-shadow: 0 0 20px var(--accent-glow);
+  text-transform: uppercase;
+}
+
+/* ---- pastilles d'état — GEV `#cctv-sync-chip` ---- */
+.chips {
+  position: fixed;
+  top: calc(84px + var(--safe-top));
+  left: 50%;
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(0, 212, 255, 0.24);
+  background: rgba(3, 10, 18, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: rgba(170, 252, 255, 0.92);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 1.35px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.34), 0 0 14px rgba(0, 212, 255, 0.08);
+  animation: chip-in 0.22s ease both;
+}
+button.chip { pointer-events: auto; cursor: pointer; }
+.chip[data-tone='warning'] { color: #ffe59b; border-color: rgba(255, 205, 92, 0.45); }
+@keyframes chip-in { from { opacity: 0; transform: translateY(-4px); } }
+
+/* ---- ligne de statut, discrète, en bas ---- */
+.status-line {
+  position: fixed;
+  left: calc(var(--edge) + var(--safe-left));
+  right: calc(var(--edge) + var(--safe-right));
+  bottom: calc(10px + var(--safe-bottom));
+  z-index: 90;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  pointer-events: none;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.9);
+}
+.status-line a { color: inherit; pointer-events: auto; }
+.status-line span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- lien à copier à la main ---- */
+.manual-share {
+  position: fixed;
+  top: calc(84px + var(--safe-top));
+  left: 50%;
+  z-index: 130;
+  --panel-width: min(420px, calc(100vw - 2 * var(--edge)));
+  transform: translateX(-50%);
+}
+.manual-share input {
+  width: 100%;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .brand { top: calc(16px + var(--safe-top)); gap: 3px; }
+  .brand-name { font-size: 16px; letter-spacing: 5px; }
+  .brand-tagline { font-size: 7px; letter-spacing: 1.4px; max-width: 46vw; }
+  .top-actions { top: calc(16px + var(--safe-top)); left: auto; right: calc(var(--edge) + var(--safe-right)); transform: none; }
+  .top-actions button { width: 40px; height: 40px; }
+  .indicator { display: none; }
+  .chips { top: auto; bottom: calc(78px + var(--safe-bottom)); }
+  .status-line { bottom: calc(4px + var(--safe-bottom)); font-size: 7px; letter-spacing: 0.8px; }
+  .status-line .status-attribution { display: none; }
+}
+
+/* ---- altimètre, sous l'indicateur de campagne ---- */
+.altimeter {
+  position: fixed;
+  top: calc(96px + var(--safe-top));
+  right: calc(36px + var(--safe-right));
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  pointer-events: none;
+  user-select: none;
+}
+.altimeter-value {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 3px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  text-shadow: 0 0 20px var(--accent-glow);
+}
+.altimeter-ground {
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 1.6px;
+  font-variant-numeric: tabular-nums;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* ---- mode d'emploi de la navigation ---- */
+.controls { display: flex; flex-direction: column; gap: 2px; }
+.control-row { display: flex; align-items: baseline; gap: 10px; padding: 5px 6px; border-radius: 8px; }
+.control-row dt { flex: 0 0 104px; }
+.control-row kbd {
+  display: inline-block;
+  padding: 3px 8px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--accent);
+  border: 1px solid rgba(0, 212, 255, 0.4);
+  border-radius: 4px;
+  background: var(--accent-dim);
+}
+.control-row dd { font-size: 12px; line-height: 1.4; color: rgba(232, 234, 237, 0.78); }
+.controls-note {
+  margin-top: 4px;
+  padding: 0 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+@media (max-width: 720px) {
+  /* sur petit écran l'altimètre rejoint la ligne de statut, à droite */
+  .altimeter {
+    top: auto;
+    right: calc(var(--edge) + var(--safe-right));
+    bottom: calc(4px + var(--safe-bottom));
+    z-index: 91;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .altimeter .indicator-label { font-size: 7px; letter-spacing: 0.8px; }
+  .altimeter-value { margin: 0; font-size: 9px; letter-spacing: 0.8px; text-shadow: 0 0 4px rgba(0, 0, 0, 0.9); }
+  .altimeter-ground { display: none; }
+  .status-line { right: 46%; }
+}
