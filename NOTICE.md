@@ -53,4 +53,4 @@ AGPL du code : les réutiliser demande son accord.
 
 ## Bibliothèques
 
-three.js (MIT), React (MIT), XState (MIT), polices Inter et JetBrains Mono (SIL OFL 1.1).
+three.js (MIT), React (MIT), XState (MIT), Heroicons (MIT, Tailwind Labs), polices Inter et JetBrains Mono (SIL OFL 1.1).

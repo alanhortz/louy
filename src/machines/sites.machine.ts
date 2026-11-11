@@ -38,6 +38,8 @@ export const sitesMachine = setup({
       const query = event.type === 'sites.queryChanged' ? event.query : context.query;
       return { query, results: searchSites(context.index, query) };
     }),
+    /** Une recherche aboutie ne laisse pas sa saisie dans le champ pour la suivante. */
+    clearQuery: assign(({ context }) => ({ query: '', results: searchSites(context.index, '') })),
     announceChoice: sendParent(({ context, event }): SitesEmitted => ({
       type: 'sites.chosen',
       site: context.results.find((site) => event.type === 'sites.picked' && site.id === event.id)!,
@@ -69,7 +71,7 @@ export const sitesMachine = setup({
     open: {
       on: {
         'sites.queryChanged': { actions: 'search' },
-        'sites.picked': { guard: 'picksKnownSite', target: 'closed', actions: 'announceChoice' },
+        'sites.picked': { guard: 'picksKnownSite', target: 'closed', actions: ['announceChoice', 'clearQuery'] },
         'sites.closed': 'closed',
       },
     },

@@ -1,4 +1,6 @@
+import { TagIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
+import type { ReactNode } from 'react';
 import { camerasFeed } from '../../machines/cameras.machine.ts';
 import { placesStatus, type LayerFeed } from '../../machines/places.machine.ts';
 import { CAMERA_SOURCE } from '../../services/cameras.ts';
@@ -15,7 +17,7 @@ const FEED_LABEL: Record<LayerFeed, string> = {
 };
 
 interface LayerRowProps {
-  icon: string;
+  icon: ReactNode;
   name: string;
   count: number;
   feed: LayerFeed;
@@ -30,7 +32,7 @@ function LayerRow({ icon, name, count: total, feed, meta, onToggle }: LayerRowPr
     <div className="data-toggle-row">
       <div className="data-toggle-top">
         <div className="data-toggle-left">
-          <span className="data-icon" aria-hidden="true">{icon}</span>
+          <span className="data-icon">{icon}</span>
           <span className="data-name">{name}</span>
         </div>
         <div className="data-toggle-right">
@@ -64,7 +66,7 @@ function PlacesRow() {
 
   return (
     <LayerRow
-      icon="🏷️"
+      icon={<TagIcon aria-hidden="true" />}
       name="Noms de lieux"
       count={status.count}
       feed={status.feed}
@@ -82,7 +84,7 @@ function CamerasRow() {
 
   return (
     <LayerRow
-      icon="📹"
+      icon={<VideoCameraIcon aria-hidden="true" />}
       name="Caméras routières"
       count={total}
       feed={feed}

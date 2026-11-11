@@ -182,6 +182,9 @@ describe('machine des sites touristiques', () => {
     send({ type: 'sites.picked', id: 'Château de Vêves' });
     expect(actor.getSnapshot().matches('closed')).toBe(true);
     expect(announced.at(-1)).toMatchObject({ type: 'sites.chosen', site: { x: 1, y: 2 } });
+    // la saisie est effacée : la recherche suivante repart d'un champ vide
+    expect(actor.getSnapshot().context).toMatchObject({ query: '' });
+    expect(actor.getSnapshot().context.results).toHaveLength(2);
 
     send({ type: 'sites.opened' });
     expect(actor.getSnapshot().matches('open')).toBe(true);

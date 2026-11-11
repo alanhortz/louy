@@ -13,7 +13,10 @@
 .data-toggle-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .data-toggle-right { display: flex; align-items: center; gap: 10px; }
 
-.data-icon { font-size: 16px; line-height: 1; }
+.data-icon { display: inline-flex; color: var(--text-secondary); transition: color var(--transition-fast); }
+.data-icon svg { width: 16px; height: 16px; stroke-width: 1.6; }
+/* le pictogramme prend la couleur d'accent quand son calque est affiché */
+.data-toggle-row:has(.data-toggle-btn.active) .data-icon { color: var(--accent); }
 .data-name {
   font-family: var(--font-sans);
   font-size: 13px;
