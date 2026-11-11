@@ -42,6 +42,25 @@
   transition: color var(--transition-fast);
 }
 .brand-repo:hover, .brand-repo:focus-visible { color: var(--accent); }
+
+/* mention du sponsor : la plus discrète des lignes de la marque */
+.brand-sponsor {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-decoration: none;
+  opacity: 0.8;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+.brand-sponsor img { width: 11px; height: 12px; opacity: 0.6; transition: opacity var(--transition-fast); }
+.brand-sponsor:hover, .brand-sponsor:focus-visible { opacity: 1; color: var(--text-primary); }
+.brand-sponsor:hover img, .brand-sponsor:focus-visible img { opacity: 1; }
 .brand-repo svg { width: 12px; height: 12px; fill: currentColor; }
 
 /* ---- actions rondes — GEV `#top-center-actions` ---- */
@@ -190,6 +209,7 @@ button.chip { pointer-events: auto; cursor: pointer; }
   .brand { top: calc(16px + var(--safe-top)); gap: 3px; }
   .brand-name { font-size: 16px; letter-spacing: 5px; }
   .brand-tagline { font-size: 7px; letter-spacing: 1.4px; max-width: 46vw; }
+  .brand-sponsor { font-size: 7px; letter-spacing: 0.8px; }
   .top-actions { top: calc(16px + var(--safe-top)); left: auto; right: calc(var(--edge) + var(--safe-right)); transform: none; }
   .top-actions button { width: 40px; height: 40px; }
   .indicator { display: none; }

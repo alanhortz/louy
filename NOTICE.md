@@ -37,6 +37,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## Marques
+
+Le nom et le logo de Sorcery Systems (`src/ui/assets/sorcery-systems.svg`), sponsor du
+projet, sont la propriété de Sorcery Systems. Ils ne sont pas couverts par la licence
+AGPL du code : les réutiliser demande son accord.
+
 ## Données
 
 | Donnée | Source | Licence |

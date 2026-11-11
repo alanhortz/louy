@@ -10,6 +10,8 @@ export const PROJECT = {
   domain: 'louy.be',
   repository: 'https://github.com/alanhortz/louy',
   author: 'Alan Hortz',
+  /** Le projet est sponsorisé par : */
+  sponsor: { name: 'Sorcery Systems', url: 'https://sorcery-systems.com' },
 } as const;
 
 /**

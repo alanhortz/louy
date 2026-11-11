@@ -159,7 +159,7 @@
 @media (max-width: 720px) {
   .stacks {
     position: fixed;
-    top: calc(76px + var(--safe-top));
+    top: calc(92px + var(--safe-top));
     left: calc(var(--edge) + var(--safe-left));
     right: calc(var(--edge) + var(--safe-right));
     z-index: 100;

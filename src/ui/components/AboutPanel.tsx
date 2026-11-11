@@ -68,6 +68,7 @@ export function AboutPanel() {
 
       <div className="about-heading">Crédits</div>
       <p>
+        Projet sponsorisé par <a href={PROJECT.sponsor.url} target="_blank" rel="noopener">{PROJECT.sponsor.name}</a>.{' '}
         Interface inspirée de <a href="https://github.com/bilawalsidhu/gods-eye-view" target="_blank" rel="noreferrer">God’s Eye View</a> de
         Bilawal Sidhu (MIT). © {PROJECT.author}, logiciel libre sous licence AGPL-3.0 — code source
         sur <a href={PROJECT.repository} target="_blank" rel="noreferrer">GitHub</a>.
