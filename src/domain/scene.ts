@@ -17,7 +17,7 @@ export interface Scene {
 
 export const DEFAULT_SCENE: Scene = {
   campaign: '2021-2022',
-  surface: 'mns',
+  surface: 'mnt',
   tint: 'ortho',
   vintage: LATEST_VINTAGE,
 };

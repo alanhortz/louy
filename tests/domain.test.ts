@@ -87,10 +87,14 @@ describe('scène', () => {
   });
 
   it('borne le niveau de détail à la résolution de la campagne', () => {
-    expect(resolveScene({ ...DEFAULT_SCENE, campaign: '2013-2014' })).toMatchObject({
+    expect(resolveScene({ ...DEFAULT_SCENE, surface: 'mns', campaign: '2013-2014' })).toMatchObject({
       maxLevel: 10,
       elevationService: 'RELIEF/WALLONIE_MNS_2013_2014',
     });
+  });
+
+  it('s’ouvre sur le terrain nu', () => {
+    expect(resolveScene(DEFAULT_SCENE).elevationService).toBe('RELIEF/WALLONIE_MNT_2021_2022');
   });
 
   it('partage les tuiles entre habillages qui ne changent pas l’image', () => {
