@@ -74,6 +74,7 @@ app ── checking ──▶ compatibility          le navigateur convient-il ?
           ├─ cameras      calque → liste → caméra regardée → image renouvelée
           ├─ sites        index des sites touristiques, recherche, choix
           ├─ acquisition  date des mesures LiDAR sous le point visé
+          ├─ activity     pastille de chargement : en cours → confirmé → silence
           ├─ share        feuille de partage → presse-papiers → copie manuelle
           ├─ chrome       quels panneaux sont dépliés
           └─ telemetry    écriture périodique de l’historique local

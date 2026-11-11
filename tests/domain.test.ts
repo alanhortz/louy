@@ -3,6 +3,7 @@ import { flightCellAt, flightDatesUrl, parseFlightDates } from '../src/domain/ac
 import { toLambert, toWgs84 } from '../src/domain/lambert2008.ts';
 import { parsePlaces } from '../src/domain/places.ts';
 import { DEFAULT_SCENE, normalizeScene, resolveScene } from '../src/domain/scene.ts';
+import { FLAP_CHAR_MS, FLAP_MAX_TOTAL_MS, planSplitFlap } from '../src/domain/splitFlap.ts';
 import { SERVICE_PATTERN, directTileUrl, edgeTileUrl, parseTilePath } from '../src/domain/tiles.ts';
 import { MAX_LEVEL, isValidAddress, paddedExtent, tileExtent } from '../src/domain/tiling.ts';
 import { DEFAULT_VIEW, decodeView, encodeView, type View } from '../src/domain/view.ts';
@@ -153,5 +154,28 @@ describe('mailles de vol LiDAR', () => {
   it('lit les dates, ou rien hors couverture', () => {
     expect(parseFlightDates({ features: [{ attributes: { DATE_FIRST: 1, DATE_LAST: 2 } }] })).toEqual({ first: 1, last: 2 });
     expect(parseFlightDates({ features: [] })).toBeNull();
+  });
+});
+
+describe('affichage à palettes', () => {
+  it('ne fait basculer que les caractères qui changent, de gauche à droite', () => {
+    const { cells, durationMs } = planSplitFlap('RELIEF', 'RELAIS');
+    expect(cells.map((cell) => cell.changed)).toEqual([false, false, false, true, true, true]);
+    expect(cells.map((cell) => cell.delayMs)).toEqual([0, 0, 0, 0, 26, 52]);
+    expect(durationMs).toBe(52 + FLAP_CHAR_MS);
+  });
+
+  it('fait apparaître un libellé depuis le vide, et libère les colonnes en trop', () => {
+    expect(planSplitFlap('', 'OK').cells).toMatchObject([{ from: '', to: 'O' }, { from: '', to: 'K' }]);
+    expect(planSplitFlap('OKAY', 'OK').cells.at(-1)).toMatchObject({ from: 'Y', to: '', changed: true });
+  });
+
+  it('resserre la cascade d’un long libellé sous le plafond', () => {
+    const plan = planSplitFlap('', 'x'.repeat(60));
+    expect(plan.durationMs).toBeLessThanOrEqual(FLAP_MAX_TOTAL_MS);
+  });
+
+  it('ne planifie rien quand le texte ne change pas', () => {
+    expect(planSplitFlap('RELIEF', 'RELIEF')).toMatchObject({ durationMs: 0 });
   });
 });

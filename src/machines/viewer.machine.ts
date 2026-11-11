@@ -25,6 +25,7 @@ export type ViewerEvent =
 export type ViewerEmitted =
   | { type: 'viewer.viewSettled'; pose: Pose }
   | { type: 'viewer.poseCaptured'; pose: Pose }
+  | { type: 'viewer.activityChanged'; loading: boolean; points: number }
   | { type: 'viewer.overlayPicked'; layer: OverlayName; id: string };
 
 interface ViewerContext extends Omit<EngineInput, 'mount'> {
@@ -125,7 +126,11 @@ export const viewerMachine = viewer.createMachine({
           ],
         },
         'engine.activityChanged': {
-          actions: assign({ loading: ({ event }) => event.loading, points: ({ event }) => event.points }),
+          actions: [
+            assign({ loading: ({ event }) => event.loading, points: ({ event }) => event.points }),
+            sendParent(({ event }): ViewerEmitted =>
+              ({ type: 'viewer.activityChanged', loading: event.loading, points: event.points })),
+          ],
         },
         'engine.overlayPicked': {
           actions: sendParent(({ event }): ViewerEmitted =>

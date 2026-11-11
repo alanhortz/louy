@@ -8,7 +8,7 @@
  *
  *   scene ──▶ viewer, acquisition          viewer ──▶ places, cameras, acquisition
  *   places, cameras ──▶ viewer             sites ──▶ viewer
- *   (demande de partage) ──▶ viewer ──▶ share
+ *   (demande de partage) ──▶ viewer ──▶ share          viewer ──▶ activity
  */
 
 import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate';
@@ -20,6 +20,7 @@ import type { SupportReport } from '../services/capabilities.ts';
 import { isAcknowledged } from '../services/preferences.ts';
 import type { TelemetryBuffer } from '../services/telemetry.ts';
 import { acquisitionMachine } from './acquisition.machine.ts';
+import { activityMachine } from './activity.machine.ts';
 import { camerasMachine, type CamerasEmitted } from './cameras.machine.ts';
 import { chromeMachine, type PanelId } from './chrome.machine.ts';
 import { compatibilityMachine } from './compatibility.machine.ts';
@@ -76,6 +77,7 @@ export const appMachine = setup({
       cameras: 'cameras';
       sites: 'sites';
       acquisition: 'acquisition';
+      activity: 'activity';
       share: 'share';
     },
   },
@@ -89,6 +91,7 @@ export const appMachine = setup({
     cameras: camerasMachine,
     sites: sitesMachine,
     acquisition: acquisitionMachine,
+    activity: activityMachine,
     share: shareMachine,
     /**
      * Un lien partagé collé dans l'onglet déjà ouvert ne recharge pas la page (seul
@@ -177,6 +180,7 @@ export const appMachine = setup({
           src: 'acquisition',
           input: ({ context }) => ({ campaign: context.view.scene.campaign, focus: context.view.pose }),
         },
+        { id: 'activity', src: 'activity' },
         { id: 'share', src: 'share' },
         { id: 'linkWatcher', src: 'linkWatcher' },
       ],
@@ -204,6 +208,12 @@ export const appMachine = setup({
             })),
             'syncUrl',
           ],
+        },
+
+        /* ---- le relief se charge : la pastille l'annonce ---- */
+        'viewer.activityChanged': {
+          actions: sendTo('activity', ({ event }) =>
+            ({ type: 'activity.changed', loading: event.loading, points: event.points })),
         },
 
         /* ---- les calques publient leurs entités : le viewer les dessine ---- */

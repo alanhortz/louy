@@ -3,6 +3,7 @@ import { createActor, createMachine, fromPromise, sendTo, waitFor, type AnyActor
 import { createTelemetryInspector } from '../src/app/inspector.ts';
 import type { Place, PlaceTier } from '../src/domain/places.ts';
 import { DEFAULT_SCENE } from '../src/domain/scene.ts';
+import { activityMachine } from '../src/machines/activity.machine.ts';
 import { camerasMachine, frameState } from '../src/machines/cameras.machine.ts';
 import { chromeMachine } from '../src/machines/chrome.machine.ts';
 import { placesMachine, placesStatus } from '../src/machines/places.machine.ts';
@@ -243,5 +244,27 @@ describe('inspecteur de télémétrie', () => {
     }).start();
     actor.send({ type: 'chrome.toggled', panel: 'about' });
     expect(buffer.size).toBe(0);
+  });
+});
+
+describe('machine d’activité', () => {
+  it('annonce le chargement, confirme sa fin, puis se tait', () => {
+    vi.useFakeTimers();
+    const actor = createActor(activityMachine).start();
+    actor.send({ type: 'activity.changed', loading: true, points: 0 });
+    expect(actor.getSnapshot().value).toBe('loading');
+    actor.send({ type: 'activity.changed', loading: false, points: 4_200_000 });
+    expect(actor.getSnapshot()).toMatchObject({ value: 'complete', context: { points: 4_200_000 } });
+    vi.advanceTimersByTime(1500);
+    expect(actor.getSnapshot().value).toBe('quiet');
+    vi.useRealTimers();
+  });
+
+  it('reprend sans attendre si le relief se recharge pendant la confirmation', () => {
+    const actor = createActor(activityMachine).start();
+    actor.send({ type: 'activity.changed', loading: true, points: 0 });
+    actor.send({ type: 'activity.changed', loading: false, points: 10 });
+    actor.send({ type: 'activity.changed', loading: true, points: 10 });
+    expect(actor.getSnapshot().value).toBe('loading');
   });
 });

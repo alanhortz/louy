@@ -7,7 +7,8 @@ licence.
 ## Interface
 
 Le langage visuel de l'interface — panneaux « verre », pastilles d'état
-textuelles, tuiles d'habillage, panneau et marqueurs des caméras — reprend celui
+textuelles, tuiles d'habillage, pastilles à palettes, panneau et marqueurs des
+caméras — reprend celui
 de **God's Eye View** (<https://github.com/bilawalsidhu/gods-eye-view>). Les
 règles CSS concernées sont signalées « GEV » dans `src/styles/`, l'icône de
 caméra dans `src/engine/overlays/cameraMarkers.ts`.

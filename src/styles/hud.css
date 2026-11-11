@@ -275,3 +275,44 @@ button.chip { pointer-events: auto; cursor: pointer; }
   .altimeter-ground { display: none; }
   .status-line { right: 46%; }
 }
+
+/* ---- texte à palettes des pastilles — GEV `.gev-flap-*` ---- */
+.flap-cells { white-space: pre; }
+.flap-cell { display: inline-block; white-space: pre; }
+/* le signe entrant est dans le flux : c'est lui qui donne sa largeur à la colonne */
+.flap-cell::after { content: attr(data-flap-next); display: inline-block; white-space: pre; }
+.flap-cell.is-flapping { position: relative; perspective: 4em; }
+.flap-cell.is-flapping::before,
+.flap-cell.is-flapping::after { transform-origin: 50% 50%; backface-visibility: hidden; }
+.flap-cell.is-flapping::after {
+  animation: flap-in 190ms cubic-bezier(0.2, 0.75, 0.25, 1) var(--flap-delay, 0ms) both;
+}
+/* hors flux : le signe sortant recouvre sa propre colonne sans la déplacer */
+.flap-cell.is-flapping::before {
+  content: attr(data-flap-prev);
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: pre;
+  animation: flap-out 190ms cubic-bezier(0.2, 0.75, 0.25, 1) var(--flap-delay, 0ms) both;
+}
+/* l'ancienne palette bascule vers le bas… */
+@keyframes flap-out {
+  0% { transform: rotateX(0deg); opacity: 1; }
+  48% { transform: rotateX(-88deg); opacity: 0.5; }
+  100% { transform: rotateX(-90deg); opacity: 0; }
+}
+/* … la nouvelle attend qu'elle dégage, tombe et se cale avec un léger rebond */
+@keyframes flap-in {
+  0% { transform: rotateX(90deg); opacity: 0; }
+  46% { transform: rotateX(90deg); opacity: 0; }
+  78% { transform: rotateX(-7deg); opacity: 1; }
+  100% { transform: rotateX(0deg); opacity: 1; }
+}
+
+/* la pastille de chargement « respire » tant que des tuiles arrivent */
+.chip[data-phase='loading'] { animation: chip-in 0.22s ease both, chip-pulse 1.6s ease-in-out 0.3s infinite; }
+.chip[data-phase='complete'] { border-color: rgba(0, 212, 255, 0.5); }
+@keyframes chip-pulse {
+  50% { border-color: rgba(0, 212, 255, 0.6); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.34), 0 0 18px rgba(0, 212, 255, 0.28); }
+}
