@@ -91,6 +91,8 @@ export interface Flyover {
   orbit: boolean;
   /** Cap de la vue, en degrés ; à défaut, le cap courant est conservé. */
   azimuth?: number;
+  /** Nombre de tours de l'orbite ; à défaut, elle dure jusqu'au premier geste. */
+  turns?: number;
 }
 
 interface TileLike { level: number; i: number; j: number }
@@ -226,14 +228,14 @@ export class SceneEngine {
   }
 
   /** Amène la caméra à `height` mètres au-dessus d'un lieu, en orbite si demandé. */
-  flyOver({ x, y, height, orbit, azimuth }: Flyover): void {
+  flyOver({ x, y, height, orbit, azimuth, turns }: Flyover): void {
     this.setPose({
       x, y,
       distance: height / Math.cos(FLYOVER_TILT * DEG),
       azimuth: azimuth ?? this.getPose().azimuth,
       tilt: FLYOVER_TILT,
     });
-    if (orbit) this.#orbit(Infinity);
+    if (orbit) this.#orbit(turns ?? Infinity);
     // la destination est connue : on l'annonce sans attendre la fin de l'orbite
     this.#unsettled = false;
     this.#listeners.onViewSettled(this.getPose());

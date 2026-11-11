@@ -4,9 +4,8 @@
  * exprimé dans le repère du viewer (x = est, y = altitude, z = −nord, en
  * mètres) autour d'un point d'ancrage donné en Lambert 2008.
  *
- * Essai local : le manifeste et les fichiers vivent hors du dépôt ; le serveur
- * de développement les expose sous `/local/scans/` (voir `build/local-scans.ts`)
- * et ils ne sont lus qu'en développement.
+ * Les images d'origine viennent de vidéos publiées sous licence libre : chaque
+ * scan porte le crédit de son auteur, affiché partout où le scan l'est.
  */
 
 export interface Scan {
@@ -17,10 +16,20 @@ export interface Scan {
   y: number;
   /** Adresse du fichier de splats. */
   splats: string;
-  /** Origine des images. */
-  credit: string;
+  /** Auteur et licence des images d'origine. */
+  credit: ScanCredit;
   /** Cadrage d'ouverture ; à défaut, la caméra se place au-dessus de l'ancrage. */
   view?: ScanView;
+}
+
+export interface ScanCredit {
+  author: string;
+  /** Titre de la vidéo d'origine. */
+  title: string;
+  /** Page où la vidéo et sa licence sont publiées. */
+  url: string;
+  /** Licence, en abrégé (« CC BY »). */
+  licence: string;
 }
 
 export interface ScanView {
@@ -31,9 +40,15 @@ export interface ScanView {
   height: number;
   /** Cap de la vue, en degrés. */
   azimuth: number;
+  /**
+   * Amplitude de l'orbite d'ouverture, en degrés. Un lieu filmé d'un seul côté
+   * n'est net que de ce côté : l'orbite s'arrête avant d'en montrer l'envers.
+   * À défaut, la caméra tourne jusqu'au premier geste du visiteur.
+   */
+  sweep?: number;
 }
 
-export const SCAN_MANIFEST = '/local/scans/index.json';
+export const SCAN_MANIFEST = '/scans/index.json';
 
 /** Hauteur de survol à l'ouverture d'un scan sans cadrage propre. */
 export const SCAN_HEIGHT = 110;
@@ -43,14 +58,22 @@ const isScan = (value: unknown): value is Scan => {
   return typeof scan === 'object' && scan !== null
     && typeof scan.id === 'string' && typeof scan.name === 'string'
     && Number.isFinite(scan.x) && Number.isFinite(scan.y)
-    && typeof scan.splats === 'string' && typeof scan.credit === 'string'
+    && typeof scan.splats === 'string' && isCredit(scan.credit)
     && (scan.view === undefined || isView(scan.view));
+};
+
+const isCredit = (value: unknown): value is ScanCredit => {
+  const credit = value as Partial<ScanCredit> | null;
+  return typeof credit === 'object' && credit !== null
+    && [credit.author, credit.title, credit.url, credit.licence].every((field) => typeof field === 'string')
+    && /^https:\/\//.test(credit.url!);
 };
 
 const isView = (value: unknown): value is ScanView => {
   const view = value as Partial<ScanView> | null;
   return typeof view === 'object' && view !== null
-    && [view.x, view.y, view.height, view.azimuth].every(Number.isFinite);
+    && [view.x, view.y, view.height, view.azimuth].every(Number.isFinite)
+    && (view.sweep === undefined || Number.isFinite(view.sweep));
 };
 
 /** Survol qui ouvre un scan : son cadrage s'il en a un, sinon l'aplomb de son ancrage. */
@@ -60,6 +83,7 @@ export const scanFlyover = (scan: Scan) => ({
   height: scan.view?.height ?? SCAN_HEIGHT,
   azimuth: scan.view?.azimuth,
   orbit: true,
+  turns: scan.view?.sweep === undefined ? undefined : scan.view.sweep / 360,
 });
 
 /** Lecture tolérante du manifeste : toute entrée incomplète est écartée. */

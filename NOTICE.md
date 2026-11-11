@@ -50,7 +50,8 @@ AGPL du code : les réutiliser demande son accord.
 | Relief LiDAR, orthophotos, mailles de vol | Service public de Wallonie — [Géoportail de la Wallonie](https://geoportail.wallonie.be) | CC-BY 4.0 |
 | Noms de lieux, sites touristiques | © contributeurs [OpenStreetMap](https://www.openstreetmap.org/copyright) | ODbL 1.0 |
 | Images des caméras routières | SPW — [Trafiroutes](https://trafiroutes.wallonie.be) | images publiques, chargées depuis la source |
+| Scan 3D de la citadelle de Namur (`public/scans/namur.spz`) | Œuvre dérivée de la vidéo [« Namur in 4K \| Walking + Drone Tour of Belgium’s Hidden Gem »](https://www.youtube.com/watch?v=hbZ72BQ3Q78) de **Joeys Journeys** : plans de drone reconstruits en « gaussian splats », recadrés et calés sur le LiDAR | Creative Commons Attribution (CC BY), telle que publiée sur YouTube |
 
 ## Bibliothèques
 
-three.js (MIT), React (MIT), XState (MIT), Heroicons (MIT, Tailwind Labs), polices Inter et JetBrains Mono (SIL OFL 1.1).
+three.js (MIT), Spark (MIT, World Labs — rendu des « gaussian splats »), React (MIT), XState (MIT), Heroicons (MIT, Tailwind Labs), polices Inter et JetBrains Mono (SIL OFL 1.1).

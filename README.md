@@ -166,6 +166,20 @@ interroge l’API publique Overpass et **met la réponse en cache chez le visite
 L’instantané garantit que l’affichage ne dépend jamais de la disponibilité
 d’Overpass, un service bénévole souvent saturé.
 
+## Scans 3D
+
+Le calque « Scans 3D » pose sur le relief des lieux reconstruits en « gaussian
+splats » à partir de vidéos de drone publiées sous licence libre. Chaque scan est
+un fichier `.spz` dans `public/scans/`, décrit dans
+[`public/scans/index.json`](public/scans/index.json) : son ancrage en Lambert 2008,
+son cadrage d’ouverture et le **crédit de l’auteur des images**, obligatoire et
+affiché dans le calque, la ligne d’attribution et le panneau « À propos ».
+
+Le fichier est exprimé dans le repère du viewer (x = est, y = altitude, z = −nord,
+en mètres autour de l’ancrage). Le moteur de splats ([Spark](https://sparkjs.dev))
+n’est téléchargé qu’à la première activation du calque. Les splats sont dessinés
+par-dessus le relief, sans être masqués par lui.
+
 ## Compatibilité
 
 | Navigateur | Version minimale |
@@ -231,5 +245,5 @@ d'interface repris de God's Eye View restent sous licence MIT — voir
 ## Crédits
 
 Données © Service public de Wallonie (CC-BY 4.0) et © contributeurs OpenStreetMap
-(ODbL). Interface inspirée de [God’s Eye View](https://github.com/bilawalsidhu/gods-eye-view)
+(ODbL). Scan 3D de la citadelle de Namur d’après une vidéo de Joeys Journeys (CC BY). Interface inspirée de [God’s Eye View](https://github.com/bilawalsidhu/gods-eye-view)
 de Bilawal Sidhu (MIT). Détail dans [`NOTICE.md`](NOTICE.md).

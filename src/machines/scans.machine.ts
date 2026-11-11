@@ -1,6 +1,6 @@
 /**
- * Machine des scans 3D : sait quels scans existent sur ce poste et si le
- * visiteur veut les voir. Les afficher emmène la caméra au-dessus du premier.
+ * Machine des scans 3D : sait quels scans le site publie et si le visiteur
+ * veut les voir. Les afficher emmène la caméra au-dessus du premier.
  */
 
 import { assign, fromPromise, sendParent, setup, type SnapshotFrom } from 'xstate';
@@ -46,7 +46,7 @@ export const scansMachine = setup({
         onError: 'absent',
       },
     },
-    /** Aucun scan sur ce poste : le calque n'est même pas proposé. */
+    /** Aucun scan publié : le calque n'est même pas proposé. */
     absent: {},
     hidden: {
       on: { 'scans.toggled': 'shown' },
@@ -68,3 +68,9 @@ export const hasScans = (snapshot: ScansSnapshot): boolean =>
 
 export const scansFeed = (snapshot: ScansSnapshot): LayerFeed =>
   snapshot.matches('shown') ? 'nominal' : 'off';
+
+const NONE: Scan[] = [];
+
+/** Scans actuellement à l'écran : leurs auteurs doivent alors être crédités. */
+export const shownScans = (snapshot: ScansSnapshot): Scan[] =>
+  snapshot.matches('shown') ? snapshot.context.scans : NONE;

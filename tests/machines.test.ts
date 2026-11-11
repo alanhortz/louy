@@ -8,7 +8,7 @@ import { activityMachine } from '../src/machines/activity.machine.ts';
 import { camerasMachine, frameState } from '../src/machines/cameras.machine.ts';
 import { chromeMachine } from '../src/machines/chrome.machine.ts';
 import { placesMachine, placesStatus } from '../src/machines/places.machine.ts';
-import { hasScans, scansFeed, scansMachine } from '../src/machines/scans.machine.ts';
+import { hasScans, scansFeed, scansMachine, shownScans } from '../src/machines/scans.machine.ts';
 import { sceneMachine } from '../src/machines/scene.machine.ts';
 import { shareMachine } from '../src/machines/share.machine.ts';
 import { sitesMachine } from '../src/machines/sites.machine.ts';
@@ -195,7 +195,10 @@ describe('machine des sites touristiques', () => {
 });
 
 describe('machine des scans 3D', () => {
-  const veves: Scan = { id: 'veves', name: 'Château de Vêves', x: 693807, y: 601258, splats: '/local/scans/veves.ply', credit: 'essai' };
+  const veves: Scan = {
+    id: 'veves', name: 'Château de Vêves', x: 693807, y: 601258, splats: '/scans/veves.spz',
+    credit: { author: 'Une vidéaste', title: 'Vêves vu du ciel', url: 'https://example.org/v', licence: 'CC BY' },
+  };
   const withScans = (scans: Scan[]) =>
     underParent(scansMachine.provide({ actors: { loadScans: fromPromise(async () => scans) } }));
 
@@ -211,9 +214,12 @@ describe('machine des scans 3D', () => {
     const { actor, send, announced } = withScans([veves]);
     await waitFor(actor, (snapshot) => snapshot.matches('hidden'));
     expect(scansFeed(actor.getSnapshot())).toBe('off');
+    expect(shownScans(actor.getSnapshot())).toEqual([]);
 
     send({ type: 'scans.toggled' });
     expect(scansFeed(actor.getSnapshot())).toBe('nominal');
+    // à l'écran, donc à créditer
+    expect(shownScans(actor.getSnapshot())).toEqual([veves]);
     expect(announced.slice(-2)).toMatchObject([
       { type: 'scans.changed', scans: [veves] },
       { type: 'scans.flyRequested', scan: { x: 693807, y: 601258 } },

@@ -1,11 +1,10 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { entropy } from './build/entropy/plugin.ts';
-import { localScans } from './build/local-scans.ts';
 import { supportGate } from './build/support-gate.ts';
 
 export default defineConfig({
-  plugins: [react(), supportGate(), entropy('Alan Hortz'), localScans()],
+  plugins: [react(), supportGate(), entropy('Alan Hortz')],
   build: {
     target: 'es2022',
     sourcemap: false,

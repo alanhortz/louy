@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { flightCellAt, flightDatesUrl, parseFlightDates } from '../src/domain/acquisition.ts';
 import { toLambert, toWgs84 } from '../src/domain/lambert2008.ts';
@@ -154,7 +155,8 @@ describe('lieux OpenStreetMap', () => {
 });
 
 describe('manifeste des scans 3D', () => {
-  const scan = { id: 'veves', name: 'Château de Vêves', x: 693807, y: 601258, splats: '/local/scans/veves.ply', credit: 'essai' };
+  const credit = { author: 'Une vidéaste', title: 'Vêves vu du ciel', url: 'https://example.org/v', licence: 'CC BY' };
+  const scan = { id: 'veves', name: 'Château de Vêves', x: 693807, y: 601258, splats: '/scans/veves.spz', credit };
 
   it('garde les scans complets et écarte le reste', () => {
     expect(parseScans([scan, { ...scan, x: 'ouest' }, { id: 'vide' }, null])).toEqual([scan]);
@@ -162,11 +164,30 @@ describe('manifeste des scans 3D', () => {
     expect(parseScans(null)).toEqual([]);
   });
 
+  it('refuse un scan sans crédit complet de son auteur', () => {
+    expect(parseScans([{ ...scan, credit: 'Une vidéaste' }])).toEqual([]);
+    expect(parseScans([{ ...scan, credit: { ...credit, url: 'javascript:alert(1)' } }])).toEqual([]);
+    expect(parseScans([{ ...scan, credit: { author: 'Une vidéaste' } }])).toEqual([]);
+  });
+
+  it('publie un manifeste valide, dont chaque fichier existe', () => {
+    const manifest = JSON.parse(readFileSync(new URL('../public/scans/index.json', import.meta.url), 'utf8'));
+    const scans = parseScans(manifest);
+    expect(scans).toHaveLength(manifest.length);
+    for (const published of scans) {
+      expect(existsSync(new URL(`../public${published.splats}`, import.meta.url))).toBe(true);
+    }
+  });
+
   it('ouvre un scan sur son cadrage, ou à l’aplomb de son ancrage', () => {
     const view = { x: 693700, y: 601300, height: 123, azimuth: 220 };
     expect(parseScans([{ ...scan, view }, { ...scan, view: { x: 1 } }])).toEqual([{ ...scan, view }]);
-    expect(scanFlyover({ ...scan, view })).toEqual({ ...view, orbit: true });
-    expect(scanFlyover(scan)).toEqual({ x: scan.x, y: scan.y, height: SCAN_HEIGHT, azimuth: undefined, orbit: true });
+    expect(scanFlyover({ ...scan, view })).toEqual({ ...view, orbit: true, turns: undefined });
+    // un lieu filmé d'un seul côté : l'orbite s'arrête avant d'en montrer l'envers
+    expect(scanFlyover({ ...scan, view: { ...view, sweep: 90 } })).toMatchObject({ orbit: true, turns: 0.25 });
+    expect(scanFlyover(scan)).toEqual({
+      x: scan.x, y: scan.y, height: SCAN_HEIGHT, azimuth: undefined, orbit: true, turns: undefined,
+    });
   });
 });
 

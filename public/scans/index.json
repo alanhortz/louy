@@ -1,0 +1,16 @@
+[
+  {
+    "id": "namur",
+    "name": "Citadelle de Namur",
+    "x": 685265,
+    "y": 627878,
+    "splats": "/scans/namur.spz",
+    "credit": {
+      "author": "Joeys Journeys",
+      "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
+      "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
+      "licence": "CC BY"
+    },
+    "view": { "x": 685325, "y": 627923, "height": 123, "azimuth": 197, "sweep": 110 }
+  }
+]

@@ -10,6 +10,7 @@ const RETENTION_DAYS = RETENTION_MS / 86_400_000;
 
 /** Sources des données, crédits, et la télémétrie locale que le visiteur peut lire ou effacer. */
 export function AboutPanel() {
+  const scans = useSelector(useChild('scans'), (snapshot) => snapshot.context.scans);
   const telemetry = useChild('telemetry');
   const summary = useSelector(telemetry, (snapshot) => snapshot.context.summary);
   const busy = useSelector(telemetry, (snapshot) => !snapshot.matches({ recording: { ledger: 'idle' } }));
@@ -32,6 +33,13 @@ export function AboutPanel() {
         <li>Relief et orthophotos : <a href="https://geoportail.wallonie.be" target="_blank" rel="noreferrer">Géoportail de la Wallonie</a> (SPW), CC-BY 4.0.</li>
         <li>Noms de lieux et sites touristiques : contributeurs <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>, ODbL.</li>
         <li>Caméras : SPW Trafiroutes, placées au point kilométrique lu sur leur image ; à défaut, sur la localité nommée.</li>
+        {scans.map((scan) => (
+          <li key={scan.id}>
+            Scan 3D « {scan.name} » : reconstruit et calé sur le LiDAR à partir de la vidéo{' '}
+            <a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.title}</a> de {scan.credit.author},
+            licence Creative Commons {scan.credit.licence}.
+          </li>
+        ))}
       </ul>
       <p>
         Les altitudes sont reconstruites depuis des images rendues par le SPW : la précision verticale est

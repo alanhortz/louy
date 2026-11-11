@@ -95,7 +95,7 @@ function CamerasRow() {
   );
 }
 
-/** Scans 3D : la ligne n'existe que si ce poste en possède. */
+/** Scans 3D : la ligne n'existe que si le site en publie. */
 function ScansRow() {
   const scans = useChild('scans');
   const available = useSelector(scans, hasScans);
@@ -109,7 +109,7 @@ function ScansRow() {
       name="Scans 3D"
       count={list.length}
       feed={feed}
-      meta={`${list.map((scan) => scan.name).join(', ')} · essai local`}
+      meta={list.map((scan) => `${scan.name} · images ${scan.credit.author}, ${scan.credit.licence}`).join(' — ')}
       onToggle={() => scans.send({ type: 'scans.toggled' })}
     />
   );
