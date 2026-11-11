@@ -43,6 +43,7 @@ export interface ScanView {
   /**
    * Amplitude de l'orbite d'ouverture, en degrés. Un lieu filmé d'un seul côté
    * n'est net que de ce côté : l'orbite s'arrête avant d'en montrer l'envers.
+   * Le signe donne le sens : positif, le cap décroît ; négatif, il croît.
    * À défaut, la caméra tourne jusqu'au premier geste du visiteur.
    */
   sweep?: number;

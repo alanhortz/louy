@@ -91,7 +91,7 @@ export interface Flyover {
   orbit: boolean;
   /** Cap de la vue, en degrés ; à défaut, le cap courant est conservé. */
   azimuth?: number;
-  /** Nombre de tours de l'orbite ; à défaut, elle dure jusqu'au premier geste. */
+  /** Nombre de tours de l'orbite, négatif pour l'autre sens ; à défaut, elle dure jusqu'au premier geste. */
   turns?: number;
 }
 
@@ -304,10 +304,10 @@ export class SceneEngine {
     return (coarserSpacing * pixelsPerMeter / this.#quality.screenSpaceError) * 0.9;
   }
 
-  /** Met la caméra en orbite autour du point visé, pour `turns` tours. */
+  /** Met la caméra en orbite autour du point visé, pour `turns` tours ; un nombre négatif tourne dans l'autre sens. */
   #orbit(turns: number): void {
-    this.#controls.autoRotateBudget = turns * 2 * Math.PI;
-    this.#controls.autoRotate = ORBIT_SPEED;
+    this.#controls.autoRotateBudget = Math.abs(turns) * 2 * Math.PI;
+    this.#controls.autoRotate = turns < 0 ? -ORBIT_SPEED : ORBIT_SPEED;
   }
 
   async #loadSplats(): Promise<void> {
