@@ -14,9 +14,10 @@ import type { Pose } from '../../domain/view.ts';
 import type { OverlayFeature } from '../../engine/OverlayLayer.ts';
 import { cameraMarkerStyle } from '../../engine/overlays/cameraMarkers.ts';
 import { placeLabelStyle } from '../../engine/overlays/placeLabels.ts';
+import { scanMarkerStyle } from '../../engine/overlays/scanMarkers.ts';
 import { SceneEngine, type Altimeter, type Flyover } from '../../engine/SceneEngine.ts';
 
-export type OverlayName = 'places' | 'cameras';
+export type OverlayName = 'places' | 'cameras' | 'scans';
 
 export interface ViewerMount {
   canvas: HTMLCanvasElement;
@@ -59,7 +60,7 @@ export interface EngineInput {
   scans: Scan[];
 }
 
-const OVERLAYS: readonly OverlayName[] = ['places', 'cameras'];
+const OVERLAYS: readonly OverlayName[] = ['places', 'cameras', 'scans'];
 
 export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport>(
   ({ input, sendBack, receive }) => {
@@ -91,6 +92,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
 
     engine.addOverlay('places', placeLabelStyle);
     engine.addOverlay('cameras', cameraMarkerStyle);
+    engine.addOverlay('scans', scanMarkerStyle);
     for (const layer of OVERLAYS) {
       engine.setOverlayFeatures(layer, input.overlays[layer]);
       engine.setOverlayActive(layer, input.active[layer]);

@@ -7,7 +7,7 @@ dans le navigateur, à partir des relevés LiDAR aériens du Service public de
 Wallonie. 253 × 147 km navigables, de la vue d’ensemble jusqu’au demi-mètre.
 
 - **Deux campagnes LiDAR** : 2021–2022 (50 cm) et 2013–2014 (1 m).
-- **Terrain ou surface** : le sol nu (MNT), ou bâtiments et canopée compris (MNS).
+- **Terrain ou bâti & arbres** : le sol nu (MNT), ou le sol avec ses bâtiments et sa végétation (MNS).
 - **Cinq habillages** : photo aérienne (20 millésimes, de 1971 à 2026), infrarouge,
   ombrage, altitude, pente.
 - **Calques** : noms de villes et villages (OpenStreetMap), caméras routières en direct.

@@ -94,7 +94,8 @@
   text-transform: uppercase;
 }
 
-.chip-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+/* Chaque puce prend la place de son libellé, le reste est réparti : un libellé long ne déborde pas. */
+.chip-row { display: grid; grid-template-columns: repeat(2, auto); gap: 4px; }
 
 .map-stack-chip {
   display: inline-flex;

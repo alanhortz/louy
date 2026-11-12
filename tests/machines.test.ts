@@ -210,6 +210,9 @@ describe('machine des scans 3D', () => {
     expect(announced.filter((event) => event.type.startsWith('scans.'))).toEqual([]);
   });
 
+  const namur: Scan = { ...veves, id: 'namur', name: 'Citadelle de Namur', x: 685265, y: 627878 };
+  const emitted = (announced: { type: string }[]) => announced.filter((event) => event.type.startsWith('scans.'));
+
   it('affiche les scans et emmène la caméra au premier, puis les retire', async () => {
     const { actor, send, announced } = withScans([veves]);
     await waitFor(actor, (snapshot) => snapshot.matches('hidden'));
@@ -220,13 +223,54 @@ describe('machine des scans 3D', () => {
     expect(scansFeed(actor.getSnapshot())).toBe('nominal');
     // à l'écran, donc à créditer
     expect(shownScans(actor.getSnapshot())).toEqual([veves]);
-    expect(announced.slice(-2)).toMatchObject([
+    expect(emitted(announced).slice(-3)).toMatchObject([
       { type: 'scans.changed', scans: [veves] },
+      { type: 'scans.markersChanged', activeId: 'veves' },
       { type: 'scans.flyRequested', scan: { x: 693807, y: 601258 } },
     ]);
 
     send({ type: 'scans.toggled' });
-    expect(announced.at(-1)).toEqual({ type: 'scans.changed', scans: [] });
+    expect(emitted(announced).slice(-2)).toMatchObject([
+      { type: 'scans.changed', scans: [] },
+      { type: 'scans.markersChanged', activeId: null },
+    ]);
+  });
+
+  it('signale chaque scan sur la carte, même quand le calque est éteint', async () => {
+    const { actor, announced } = withScans([veves, namur]);
+    await waitFor(actor, (snapshot) => snapshot.matches('hidden'));
+    expect(emitted(announced)).toEqual([{
+      type: 'scans.markersChanged',
+      activeId: null,
+      features: [
+        { id: 'veves', label: 'Château de Vêves', x: 693807, y: 601258, rank: 1 },
+        { id: 'namur', label: 'Citadelle de Namur', x: 685265, y: 627878, rank: 1 },
+      ],
+    }]);
+  });
+
+  it('un clic sur un marqueur affiche les scans et emmène la caméra à celui-là', async () => {
+    const { actor, send, announced } = withScans([veves, namur]);
+    await waitFor(actor, (snapshot) => snapshot.matches('hidden'));
+
+    send({ type: 'scans.picked', id: 'namur' });
+    expect(shownScans(actor.getSnapshot())).toEqual([veves, namur]);
+    expect(emitted(announced).slice(-2)).toMatchObject([
+      { type: 'scans.markersChanged', activeId: 'namur' },
+      { type: 'scans.flyRequested', scan: { id: 'namur' } },
+    ]);
+    // de près, le marqueur d'un scan affiché s'efface devant le lieu lui-même
+    const markers = announced.findLast((event) => event.type === 'scans.markersChanged')!;
+    expect(markers.features.every((feature: { minDistance?: number }) => (feature.minDistance ?? 0) > 0)).toBe(true);
+
+    // un autre marqueur : on change de lieu sans rien éteindre
+    send({ type: 'scans.picked', id: 'veves' });
+    expect(actor.getSnapshot().matches('shown')).toBe(true);
+    expect(emitted(announced).at(-1)).toMatchObject({ type: 'scans.flyRequested', scan: { id: 'veves' } });
+
+    const before = announced.length;
+    send({ type: 'scans.picked', id: 'inconnu' });
+    expect(announced).toHaveLength(before);
   });
 });
 

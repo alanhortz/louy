@@ -1,5 +1,5 @@
 /**
- * Calque d'entités en superposition (noms de lieux, caméras).
+ * Calque d'entités en superposition (noms de lieux, caméras, scans 3D).
  *
  * Les entités sont rendues en HTML plutôt qu'en texture : le texte reste net à
  * toute échelle, se style en CSS et ne coûte aucun appel de dessin. À chaque
@@ -18,6 +18,8 @@ export interface OverlayFeature {
   rank: number;
   /** Éloignement de la caméra, en mètres, au-delà duquel l'entité n'est plus proposée. */
   maxDistance?: number;
+  /** Éloignement en deçà duquel elle ne l'est plus : on est dessus, elle masquerait ce qu'elle désigne. */
+  minDistance?: number;
 }
 
 export interface OverlayPaintState {
@@ -96,6 +98,7 @@ export class OverlayLayer<F extends OverlayFeature = OverlayFeature> {
       // premier passage grossier (altitude de la cible) pour écarter le hors-champ et le lointain
       const coarse = frame.project(feature.x, feature.y, false);
       if (!coarse || coarse.range > Math.min(horizon, feature.maxDistance ?? Infinity)) continue;
+      if (coarse.range < (feature.minDistance ?? 0)) continue;
       const point = frame.project(feature.x, feature.y, true);
       if (!point) continue;
 

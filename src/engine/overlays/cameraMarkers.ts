@@ -7,6 +7,7 @@
  */
 
 import type { OverlayFeature, OverlayStyle } from '../OverlayLayer.ts';
+import { TINT_ACTIVE, TINT_IDLE, tinted } from './tint.ts';
 
 export interface CameraFeature extends OverlayFeature {
   thumbnail: string;
@@ -29,22 +30,8 @@ const ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" vie
   </g>
 </svg>`;
 
-/**
- * Teinte multiplicative, comme le fait un billboard : chaque couleur de l'icône
- * est multipliée, canal par canal, par la teinte demandée.
- */
-function tinted(svg: string, tint: string): string {
-  const channels = [1, 3, 5].map((at) => parseInt(tint.slice(at, at + 2), 16) / 255);
-  const multiplied = svg.replace(/#([0-9a-f]{6})\b/gi, (_, hex: string) =>
-    `#${channels
-      .map((channel, k) => Math.round(parseInt(hex.slice(k * 2, k * 2 + 2), 16) * channel))
-      .map((value) => value.toString(16).padStart(2, '0'))
-      .join('')}`);
-  return `data:image/svg+xml;base64,${btoa(multiplied)}`;
-}
-
-const ICON_IDLE = tinted(ICON, '#6be8ff');
-const ICON_ACTIVE = tinted(ICON, '#ffd97a');
+const ICON_IDLE = tinted(ICON, TINT_IDLE);
+const ICON_ACTIVE = tinted(ICON, TINT_ACTIVE);
 const CARD_TITLE_LENGTH = 15;
 
 export const cameraMarkerStyle: OverlayStyle<CameraFeature> = {

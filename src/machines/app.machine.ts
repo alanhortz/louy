@@ -261,10 +261,16 @@ export const appMachine = setup({
         },
 
         /* ---- caméras routières ---- */
-        'viewer.overlayPicked': {
-          guard: ({ event }) => event.layer === 'cameras',
-          actions: sendTo('cameras', ({ event }) => ({ type: 'cameras.picked', id: event.id })),
-        },
+        'viewer.overlayPicked': [
+          {
+            guard: ({ event }) => event.layer === 'cameras',
+            actions: sendTo('cameras', ({ event }) => ({ type: 'cameras.picked', id: event.id })),
+          },
+          {
+            guard: ({ event }) => event.layer === 'scans',
+            actions: sendTo('scans', ({ event }) => ({ type: 'scans.picked', id: event.id })),
+          },
+        ],
         'cameras.selectionChanged': {
           actions: [
             assign({ view: ({ context, event }) => ({ ...context.view, cameraId: event.camera?.id ?? null }) }),
@@ -291,7 +297,15 @@ export const appMachine = setup({
           })),
         },
 
-        /* ---- scans 3D : le viewer les dessine, la caméra vient tourner autour ---- */
+        /* ---- scans 3D : un marqueur par lieu, le viewer dessine les scans, la caméra vient tourner autour ---- */
+        'scans.markersChanged': {
+          actions: [
+            sendTo('viewer', ({ event }) =>
+              ({ type: 'viewer.overlayChanged', layer: 'scans', features: event.features })),
+            sendTo('viewer', ({ event }) =>
+              ({ type: 'viewer.overlayActivated', layer: 'scans', id: event.activeId })),
+          ],
+        },
         'scans.changed': {
           actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.scansChanged', scans: event.scans })),
         },

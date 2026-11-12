@@ -36,7 +36,8 @@ export interface Surface {
 
 export const SURFACES: readonly Surface[] = [
   { id: 'mnt', label: 'Terrain', hint: 'Modèle numérique de terrain : le sol nu, sans bâti ni végétation' },
-  { id: 'mns', label: 'Surface', hint: 'Modèle numérique de surface : bâtiments et canopée compris' },
+  // « Surface », le terme des géomètres, ne disait rien de ce qu'on y voit de plus que dans « Terrain »
+  { id: 'mns', label: 'Bâti & arbres', hint: 'Modèle numérique de surface : le sol avec ses bâtiments et sa végétation' },
 ];
 
 export interface Tint {
