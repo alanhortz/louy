@@ -153,19 +153,19 @@
 .stacks { display: contents; }
 
 /*
- * Petit écran : les panneaux repliés forment une rangée d'onglets sous la marque ;
- * celui qu'on déplie prend toute la largeur. Le bas reste au bandeau de rendu.
+ * Petit écran : le rail d'icônes (rail.css) tient lieu de sommaire. Un panneau
+ * replié disparaît ; celui qu'on déplie se range à droite du rail.
  */
 @media (max-width: 720px) {
   .stacks {
     position: fixed;
     top: calc(62px + var(--safe-top));
-    left: calc(var(--edge) + var(--safe-left));
+    /* 56 px : largeur du rail (cible de 44 px et ses marges), plus 8 px d'air */
+    left: calc(var(--edge) + var(--safe-left) + 56px + 8px);
     right: calc(var(--edge) + var(--safe-right));
     z-index: 100;
     display: flex;
-    flex-wrap: wrap;
-    align-content: flex-start;
+    flex-direction: column;
     gap: 8px;
     pointer-events: none;
   }
@@ -174,22 +174,8 @@
   .panel:not(.collapsed) { max-height: calc(100dvh - 200px - var(--safe-top) - var(--safe-bottom)); }
   .panel-body { -webkit-overflow-scrolling: touch; touch-action: pan-y; }
   .stack { display: contents; }
-  .panel { flex: 0 0 100%; order: 2; }
-  /* Un onglet replié n'est plus que son titre : sa largeur suit le texte, et le
-     bouton, invisible, recouvre tout l'onglet — quatre onglets tiennent sur 360 px. */
-  .panel.collapsed { flex: 1 1 auto; width: auto; min-width: 0; order: 1; }
-  .panel.collapsed .panel-inner { padding: 11px 6px; }
-  .panel.collapsed .panel-header { justify-content: center; gap: 0; margin: 0; padding: 0; }
-  .panel.collapsed .panel-title { letter-spacing: 1.4px; }
-  .panel.collapsed .panel-divider { display: none; }
-  .panel.collapsed .panel-collapse-btn {
-    position: absolute;
-    inset: 0;
-    width: auto;
-    height: auto;
-    border-radius: var(--panel-radius);
-    opacity: 0;
-  }
-  .panel.collapsed .panel-collapse-btn:focus-visible { opacity: 1; background: none; color: transparent; }
+  /* dans la colonne seulement : le bandeau de rendu garde sa propre largeur */
+  .stacks .panel { width: 100%; }
+  .panel.collapsed { display: none; }
   .scene-btn { padding: 10px 9px; }
 }

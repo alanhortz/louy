@@ -2,6 +2,7 @@
 @import '@fontsource-variable/jetbrains-mono';
 @import './tokens.css';
 @import './panels.css';
+@import './rail.css';
 @import './layers.css';
 @import './dock.css';
 @import './camera.css';

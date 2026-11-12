@@ -215,7 +215,7 @@ button.chip { pointer-events: auto; cursor: pointer; }
   .top-actions { top: calc(16px + var(--safe-top)); left: auto; right: calc(var(--edge) + var(--safe-right)); transform: none; }
   .top-actions button { width: 40px; height: 40px; }
   .indicator { display: none; }
-  .chips { top: auto; bottom: calc(78px + var(--safe-bottom)); }
+  .chips { top: auto; bottom: calc(28px + var(--safe-bottom)); }
   .status-line { bottom: calc(4px + var(--safe-bottom)); font-size: 7px; letter-spacing: 0.8px; }
   .status-line .status-attribution { display: none; }
 }

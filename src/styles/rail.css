@@ -1,0 +1,70 @@
+/*
+ * Rail du petit écran : une colonne d'icônes toujours visible, un panneau à la
+ * fois. Principe repris de la barre d'activité de process-cartography-ai ;
+ * verre, accent et rayons sont ceux de L'Oûy (jetons de tokens.css).
+ *
+ * Les mesures ci-dessous sont des repères de lisibilité, vérifiés par
+ * tests/rail.test.ts : cible tactile d'au moins 44 px (WCAG 2.5.5, Apple HIG),
+ * pictogramme d'au moins 20 px, contraste d'au moins 4,5:1 sur le verre, même
+ * posé sur une orthophoto blanche.
+ */
+
+.rail {
+  --rail-target: 44px;
+  --rail-glyph: 22px;
+  --rail-gap: 6px;
+  --rail-pad: 6px;
+  --rail-idle: #e8eaed;
+  --rail-active: #00d4ff;
+  /* largeur du rail, pour que les panneaux se rangent à sa droite */
+  --rail-width: calc(var(--rail-target) + 2 * var(--rail-pad));
+
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .rail {
+    position: fixed;
+    top: calc(62px + var(--safe-top));
+    left: calc(var(--edge) + var(--safe-left));
+    z-index: 106;
+    display: flex;
+    flex-direction: column;
+    gap: var(--rail-gap);
+    padding: var(--rail-pad);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--panel-radius);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+      0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  }
+}
+
+.rail-item {
+  width: var(--rail-target);
+  height: var(--rail-target);
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--btn-radius);
+  color: var(--rail-idle);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+.rail-item:hover, .rail-item:focus-visible {
+  border-color: var(--glass-border-hover);
+  background: rgba(255, 255, 255, 0.06);
+}
+/* Panneau ouvert : l'icône marque la position. */
+.rail-item.active {
+  color: var(--rail-active);
+  border-color: var(--rail-active);
+  background: var(--accent-dim);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.15);
+}
+.rail-glyph { width: var(--rail-glyph); height: var(--rail-glyph); stroke-width: 1.6; }

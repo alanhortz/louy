@@ -84,4 +84,11 @@
 
 @media (max-width: 720px) {
   .data-toggle-btn { padding: 8px 12px; }
+  /* le panneau partage la largeur avec le rail : le compteur ne réserve plus de place vide,
+     pour que le nom du calque s'affiche en entier */
+  .data-count { min-width: 0; }
+  .data-toggle-right { gap: 7px; }
+  .data-toggle-left { gap: 7px; }
+  /* sur les écrans les plus étroits, le nom passe à la ligne plutôt que d'être coupé */
+  .data-name { white-space: normal; line-height: 1.25; }
 }
