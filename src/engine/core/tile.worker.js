@@ -79,10 +79,13 @@ async function fetchPixels(url, px, signal) {
  * l'intervalle d'incertitude de la source — on ne fabrique pas d'altitude, on
  * choisit la plus reguliere parmi celles qui restent possibles.
  */
-function reconstruct(h, w, halfBand, iterations) {
+function reconstruct(h, w, halfBand, iterations, anchors = null) {
   if (iterations <= 0) return h;
   const centers = h.slice();
   const next = new Float32Array(h.length);
+  // les cellules ancrees gardent leur valeur d'un bout a l'autre : le lissage
+  // s'y raccorde, au lieu de les deplacer
+  if (anchors) for (let i = 0; i < h.length; i++) if (!Number.isNaN(anchors[i])) h[i] = anchors[i];
 
   // Sur un plateau a faible pente, un palier de 3,5 m peut couvrir des
   // centaines de metres : un noyau 3x3 classique mettrait des centaines de
@@ -101,6 +104,7 @@ function reconstruct(h, w, halfBand, iterations) {
       for (let x = 0; x < w; x++) {
         const idx = y * w + x;
         if (Number.isNaN(h[idx])) { next[idx] = NaN; continue; }
+        if (anchors && !Number.isNaN(anchors[idx])) { next[idx] = anchors[idx]; continue; }
 
         let sum = 0, n = 0;
         for (let dy = -1; dy <= 1; dy++) {
@@ -165,6 +169,42 @@ function sampleHeight(h, w, fx, fy) {
   return (a * (1 - tx) + b * tx) * (1 - ty) + (c * (1 - tx) + d * tx) * ty;
 }
 
+/** Demi-largeur du noyau qui donne l'altitude d'ancrage d'un bord. */
+const ANCHOR_RADIUS = 7;
+
+/**
+ * Altitudes d'ancrage du pourtour de la tuile, NaN partout ailleurs.
+ *
+ * Le lissage travaille dans la fenetre de chaque tuile : laissees libres, deux
+ * voisines aboutissent a leur jointure a des altitudes qui different d'une
+ * fraction du pas de quantification, et vue en biais cette marche ouvre une
+ * fente noire. On fixe donc, sur les deux rangees que les voisines ont en
+ * commun, une valeur qu'elles calculent a l'identique — la moyenne locale des
+ * altitudes quantifiees, que la marge TILE_PAD leur donne a toutes deux — et le
+ * lissage s'y raccorde de part et d'autre.
+ */
+function borderAnchors(quantized, w) {
+  const anchors = new Float32Array(quantized.length).fill(NaN);
+  const first = TILE_PAD, last = TILE_PAD + TILE_GRID - 1;
+  for (let y = first - 1; y <= last + 1; y++) {
+    for (let x = first - 1; x <= last + 1; x++) {
+      // seules les deux rangees a cheval sur le bord : la derniere de la tuile, la premiere de sa voisine
+      if (Math.min(x - first, y - first, last - x, last - y) > 0) { if (y > first && y < last) x = last - 1; continue; }
+      const i = y * w + x;
+      if (Number.isNaN(quantized[i])) continue;
+      let sum = 0, count = 0;
+      for (let dy = -ANCHOR_RADIUS; dy <= ANCHOR_RADIUS; dy++) {
+        for (let dx = -ANCHOR_RADIUS; dx <= ANCHOR_RADIUS; dx++) {
+          const q = quantized[(y + dy) * w + x + dx];
+          if (!Number.isNaN(q)) { sum += q; count++; }
+        }
+      }
+      anchors[i] = sum / count;
+    }
+  }
+  return anchors;
+}
+
 async function loadTile(msg) {
   const {
     id, px, cpx, sup, spacing, elevUrl, colorUrl, colorMode, stride, smooth, lutKey,
@@ -193,7 +233,12 @@ async function loadTile(msg) {
     }
 
     // 2. surface continue compatible avec la quantification
-    reconstruct(h, px, lut.step / 2, smooth);
+    // Les bords ne sont ancres que sous un habillage photographique, ou la legere
+    // ondulation qu'ils laissent le long des tuiles est invisible. Les habillages
+    // calcules sur le relief lui-meme (altitude, pente) la reveleraient : ils
+    // gardent la surface libre, et la jupe ci-dessous ferme leurs jointures.
+    const computed = colorMode === 'elevation' || colorMode === 'slope';
+    reconstruct(h, px, lut.step / 2, smooth, computed ? null : borderAnchors(h, px));
 
     // 3. echantillonnage de l'interieur -> geometrie
     //
@@ -203,8 +248,15 @@ async function loadTile(msg) {
     const n = Math.max(1, Math.round(TILE_GRID * sup / stride));
     const step = stride / sup;                 // en pixels de MNT
     const outSpacing = spacing * step;         // en metres
-    const positions = new Float32Array(n * n * 3);
-    const colors = new Uint8Array(n * n * 3);
+    // Jupe : sous chaque point du pourtour, une colonne de points descend d'un pas
+    // de quantification. Deux tuiles voisines reconstruisent leur surface chacune
+    // de son cote ; a la jointure leurs altitudes different d'au plus ce pas, et vu
+    // en biais ce decalage ouvrait une fente noire le long de la tuile.
+    const skirtRows = Math.max(1, Math.ceil(lut.step / outSpacing));
+    const skirtDrop = lut.step / skirtRows;
+    const capacity = n * n + 4 * n * skirtRows;
+    const positions = new Float32Array(capacity * 3);
+    const colors = new Uint8Array(capacity * 3);
 
     // Echelle fixe et commune a toutes les tuiles : une normalisation par tuile
     // ferait apparaitre les jointures du quadtree dans la colorimetrie.
@@ -254,6 +306,17 @@ async function loadTile(msg) {
           colors[o] = colors[o + 1] = colors[o + 2] = 190;
         }
         count++;
+
+        if (gx === 0 || gy === 0 || gx === n - 1 || gy === n - 1) {
+          for (let row = 1; row <= skirtRows; row++) {
+            const s = count * 3;
+            positions[s]     = positions[o];
+            positions[s + 1] = z - row * skirtDrop;
+            positions[s + 2] = positions[o + 2];
+            colors[s] = colors[o]; colors[s + 1] = colors[o + 1]; colors[s + 2] = colors[o + 2];
+            count++;
+          }
+        }
       }
     }
 
