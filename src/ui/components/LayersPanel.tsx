@@ -1,6 +1,7 @@
 import { CubeTransparentIcon, TagIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import type { ReactNode } from 'react';
+import { SCANS_LABEL } from '../../domain/scans.ts';
 import { camerasFeed } from '../../machines/cameras.machine.ts';
 import { placesStatus, type LayerFeed } from '../../machines/places.machine.ts';
 import { hasScans, scansFeed } from '../../machines/scans.machine.ts';
@@ -95,7 +96,7 @@ function CamerasRow() {
   );
 }
 
-/** Scans 3D : la ligne n'existe que si le site en publie. */
+/** Imagerie 3D (les scans) : la ligne n'existe que si le site en publie. */
 function ScansRow() {
   const scans = useChild('scans');
   const available = useSelector(scans, hasScans);
@@ -106,7 +107,7 @@ function ScansRow() {
   return (
     <LayerRow
       icon={<CubeTransparentIcon aria-hidden="true" />}
-      name="Scans 3D"
+      name={SCANS_LABEL}
       count={list.length}
       feed={feed}
       meta={list.map((scan) => `${scan.name} · images ${scan.credit.author}, ${scan.credit.licence}`).join(' — ')}

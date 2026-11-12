@@ -4,6 +4,7 @@
  * volume en fil de fer, et le nom du lieu reste affiché sous elle.
  */
 
+import { SCANS_LABEL } from '../../domain/scans.ts';
 import type { OverlayFeature, OverlayStyle } from '../OverlayLayer.ts';
 import { TINT_ACTIVE, TINT_IDLE, tinted } from './tint.ts';
 
@@ -32,12 +33,12 @@ export const scanMarkerStyle: OverlayStyle<ScanFeature> = {
     element.className = 'scan-marker';
     element.innerHTML =
       '<img class="scan-marker-icon" alt="" width="28" height="28" />'
-      + '<span class="scan-caption"><b>Scan 3D</b><span></span></span>';
+      + `<span class="scan-caption"><b>${SCANS_LABEL}</b><span></span></span>`;
     return element;
   },
   paint(element, scan, { active }) {
     const [icon, caption] = element.children as unknown as [HTMLImageElement, HTMLElement];
-    element.setAttribute('aria-label', `Scan 3D : ${scan.label}`);
+    element.setAttribute('aria-label', `${SCANS_LABEL} : ${scan.label}`);
     element.classList.toggle('active', active);
     icon.src = active ? ICON_ACTIVE : ICON_IDLE;
     caption.lastElementChild!.textContent = scan.label;

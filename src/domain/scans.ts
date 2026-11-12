@@ -51,6 +51,12 @@ export interface ScanView {
 
 export const SCAN_MANIFEST = '/scans/index.json';
 
+/**
+ * Nom donné au visiteur. Le code dit « scan » ; à l'écran on parle d'imagerie,
+ * terme qui se comprend sans connaître la technique.
+ */
+export const SCANS_LABEL = 'Imagerie 3D';
+
 /** Hauteur de survol à l'ouverture d'un scan sans cadrage propre. */
 export const SCAN_HEIGHT = 110;
 

@@ -1,5 +1,6 @@
 import { useSelector } from '@xstate/react';
 import { PROJECT } from '../../config/project.ts';
+import { SCANS_LABEL } from '../../domain/scans.ts';
 import sponsorMark from '../assets/sorcery-systems.svg';
 import { RETENTION_MS } from '../../services/telemetry.ts';
 import { useChild } from '../actors.ts';
@@ -35,7 +36,7 @@ export function AboutPanel() {
         <li>Caméras : SPW Trafiroutes, placées au point kilométrique lu sur leur image ; à défaut, sur la localité nommée.</li>
         {scans.map((scan) => (
           <li key={scan.id}>
-            Scan 3D « {scan.name} » : reconstruit et calé sur le LiDAR à partir de la vidéo{' '}
+            {SCANS_LABEL} « {scan.name} » : reconstruite et calée sur le LiDAR à partir de la vidéo{' '}
             <a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.title}</a> de {scan.credit.author},
             licence Creative Commons {scan.credit.licence}.
           </li>
