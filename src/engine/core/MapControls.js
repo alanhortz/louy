@@ -127,7 +127,9 @@ export class MapControls {
         let turn = pose.angle - this._twist.angle;
         if (turn > Math.PI) turn -= 2 * Math.PI;
         if (turn < -Math.PI) turn += 2 * Math.PI;
-        this._d.az -= turn;
+        // la carte suit les doigts : pour qu'elle tourne dans leur sens a l'ecran,
+        // la camera orbite dans le sens oppose, donc l'azimut croit avec leur angle
+        this._d.az += turn;
         this._d.pol -= (pose.midY - this._twist.midY) * 0.005;
       }
       this._twist = pose;
