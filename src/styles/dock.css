@@ -8,7 +8,8 @@
   transform: translateX(-50%);
   --panel-width: min(560px, calc(100vw - 2 * var(--edge)));
 }
-.dock.collapsed { --collapsed-width: 200px; }
+/* replié, le bandeau disparaît : l'icône « Rendu » du rail le rouvre */
+.dock.collapsed { display: none; }
 .dock .panel { animation: none; }
 
 .button-grid {
@@ -149,8 +150,6 @@
 
 @media (max-width: 720px) {
   .dock { bottom: calc(20px + var(--safe-bottom)); max-height: calc(100dvh - 180px); --panel-width: calc(100vw - 2 * var(--edge) - var(--safe-left) - var(--safe-right)); }
-  /* replié, le bandeau n'a plus d'onglet : le rail l'ouvre */
-  .dock.collapsed { display: none; }
   .dock-sections { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dock-section-wide { grid-column: 1 / -1; }
   .map-stack-chip { padding: 9px 7px; }

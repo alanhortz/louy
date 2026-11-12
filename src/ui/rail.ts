@@ -1,5 +1,5 @@
 /**
- * Rail de navigation du petit écran : une colonne d'icônes toujours visible,
+ * Rail de navigation : une colonne d'icônes toujours visible,
  * qui ouvre un panneau à la fois. Le principe (barre d'activité : icônes
  * permanentes, une seule section affichée, l'icône active marque la position)
  * vient de l'interface de process-cartography-ai ; l'habillage reste celui de

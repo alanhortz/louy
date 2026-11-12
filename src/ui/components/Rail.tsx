@@ -3,8 +3,8 @@ import { RAIL_ITEMS } from '../rail.ts';
 import { useChild } from '../actors.ts';
 
 /**
- * Rail du petit écran : chaque icône déplie son panneau, ou le replie s'il est
- * déjà ouvert. Sur grand écran les panneaux se suffisent, le rail est masqué.
+ * Rail : chaque icône déplie son panneau, ou le replie s'il est déjà ouvert.
+ * Il sert de sommaire à toutes les tailles d'écran.
  */
 export function Rail() {
   const chrome = useChild('chrome');

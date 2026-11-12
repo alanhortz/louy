@@ -61,12 +61,14 @@ const SITE_HEIGHT = 200;
 const CAMERA_HEIGHT = 450;
 
 /**
- * Panneaux dépliés à l'ouverture. L'aide à la navigation s'ouvre tant que le
- * visiteur ne l'a pas refermée lui-même ; sur petit écran elle est alors seule.
+ * Panneau déplié à l'ouverture — un seul, le rail n'en montre qu'un à la fois.
+ * L'aide à la navigation s'ouvre tant que le visiteur ne l'a pas refermée
+ * lui-même ; ensuite, un grand écran ouvre sur les calques et un petit écran
+ * laisse toute la place à la carte.
  */
 function initialPanels(context: AppContext): PanelId[] {
-  const help: PanelId[] = isAcknowledged('controls') ? [] : ['controls'];
-  return context.support?.compact ? help : ['layers', 'render', ...help];
+  if (!isAcknowledged('controls')) return ['controls'];
+  return context.support?.compact ? [] : ['layers'];
 }
 
 export const appMachine = setup({
@@ -156,7 +158,8 @@ export const appMachine = setup({
           id: 'chrome',
           src: 'chrome',
           input: ({ context }) => ({
-            exclusive: context.support?.compact ?? false,
+            // le rail est le sommaire à toutes les tailles d'écran : un panneau à la fois
+            exclusive: true,
             expanded: initialPanels(context),
           }),
         },

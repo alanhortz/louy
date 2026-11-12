@@ -1,17 +1,20 @@
-/* Panneaux « verre » repliables et leurs deux colonnes — GEV. */
+/* Panneaux « verre » — GEV. Le rail d'icônes (rail.css) en est le sommaire : un panneau à la fois, rangé à sa droite. */
 
-.stack {
+.stacks {
   position: fixed;
   top: var(--stack-top);
   bottom: 4vh;
+  /* 56 px : largeur du rail (cible de 44 px et ses marges), plus 8 px d'air */
+  left: calc(var(--edge) + var(--safe-left) + 56px + 8px);
+  width: 360px;
   z-index: 100;
   display: flex;
   flex-direction: column;
   gap: 8px;
   pointer-events: none;
 }
-.stack-left { left: calc(var(--edge) + var(--safe-left)); width: 360px; align-items: flex-start; }
-.stack-right { right: calc(var(--edge) + var(--safe-right)); width: 330px; align-items: flex-end; z-index: 110; }
+/* les deux colonnes d'origine ne sont plus que des regroupements : la mise en page est celle de leur conteneur */
+.stack { display: contents; }
 
 .panel {
   position: relative;
@@ -22,7 +25,10 @@
   pointer-events: auto;
   animation: panel-rise var(--transition-smooth) both;
 }
-.panel.collapsed { width: var(--collapsed-width); flex-shrink: 0; }
+/* dans la colonne seulement : le bandeau de rendu garde sa propre largeur */
+.stacks .panel { width: 100%; }
+/* un panneau replié disparaît : son icône, dans le rail, le rouvre */
+.panel.collapsed { display: none; }
 
 @keyframes panel-rise {
   from { opacity: 0; transform: translateY(8px); }
@@ -149,33 +155,17 @@
 }
 .scene-btn:disabled { opacity: 0.45; cursor: default; }
 
-/* Grand écran : les deux colonnes se placent seules, leur conteneur s'efface. */
-.stacks { display: contents; }
-
-/*
- * Petit écran : le rail d'icônes (rail.css) tient lieu de sommaire. Un panneau
- * replié disparaît ; celui qu'on déplie se range à droite du rail.
- */
+/* Petit écran : la colonne des panneaux prend toute la largeur laissée par le rail. */
 @media (max-width: 720px) {
   .stacks {
-    position: fixed;
     top: calc(62px + var(--safe-top));
-    /* 56 px : largeur du rail (cible de 44 px et ses marges), plus 8 px d'air */
-    left: calc(var(--edge) + var(--safe-left) + 56px + 8px);
+    bottom: auto;
     right: calc(var(--edge) + var(--safe-right));
-    z-index: 100;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    pointer-events: none;
+    width: auto;
   }
   /* Le panneau déplié défile lui-même : sur iOS, un conteneur sans événements de
      pointeur (la colonne) ne se laisse pas faire défiler au doigt. */
   .panel:not(.collapsed) { max-height: calc(100dvh - 200px - var(--safe-top) - var(--safe-bottom)); }
   .panel-body { -webkit-overflow-scrolling: touch; touch-action: pan-y; }
-  .stack { display: contents; }
-  /* dans la colonne seulement : le bandeau de rendu garde sa propre largeur */
-  .stacks .panel { width: 100%; }
-  .panel.collapsed { display: none; }
   .scene-btn { padding: 10px 9px; }
 }
