@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import worker from '../worker/index.ts';
 
 const store = new Map<string, Response>();
-const context = { waitUntil: (promise: Promise<unknown>) => { void promise; } };
+const pending: Promise<unknown>[] = [];
+const context = { waitUntil: (promise: Promise<unknown>) => { pending.push(promise); } };
+/** Attend la fin du travail d'arrière-plan du Worker. */
+const settle = async () => { await Promise.all(pending.splice(0)); };
 const env = { ASSETS: { fetch: vi.fn(async () => new Response('site')) } };
 
 const call = (path: string, init?: RequestInit) =>
@@ -89,5 +92,47 @@ describe('autres routes', () => {
 
   it('laisse le site statique à Cloudflare', async () => {
     expect(await (await call('/index.html')).text()).toBe('site');
+  });
+});
+
+describe('préchauffage du film du temps', () => {
+  const ORTHO = '/edge/v1/tiles/IMAGERIE/ORTHO_1971/544/11/1000/1000.jpg';
+
+  it('prépare la même tuile aux autres millésimes quand le film la demande', async () => {
+    const fetchMock = upstream('jpg', 'image/jpeg');
+    vi.stubGlobal('fetch', fetchMock);
+    await call(`${ORTHO}?film`);
+    await settle();
+    // 19 millésimes datés : celui demandé, et les 18 autres
+    expect(fetchMock).toHaveBeenCalledTimes(19);
+    expect(store.has('https://louy.be/edge/v1/tiles/IMAGERIE/ORTHO_2024/544/11/1000/1000.jpg')).toBe(true);
+    expect(store.has('https://louy.be/edge/v1/tiles/IMAGERIE/ORTHO_LAST/544/11/1000/1000.jpg')).toBe(false);
+
+    // le millésime suivant est servi sans rappeler le SPW, et ne relance rien
+    await call('/edge/v1/tiles/IMAGERIE/ORTHO_2024/544/11/1000/1000.jpg?film');
+    await settle();
+    expect(fetchMock).toHaveBeenCalledTimes(19);
+  });
+
+  it('ne prépare rien hors du film, ni pour le relief', async () => {
+    const fetchMock = upstream('jpg', 'image/jpeg');
+    vi.stubGlobal('fetch', fetchMock);
+    await call(ORTHO);
+    await settle();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    vi.stubGlobal('fetch', upstream('png', 'image/png'));
+    await call('/edge/v1/tiles/RELIEF/WALLONIE_MNT_2021_2022/272/9/250/260.png?film');
+    await settle();
+    expect(store.size).toBe(2);
+  });
+
+  it('ne range jamais une erreur du SPW parmi les tuiles préparées', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => (calls++ === 0
+      ? new Response('jpg', { headers: { 'Content-Type': 'image/jpeg' } })
+      : new Response('{"error":{}}', { headers: { 'Content-Type': 'application/json' } }))));
+    await call(`${ORTHO}?film`);
+    await settle();
+    expect(store.size).toBe(1);
   });
 });

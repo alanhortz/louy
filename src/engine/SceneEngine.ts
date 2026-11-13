@@ -399,7 +399,9 @@ export class SceneEngine {
       elevUrl: this.#tileUrl({ ...address, service: source.elevationService, px: T.REQUEST_PX, format: 'png' }),
       // au niveau le plus fin la couleur est demandée à sa résolution native (25 cm)
       colorUrl: source.colorService
-        ? this.#tileUrl({ ...address, service: source.colorService, px: T.REQUEST_PX * sup, format: source.colorFormat })
+        ? this.#tileUrl({
+          ...address, service: source.colorService, px: T.REQUEST_PX * sup, format: source.colorFormat, warm: source.warm,
+        })
         : null,
       lutKey: source.lutKey,
       colorMode: source.colorMode,

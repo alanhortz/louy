@@ -267,7 +267,11 @@ export const appMachine = setup({
         'timeline.vintageRequested': {
           actions: sendTo('viewer', ({ context, event }) => ({
             type: 'viewer.sceneChanged',
-            source: resolveScene({ ...context.view.scene, tint: timelineTint(context.view.scene.tint), vintage: event.vintage }),
+            source: {
+              ...resolveScene({ ...context.view.scene, tint: timelineTint(context.view.scene.tint), vintage: event.vintage }),
+              // le relais Cloudflare prépare les millésimes suivants pendant que celui-ci s'affiche
+              warm: true,
+            },
           })),
         },
         'timeline.captureRequested': { actions: sendTo('viewer', { type: 'viewer.captureRequested' }) },
