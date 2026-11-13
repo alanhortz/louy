@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createActor, createMachine, sendTo, type AnyEventObject } from 'xstate';
 import { createTelemetryInspector } from '../src/app/inspector.ts';
 import { VINTAGES } from '../src/domain/catalog.ts';
-import { timelinePosition, timelineSteps, timelineTint, TIMELINE_STEP_MS, type TimelineStep } from '../src/domain/timeline.ts';
+import { FILM_PLACES, timelinePosition, timelineSteps, timelineTint, TIMELINE_STEP_MS, type TimelineStep } from '../src/domain/timeline.ts';
+import { filmsFeed, filmsMachine } from '../src/machines/films.machine.ts';
 import { timelineMachine, timelinePhase, timelineProgress } from '../src/machines/timeline.machine.ts';
 import { TelemetryBuffer } from '../src/services/telemetry.ts';
 
@@ -228,5 +229,47 @@ describe('machine du film du temps', () => {
     }
     expect(journal).toContain('"by":"frise"');
     expect(journal).toContain('"by":"keyboard"');
+  });
+});
+
+describe('calque des films du temps', () => {
+  function films() {
+    const announced: AnyEventObject[] = [];
+    const parent = createActor(createMachine({
+      invoke: { id: 'films', src: filmsMachine },
+      on: {
+        'to.child': { actions: sendTo('films', ({ event }) => (event as AnyEventObject).event) },
+        '*': { actions: ({ event }) => { announced.push(event); } },
+      },
+    })).start();
+    const actor = parent.getSnapshot().children.films!;
+    return { announced, actor, send: (event: AnyEventObject) => parent.send({ type: 'to.child', event }) };
+  }
+
+  it('signale d’emblée ses lieux, le Grognon en premier', () => {
+    const { announced, actor } = films();
+    expect(FILM_PLACES[0]).toMatchObject({ id: 'grognon' });
+    expect(announced.at(-1)).toMatchObject({ type: 'films.markersChanged', activeId: null });
+    expect(announced.at(-1)!.features[0]).toMatchObject({ id: 'grognon', x: 685487, y: 627968 });
+    expect(filmsFeed(actor.getSnapshot() as never)).toBe('nominal');
+  });
+
+  it('demande le film du lieu dont on touche le marqueur', () => {
+    const { announced, send } = films();
+    send({ type: 'films.picked', id: 'inconnu' });
+    expect(announced.some((event) => event.type === 'films.playRequested')).toBe(false);
+    send({ type: 'films.picked', id: 'grognon' });
+    expect(announced.at(-1)).toMatchObject({ type: 'films.playRequested', place: { id: 'grognon', view: { distance: 256 } } });
+  });
+
+  it('retire ses marqueurs quand le calque est éteint, et les remet', () => {
+    const { announced, actor, send } = films();
+    send({ type: 'films.toggled' });
+    expect(announced.at(-1)).toMatchObject({ type: 'films.markersChanged', features: [] });
+    expect(filmsFeed(actor.getSnapshot() as never)).toBe('off');
+    send({ type: 'films.picked', id: 'grognon' });
+    expect(announced.at(-1)!.type).toBe('films.markersChanged');
+    send({ type: 'films.toggled' });
+    expect(announced.at(-1)!.features).toHaveLength(1);
   });
 });

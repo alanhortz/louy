@@ -1,9 +1,11 @@
-import { CubeTransparentIcon, TagIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
+import { ClockIcon, CubeTransparentIcon, TagIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import type { ReactNode } from 'react';
 import { SCANS_LABEL } from '../../domain/scans.ts';
 import { camerasFeed } from '../../machines/cameras.machine.ts';
 import { placesStatus, type LayerFeed } from '../../machines/places.machine.ts';
+import { FILMS_LABEL } from '../../domain/timeline.ts';
+import { filmsFeed } from '../../machines/films.machine.ts';
 import { hasScans, scansFeed } from '../../machines/scans.machine.ts';
 import { CAMERA_SOURCE } from '../../services/cameras.ts';
 import { useChild } from '../actors.ts';
@@ -116,6 +118,24 @@ function ScansRow() {
   );
 }
 
+/** Films du temps : les lieux dont l'évolution, d'une photo aérienne à l'autre, vaut d'être regardée. */
+function FilmsRow() {
+  const films = useChild('films');
+  const feed = useSelector(films, filmsFeed);
+  const places = useSelector(films, (snapshot) => snapshot.context.places);
+
+  return (
+    <LayerRow
+      icon={<ClockIcon aria-hidden="true" />}
+      name={FILMS_LABEL}
+      count={places.length}
+      feed={feed}
+      meta={`${places.map((place) => place.name).join(' — ')} · orthophotos SPW, toucher un marqueur lance le film`}
+      onToggle={() => films.send({ type: 'films.toggled' })}
+    />
+  );
+}
+
 /** Calques en superposition. */
 export function LayersPanel() {
   return (
@@ -124,6 +144,7 @@ export function LayersPanel() {
         <PlacesRow />
         <CamerasRow />
         <ScansRow />
+        <FilmsRow />
       </div>
     </Panel>
   );

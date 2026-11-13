@@ -88,11 +88,7 @@ export function RenderDock() {
             type="button"
             className="scene-btn dock-film"
             title="Voir cette vue évoluer d’une photo aérienne à l’autre, en plein écran"
-            onClick={() => {
-              // le plein écran ne s'obtient que dans le geste du visiteur : on le demande ici, pas plus tard
-              void document.documentElement.requestFullscreen?.().catch(() => {});
-              app.send({ type: 'app.timelineRequested' });
-            }}
+            onClick={() => app.send({ type: 'app.timelineRequested' })}
           >
             <FilmIcon aria-hidden="true" />
             FILM DU TEMPS

@@ -28,6 +28,7 @@ import { camerasMachine, type CamerasEmitted } from './cameras.machine.ts';
 import { chromeMachine, type PanelId } from './chrome.machine.ts';
 import { compatibilityMachine } from './compatibility.machine.ts';
 import { placesMachine, type PlacesEmitted } from './places.machine.ts';
+import { filmsMachine, type FilmsEmitted } from './films.machine.ts';
 import { scansMachine, type ScansEmitted } from './scans.machine.ts';
 import { sceneMachine, type SceneEmitted } from './scene.machine.ts';
 import { shareMachine } from './share.machine.ts';
@@ -46,6 +47,7 @@ export type AppEvent =
   | CamerasEmitted
   | SitesEmitted
   | ScansEmitted
+  | FilmsEmitted
   | TimelineEmitted;
 
 export interface AppInput {
@@ -89,6 +91,7 @@ export const appMachine = setup({
       cameras: 'cameras';
       sites: 'sites';
       scans: 'scans';
+      films: 'films';
       timeline: 'timeline';
       acquisition: 'acquisition';
       activity: 'activity';
@@ -105,6 +108,7 @@ export const appMachine = setup({
     cameras: camerasMachine,
     sites: sitesMachine,
     scans: scansMachine,
+    films: filmsMachine,
     timeline: timelineMachine,
     acquisition: acquisitionMachine,
     activity: activityMachine,
@@ -201,6 +205,7 @@ export const appMachine = setup({
         },
         { id: 'sites', src: 'sites' },
         { id: 'scans', src: 'scans' },
+        { id: 'films', src: 'films' },
         { id: 'timeline', src: 'timeline' },
         {
           id: 'acquisition',
@@ -278,6 +283,24 @@ export const appMachine = setup({
             ({ type: 'viewer.sceneChanged', source: resolveScene(context.view.scene) })),
         },
 
+        /* ---- films signalés sur la carte : un marqueur par lieu ; le toucher cadre le lieu et lance son film ---- */
+        'films.markersChanged': {
+          actions: [
+            sendTo('viewer', ({ event }) =>
+              ({ type: 'viewer.overlayChanged', layer: 'films', features: event.features })),
+            sendTo('viewer', ({ event }) =>
+              ({ type: 'viewer.overlayActivated', layer: 'films', id: event.activeId })),
+          ],
+        },
+        'films.playRequested': {
+          actions: [
+            sendTo('viewer', { type: 'viewer.orbitStopped' }),
+            sendTo('viewer', ({ event }) => ({ type: 'viewer.poseApplied', pose: event.place.view })),
+            sendTo('timeline', ({ context }) =>
+              ({ type: 'timeline.opened', steps: timelineSteps(context.view.scene.tint) })),
+          ],
+        },
+
         /* ---- les calques publient leurs entités : le viewer les dessine ---- */
         'places.changed': {
           actions: [
@@ -311,6 +334,10 @@ export const appMachine = setup({
           {
             guard: ({ event }) => event.layer === 'scans',
             actions: sendTo('scans', ({ event }) => ({ type: 'scans.picked', id: event.id })),
+          },
+          {
+            guard: ({ event }) => event.layer === 'films',
+            actions: sendTo('films', ({ event }) => ({ type: 'films.picked', id: event.id })),
           },
         ],
         'cameras.selectionChanged': {

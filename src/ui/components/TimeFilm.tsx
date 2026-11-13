@@ -52,8 +52,12 @@ export function TimeFilm() {
     };
   }, [open, presenting, last, timeline]);
 
-  // le film fermé par un autre chemin que le plein écran le quitte aussi
-  useEffect(() => { if (!open) leaveFullscreen(); }, [open]);
+  // Le film s'ouvre en plein écran, d'où qu'il soit demandé (bouton ou marqueur) : le
+  // navigateur l'accorde tant que le geste du visiteur est récent. Fermé, il le quitte.
+  useEffect(() => {
+    if (!open) return leaveFullscreen();
+    if (!document.fullscreenElement) void document.documentElement.requestFullscreen?.().catch(() => {});
+  }, [open]);
 
   if (!open) return null;
 

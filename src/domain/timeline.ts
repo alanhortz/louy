@@ -4,6 +4,7 @@
  */
 
 import { LATEST_VINTAGE, VINTAGES, type TintId } from './catalog.ts';
+import type { Pose } from './view.ts';
 
 export interface TimelineStep {
   /** Identifiant du millésime (`2015`, `1994`…). */
@@ -37,3 +38,30 @@ export function timelinePosition(year: number, steps: readonly { year: number }[
 /** Durée d'affichage d'une image avant de passer à la suivante, et durée du fondu. */
 export const TIMELINE_STEP_MS = 2600;
 export const TIMELINE_FADE_MS = 900;
+
+/* ----------------------------------------------------- lieux à film --- */
+
+/** Nom du calque qui signale, sur la carte, les lieux dont le film vaut le détour. */
+export const FILMS_LABEL = 'Films du temps';
+
+/** Un lieu choisi pour son film : où poser le marqueur, et d'où regarder. */
+export interface FilmPlace {
+  id: string;
+  name: string;
+  /** Position du marqueur (Lambert 2008). */
+  x: number;
+  y: number;
+  /** Cadrage du film. */
+  view: Pose;
+}
+
+export const FILM_PLACES: readonly FilmPlace[] = [
+  {
+    id: 'grognon',
+    name: 'Le Grognon, Namur',
+    x: 685487,
+    y: 627968,
+    // le confluent de la Sambre et de la Meuse : parking à ciel ouvert, chantier, puis esplanade
+    view: { x: 685487, y: 627968, distance: 256, azimuth: 204, tilt: 18 },
+  },
+];
