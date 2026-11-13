@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { AIRCRAFT_EDGE_PATH, aircraftFeedUrl } from './src/domain/aircraft.ts';
 import { entropy } from './build/entropy/plugin.ts';
 import { supportGate } from './build/support-gate.ts';
 
@@ -27,4 +28,15 @@ export default defineConfig({
     },
   },
   worker: { format: 'es' },
+  server: {
+    // En développement il n'y a pas de Worker : ce relais tient lieu du sien pour les avions,
+    // le réseau adsb.lol n'autorisant pas les appels directs depuis un navigateur.
+    proxy: {
+      [`/edge/v1${AIRCRAFT_EDGE_PATH}`]: {
+        target: new URL(aircraftFeedUrl()).origin,
+        changeOrigin: true,
+        rewrite: () => new URL(aircraftFeedUrl()).pathname,
+      },
+    },
+  },
 });

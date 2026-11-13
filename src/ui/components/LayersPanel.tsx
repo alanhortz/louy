@@ -1,10 +1,12 @@
-import { CubeTransparentIcon, TagIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
+import { CubeTransparentIcon, PaperAirplaneIcon, TagIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import type { ReactNode } from 'react';
 import { SCANS_LABEL } from '../../domain/scans.ts';
+import { aircraftFeed } from '../../machines/aircraft.machine.ts';
 import { camerasFeed } from '../../machines/cameras.machine.ts';
 import { placesStatus, type LayerFeed } from '../../machines/places.machine.ts';
 import { hasScans, scansFeed } from '../../machines/scans.machine.ts';
+import { AIRCRAFT_SOURCE } from '../../services/aircraft.ts';
 import { CAMERA_SOURCE } from '../../services/cameras.ts';
 import { useChild } from '../actors.ts';
 import { ago, count } from '../format.ts';
@@ -96,6 +98,25 @@ function CamerasRow() {
   );
 }
 
+/** Avions en direct : positions relevées toutes les quelques secondes. */
+function AircraftRow() {
+  const aircraft = useChild('aircraft');
+  const feed = useSelector(aircraft, aircraftFeed);
+  const total = useSelector(aircraft, (snapshot) => snapshot.context.list.length);
+  const updatedAt = useSelector(aircraft, (snapshot) => snapshot.context.updatedAt);
+
+  return (
+    <LayerRow
+      icon={<PaperAirplaneIcon aria-hidden="true" />}
+      name="Avions en direct"
+      count={total}
+      feed={feed}
+      meta={`${AIRCRAFT_SOURCE} · ${updatedAt === null ? 'jamais relevé' : 'en direct'}`}
+      onToggle={() => aircraft.send({ type: 'aircraft.toggled' })}
+    />
+  );
+}
+
 /** Imagerie 3D (les scans) : la ligne n'existe que si le site en publie. */
 function ScansRow() {
   const scans = useChild('scans');
@@ -123,6 +144,7 @@ export function LayersPanel() {
       <div className="data-toggle-list">
         <PlacesRow />
         <CamerasRow />
+        <AircraftRow />
         <ScansRow />
       </div>
     </Panel>

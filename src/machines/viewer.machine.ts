@@ -26,7 +26,8 @@ export type ViewerEmitted =
   | { type: 'viewer.viewSettled'; pose: Pose }
   | { type: 'viewer.poseCaptured'; pose: Pose }
   | { type: 'viewer.activityChanged'; loading: boolean; points: number }
-  | { type: 'viewer.overlayPicked'; layer: OverlayName; id: string };
+  | { type: 'viewer.overlayPicked'; layer: OverlayName; id: string }
+  | { type: 'viewer.followEnded' };
 
 interface ViewerContext extends Omit<EngineInput, 'mount'> {
   mount: ViewerMount | null;
@@ -86,8 +87,8 @@ export const viewerMachine = viewer.createMachine({
   context: ({ input }) => ({
     ...input,
     mount: null,
-    overlays: { places: [], cameras: [], scans: [] },
-    active: { places: null, cameras: null, scans: null },
+    overlays: { places: [], cameras: [], scans: [], aircraft: [] },
+    active: { places: null, cameras: null, scans: null, aircraft: null },
     scans: [],
     loading: true,
     points: 0,
@@ -115,6 +116,9 @@ export const viewerMachine = viewer.createMachine({
       on: {
         ...handlers(['remember', 'command'] as const),
         'viewer.poseCaptureRequested': { actions: 'command' },
+        // suivre un mobile n'a de sens que moteur présent : rien à mémoriser pour plus tard
+        'viewer.followChanged': { actions: 'command' },
+        'engine.followEnded': { actions: sendParent((): ViewerEmitted => ({ type: 'viewer.followEnded' })) },
         'viewer.canvasDetached': { target: 'detached', actions: assign({ mount: null }) },
         'engine.failed': {
           target: 'failed',

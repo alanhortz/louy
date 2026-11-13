@@ -12,11 +12,16 @@
  * — que ce Worker traduit en requête ArcGIS, puis rend avec une durée de vie
  * longue. Une campagne LiDAR datée ne change plus : sa tuile est immuable.
  *
+ * Il relaie aussi `/edge/v1/aircraft.json`, les avions en vol : la réponse du
+ * réseau adsb.lol est gardée quelques secondes, de sorte que le nombre de
+ * requêtes vers ce réseau bénévole ne dépende pas du nombre de visiteurs.
+ *
  * Ce n'est pas un proxy ouvert : seuls les services, tailles et adresses de
  * tuiles que le viewer utilise réellement sont acceptés.
  */
 
 import { FLIGHT_CELL, flightDatesUrl } from '../src/domain/acquisition.ts';
+import { AIRCRAFT_CACHE_SECONDS, AIRCRAFT_EDGE_PATH, aircraftFeedUrl } from '../src/domain/aircraft.ts';
 import {
   SERVICE_PATTERN, TILE_SIZES, exportUrl, isImmutableService, parseTilePath,
 } from '../src/domain/tiles.ts';
@@ -70,13 +75,23 @@ function flightsUpstream(path: string): Upstream | null {
   return { url: flightDatesUrl({ cx, cy }), contentType: 'application/json', cacheControl: IMMUTABLE };
 }
 
+/** Avions en vol : une seule adresse, sans paramètre — rien à valider, rien à détourner. */
+function aircraftUpstream(path: string): Upstream | null {
+  if (path !== AIRCRAFT_EDGE_PATH) return null;
+  return {
+    url: aircraftFeedUrl(),
+    contentType: 'application/json',
+    cacheControl: `public, max-age=${AIRCRAFT_CACHE_SECONDS}, s-maxage=${AIRCRAFT_CACHE_SECONDS}`,
+  };
+}
+
 const refusal = (status: number, message: string): Response =>
   new Response(message, { status, headers: { 'Cache-Control': 'no-store', 'Content-Type': 'text/plain; charset=utf-8' } });
 
 async function relay(request: Request, context: ExecutionContext): Promise<Response> {
   const { origin, pathname } = new URL(request.url);
   const route = pathname.slice(PREFIX.length);
-  const upstream = tileUpstream(route) ?? flightsUpstream(route);
+  const upstream = tileUpstream(route) ?? flightsUpstream(route) ?? aircraftUpstream(route);
   if (!upstream) return refusal(404, 'Ressource inconnue');
 
   // la clef ignore la chaîne de requête : impossible de fragmenter le cache par des paramètres
@@ -88,7 +103,7 @@ async function relay(request: Request, context: ExecutionContext): Promise<Respo
   const answer = await fetch(upstream.url, { headers: { Accept: upstream.contentType } });
   const type = answer.headers.get('Content-Type') ?? '';
   if (!answer.ok || !type.startsWith(upstream.contentType)) {
-    return refusal(502, 'Le Géoportail de la Wallonie n’a pas rendu cette ressource');
+    return refusal(502, 'La source n’a pas rendu cette ressource');
   }
 
   const response = new Response(answer.body, {

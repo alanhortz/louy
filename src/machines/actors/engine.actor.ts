@@ -12,12 +12,13 @@ import type { SceneSource } from '../../domain/scene.ts';
 import { directTileUrl, edgeTileUrl } from '../../domain/tiles.ts';
 import type { Pose } from '../../domain/view.ts';
 import type { OverlayFeature } from '../../engine/OverlayLayer.ts';
+import { aircraftMarkerStyle } from '../../engine/overlays/aircraftMarkers.ts';
 import { cameraMarkerStyle } from '../../engine/overlays/cameraMarkers.ts';
 import { placeLabelStyle } from '../../engine/overlays/placeLabels.ts';
 import { scanMarkerStyle } from '../../engine/overlays/scanMarkers.ts';
-import { SceneEngine, type Altimeter, type Flyover } from '../../engine/SceneEngine.ts';
+import { SceneEngine, type Altimeter, type Flyover, type FollowTarget } from '../../engine/SceneEngine.ts';
 
-export type OverlayName = 'places' | 'cameras' | 'scans';
+export type OverlayName = 'places' | 'cameras' | 'scans' | 'aircraft';
 
 export interface ViewerMount {
   canvas: HTMLCanvasElement;
@@ -34,6 +35,7 @@ export type EngineCommand =
   | { type: 'viewer.poseApplied'; pose: Pose; sharpen?: boolean }
   | { type: 'viewer.flyoverRequested'; flyover: Flyover }
   | { type: 'viewer.orbitStopped' }
+  | { type: 'viewer.followChanged'; target: FollowTarget | null }
   | { type: 'viewer.poseCaptureRequested' };
 
 /** Ce que le moteur rapporte. */
@@ -44,6 +46,7 @@ export type EngineReport =
   | { type: 'engine.poseCaptured'; pose: Pose }
   | { type: 'engine.activityChanged'; loading: boolean; points: number }
   | { type: 'engine.orbitEnded' }
+  | { type: 'engine.followEnded' }
   | { type: 'engine.overlayPicked'; layer: OverlayName; id: string }
   | { type: 'engine.contextLost' }
   | { type: 'engine.contextRestored' };
@@ -60,7 +63,7 @@ export interface EngineInput {
   scans: Scan[];
 }
 
-const OVERLAYS: readonly OverlayName[] = ['places', 'cameras', 'scans'];
+const OVERLAYS: readonly OverlayName[] = ['places', 'cameras', 'scans', 'aircraft'];
 
 export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport>(
   ({ input, sendBack, receive }) => {
@@ -79,6 +82,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
           onViewSettled: (pose) => sendBack({ type: 'engine.viewSettled', pose }),
           onActivity: (activity) => sendBack({ type: 'engine.activityChanged', ...activity }),
           onOrbitEnded: () => sendBack({ type: 'engine.orbitEnded' }),
+          onFollowEnded: () => sendBack({ type: 'engine.followEnded' }),
           onOverlayPicked: (layer, id) =>
             sendBack({ type: 'engine.overlayPicked', layer: layer as OverlayName, id }),
           onContextLost: () => sendBack({ type: 'engine.contextLost' }),
@@ -93,6 +97,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
     engine.addOverlay('places', placeLabelStyle);
     engine.addOverlay('cameras', cameraMarkerStyle);
     engine.addOverlay('scans', scanMarkerStyle);
+    engine.addOverlay('aircraft', aircraftMarkerStyle);
     for (const layer of OVERLAYS) {
       engine.setOverlayFeatures(layer, input.overlays[layer]);
       engine.setOverlayActive(layer, input.active[layer]);
@@ -108,6 +113,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
         case 'viewer.poseApplied': return engine.setPose(command.pose, { sharpen: command.sharpen });
         case 'viewer.flyoverRequested': return engine.flyOver(command.flyover);
         case 'viewer.orbitStopped': return engine.stopOrbit();
+        case 'viewer.followChanged': return engine.follow(command.target);
         case 'viewer.poseCaptureRequested':
           return sendBack({ type: 'engine.poseCaptured', pose: engine.getPose() });
       }
