@@ -34,7 +34,8 @@ export type EngineCommand =
   | { type: 'viewer.poseApplied'; pose: Pose; sharpen?: boolean }
   | { type: 'viewer.flyoverRequested'; flyover: Flyover }
   | { type: 'viewer.orbitStopped' }
-  | { type: 'viewer.poseCaptureRequested' };
+  | { type: 'viewer.poseCaptureRequested' }
+  | { type: 'viewer.captureRequested' };
 
 /** Ce que le moteur rapporte. */
 export type EngineReport =
@@ -42,6 +43,7 @@ export type EngineReport =
   | { type: 'engine.failed'; reason: string }
   | { type: 'engine.viewSettled'; pose: Pose }
   | { type: 'engine.poseCaptured'; pose: Pose }
+  | { type: 'engine.captured'; blob: Blob | null; blank: boolean }
   | { type: 'engine.activityChanged'; loading: boolean; points: number }
   | { type: 'engine.orbitEnded' }
   | { type: 'engine.overlayPicked'; layer: OverlayName; id: string }
@@ -110,6 +112,8 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
         case 'viewer.orbitStopped': return engine.stopOrbit();
         case 'viewer.poseCaptureRequested':
           return sendBack({ type: 'engine.poseCaptured', pose: engine.getPose() });
+        case 'viewer.captureRequested':
+          return void engine.capture().then((capture) => sendBack({ type: 'engine.captured', ...capture }));
       }
     });
 

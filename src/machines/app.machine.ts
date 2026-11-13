@@ -9,7 +9,7 @@
  *   scene ──▶ viewer, acquisition          viewer ──▶ places, cameras, acquisition
  *   places, cameras ──▶ viewer             sites ──▶ viewer
  *   (demande de partage) ──▶ viewer ──▶ share          viewer ──▶ activity
- *   scans ──▶ viewer
+ *   scans ──▶ viewer                       timeline ⇄ viewer
  */
 
 import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate';
@@ -17,6 +17,7 @@ import { PROJECT } from '../config/project.ts';
 import { QUALITY_PROFILES } from '../domain/quality.ts';
 import { scanFlyover } from '../domain/scans.ts';
 import { resolveScene } from '../domain/scene.ts';
+import { timelineSteps, timelineTint } from '../domain/timeline.ts';
 import { DEFAULT_VIEW, encodeView, viewUrl, type View } from '../domain/view.ts';
 import type { SupportReport } from '../services/capabilities.ts';
 import { isAcknowledged } from '../services/preferences.ts';
@@ -32,17 +33,20 @@ import { sceneMachine, type SceneEmitted } from './scene.machine.ts';
 import { shareMachine } from './share.machine.ts';
 import { sitesMachine, type SitesEmitted } from './sites.machine.ts';
 import { telemetryMachine } from './telemetry.machine.ts';
+import { timelineMachine, type TimelineEmitted } from './timeline.machine.ts';
 import { viewerMachine, type ViewerEmitted } from './viewer.machine.ts';
 
 export type AppEvent =
   | { type: 'app.shareRequested' }
   | { type: 'app.homeRequested' }
+  | { type: 'app.timelineRequested' }
   | SceneEmitted
   | ViewerEmitted
   | PlacesEmitted
   | CamerasEmitted
   | SitesEmitted
-  | ScansEmitted;
+  | ScansEmitted
+  | TimelineEmitted;
 
 export interface AppInput {
   /** Vue lue dans l'URL au chargement. */
@@ -85,6 +89,7 @@ export const appMachine = setup({
       cameras: 'cameras';
       sites: 'sites';
       scans: 'scans';
+      timeline: 'timeline';
       acquisition: 'acquisition';
       activity: 'activity';
       share: 'share';
@@ -100,6 +105,7 @@ export const appMachine = setup({
     cameras: camerasMachine,
     sites: sitesMachine,
     scans: scansMachine,
+    timeline: timelineMachine,
     acquisition: acquisitionMachine,
     activity: activityMachine,
     share: shareMachine,
@@ -195,6 +201,7 @@ export const appMachine = setup({
         },
         { id: 'sites', src: 'sites' },
         { id: 'scans', src: 'scans' },
+        { id: 'timeline', src: 'timeline' },
         {
           id: 'acquisition',
           src: 'acquisition',
@@ -235,8 +242,40 @@ export const appMachine = setup({
 
         /* ---- le relief se charge : la pastille l'annonce ---- */
         'viewer.activityChanged': {
-          actions: sendTo('activity', ({ event }) =>
-            ({ type: 'activity.changed', loading: event.loading, points: event.points })),
+          actions: [
+            sendTo('activity', ({ event }) =>
+              ({ type: 'activity.changed', loading: event.loading, points: event.points })),
+            // le film du temps attend la fin de chaque chargement pour photographier
+            sendTo('timeline', ({ event }) => ({ type: 'timeline.activityChanged', loading: event.loading })),
+          ],
+        },
+
+        /* ---- film du temps : la vue, millésime par millésime, photographiée puis rendue à sa scène ---- */
+        'app.timelineRequested': {
+          actions: [
+            sendTo('viewer', { type: 'viewer.orbitStopped' }),
+            sendTo('timeline', ({ context }) =>
+              ({ type: 'timeline.opened', steps: timelineSteps(context.view.scene.tint) })),
+          ],
+        },
+        // le millésime n'est changé que dans le viewer : ni la scène choisie ni le lien ne bougent
+        'timeline.vintageRequested': {
+          actions: sendTo('viewer', ({ context, event }) => ({
+            type: 'viewer.sceneChanged',
+            source: resolveScene({ ...context.view.scene, tint: timelineTint(context.view.scene.tint), vintage: event.vintage }),
+          })),
+        },
+        'timeline.captureRequested': { actions: sendTo('viewer', { type: 'viewer.captureRequested' }) },
+        'viewer.captured': {
+          actions: sendTo('timeline', ({ event }) => ({
+            type: 'timeline.frameCaptured',
+            url: event.blob ? URL.createObjectURL(event.blob) : null,
+            blank: event.blank,
+          })),
+        },
+        'timeline.restoreRequested': {
+          actions: sendTo('viewer', ({ context }) =>
+            ({ type: 'viewer.sceneChanged', source: resolveScene(context.view.scene) })),
         },
 
         /* ---- les calques publient leurs entités : le viewer les dessine ---- */

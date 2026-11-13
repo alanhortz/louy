@@ -26,7 +26,8 @@ export type ViewerEmitted =
   | { type: 'viewer.viewSettled'; pose: Pose }
   | { type: 'viewer.poseCaptured'; pose: Pose }
   | { type: 'viewer.activityChanged'; loading: boolean; points: number }
-  | { type: 'viewer.overlayPicked'; layer: OverlayName; id: string };
+  | { type: 'viewer.overlayPicked'; layer: OverlayName; id: string }
+  | { type: 'viewer.captured'; blob: Blob | null; blank: boolean };
 
 interface ViewerContext extends Omit<EngineInput, 'mount'> {
   mount: ViewerMount | null;
@@ -115,6 +116,11 @@ export const viewerMachine = viewer.createMachine({
       on: {
         ...handlers(['remember', 'command'] as const),
         'viewer.poseCaptureRequested': { actions: 'command' },
+        'viewer.captureRequested': { actions: 'command' },
+        'engine.captured': {
+          actions: sendParent(({ event }): ViewerEmitted =>
+            ({ type: 'viewer.captured', blob: event.blob, blank: event.blank })),
+        },
         'viewer.canvasDetached': { target: 'detached', actions: assign({ mount: null }) },
         'engine.failed': {
           target: 'failed',
