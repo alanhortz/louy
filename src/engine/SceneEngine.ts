@@ -9,6 +9,7 @@
 
 import { Color, Group, PerspectiveCamera, Scene as ThreeScene, Vector3, WebGLRenderer } from 'three';
 
+import { cockpitPose } from '../domain/aircraft.ts';
 import type { QualityProfile } from '../domain/quality.ts';
 import type { Scan } from '../domain/scans.ts';
 import type { SceneSource } from '../domain/scene.ts';
@@ -22,6 +23,7 @@ import { TileLoader } from './core/TileLoader.js';
 import { TileTree } from './core/TileTree.js';
 import mntLut from './lut/mnt.json';
 import mnsLut from './lut/mns.json';
+import { AircraftLayer, type AircraftModel } from './AircraftLayer.ts';
 import { OverlayLayer, type OverlayFeature, type OverlayStyle } from './OverlayLayer.ts';
 import type { SplatLayer } from './SplatLayer.ts';
 
@@ -52,6 +54,8 @@ export interface EngineListeners {
   onActivity(activity: EngineActivity): void;
   onOrbitEnded(): void;
   onOverlayPicked(layer: string, id: string): void;
+  /** Le visiteur a repris la main : la caméra ne suit plus rien. */
+  onFollowEnded(): void;
   onContextLost(): void;
   onContextRestored(): void;
 }
@@ -95,6 +99,23 @@ export interface Flyover {
   turns?: number;
 }
 
+/**
+ * Mobile à suivre depuis son poste de pilotage : sa dernière position connue,
+ * sa vitesse (m/s, repère Lambert) et sa route, valables depuis l'instant `at`.
+ */
+export interface FollowTarget {
+  x: number;
+  y: number;
+  altitude: number | null;
+  vx: number;
+  vy: number;
+  vz: number;
+  track: number;
+  at: number;
+  /** Durée, en secondes, au-delà de laquelle la position n'est plus extrapolée. */
+  horizon: number;
+}
+
 interface TileLike { level: number; i: number; j: number }
 
 export class SceneEngine {
@@ -123,6 +144,9 @@ export class SceneEngine {
   #scans: readonly Scan[] = [];
   #splats: SplatLayer | null = null;
   #disposed = false;
+  #follow: FollowTarget | null = null;
+  /** Maquettes des avions ; créé au premier appareil à dessiner. */
+  #aircraft: AircraftLayer | null = null;
   #raf = 0;
   #last = performance.now();
   #idleFrames = IDLE_FRAMES;
@@ -156,7 +180,7 @@ export class SceneEngine {
     this.#controls.minDistance = POSE_LIMITS.distance.min;
     this.#controls.maxDistance = POSE_LIMITS.distance.max;
     this.#controls.groundProbe = (x: number, z: number) => this.#groundAt(x, z);
-    this.#controls.onUserInput = () => this.#endOrbit();
+    this.#controls.onUserInput = () => { this.#endOrbit(); this.#endFollow(); };
     this.#controls.onAutoRotateEnd = () => this.#listeners.onOrbitEnded();
 
     this.#edl = new EyeDomeLighting(this.#renderer);
@@ -245,6 +269,28 @@ export class SceneEngine {
     this.#endOrbit();
   }
 
+  /**
+   * Installe la caméra au poste de pilotage d'un mobile et l'y maintient ; `null`
+   * la libère. Chaque nouvelle position connue du mobile se donne par un nouvel appel.
+   */
+  follow(target: FollowTarget | null): void {
+    this.#follow = target;
+    if (target) this.#controls.autoRotate = 0;
+    this.#wake();
+  }
+
+  /** Avions à dessiner en volume, à leur altitude et dans leur assiette. */
+  setAircraftModels(models: readonly AircraftModel[]): void {
+    if (models.length > 0) this.#aircraft ??= new AircraftLayer(this.#renderer);
+    this.#aircraft?.setModels(models);
+    this.#wake();
+  }
+
+  setAircraftActive(id: string | null): void {
+    this.#aircraft?.setActive(id);
+    this.#wake();
+  }
+
   /** Déclare un calque en superposition ; sans effet s'il existe déjà. */
   addOverlay<F extends OverlayFeature>(name: string, style: OverlayStyle<F>): void {
     if (this.#overlays.has(name)) return;
@@ -276,6 +322,7 @@ export class SceneEngine {
   dispose(): void {
     this.#disposed = true;
     this.#splats?.dispose();
+    this.#aircraft?.dispose();
     cancelAnimationFrame(this.#raf);
     this.#teardown.abort();
     this.#resizeObserver.disconnect();
@@ -321,6 +368,29 @@ export class SceneEngine {
   /** Force quelques images : quelque chose a changé hors de la navigation. */
   #wake(): void {
     this.#idleFrames = 0;
+  }
+
+  #endFollow(): void {
+    if (!this.#follow) return;
+    this.#follow = null;
+    this.#listeners.onFollowEnded();
+  }
+
+  /** Replace la caméra sur le mobile suivi, à sa position de l'instant. */
+  #trackFollow(): void {
+    const target = this.#follow;
+    if (!target) return;
+    const dt = Math.min(target.horizon, Math.max(0, (Date.now() - target.at) / 1000));
+    const position = {
+      x: target.x + target.vx * dt,
+      y: target.y + target.vy * dt,
+      altitude: target.altitude === null ? null : target.altitude + target.vz * dt,
+    };
+    const pose = cockpitPose(position, target.track, this.#controls.target.y);
+    this.#controls.goTo(pose.x - T.ORIGIN.x, -(pose.y - T.ORIGIN.y), pose.distance, {
+      azimuth: -pose.azimuth * DEG,
+      polar: pose.tilt * DEG,
+    });
   }
 
   #endOrbit(): void {
@@ -379,12 +449,15 @@ export class SceneEngine {
     };
   }
 
-  /** Projette un point Lambert à l'écran ; `refine` cale l'altitude sur le relief chargé. */
-  #project = (x: number, y: number, refine: boolean): { sx: number; sy: number; range: number } | null => {
+  /**
+   * Projette un point Lambert à l'écran. Un point donné avec son altitude est en
+   * l'air, là où il est ; sinon il est posé sur le relief, que `refine` lit précisément.
+   */
+  #project = (x: number, y: number, refine: boolean, altitude?: number): { sx: number; sy: number; range: number } | null => {
     const worldX = x - T.ORIGIN.x;
     const worldZ = -(y - T.ORIGIN.y);
-    const ground = refine ? this.#groundAt(worldX, worldZ) : null;
-    const p = this.#probe.set(worldX, ground ?? this.#controls.target.y, worldZ);
+    const ground = altitude === undefined && refine ? this.#groundAt(worldX, worldZ) : null;
+    const p = this.#probe.set(worldX, altitude ?? ground ?? this.#controls.target.y, worldZ);
     const range = p.distanceTo(this.#camera.position);
     p.project(this.#camera);
     // marge généreuse au passage grossier : l'altitude réelle peut déplacer le point
@@ -403,6 +476,7 @@ export class SceneEngine {
     const dt = Math.min(0.1, (now - this.#last) / 1000);
     this.#last = now;
 
+    this.#trackFollow();
     const moved = this.#controls.update(dt);
     if (moved) {
       this.#movedAt = now;
@@ -411,9 +485,12 @@ export class SceneEngine {
 
     // Rendu à la demande : une vue immobile dont toutes les tuiles sont arrivées
     // ne coûte plus rien — ni GPU, ni batterie.
-    const busy = moved || this.#loader.pending > 0;
+    // des maquettes d'avions à l'écran avancent et s'inclinent à chaque image
+    const busy = moved || this.#loader.pending > 0 || (this.#aircraft?.count ?? 0) > 0;
     this.#idleFrames = busy ? 0 : this.#idleFrames + 1;
     if (this.#idleFrames <= IDLE_FRAMES) this.#render();
+    // la vue est immobile mais des entités bougent (avions) : seules leurs étiquettes sont replacées
+    else if (this.#hasMovingOverlay()) this.#updateOverlays();
 
     if (this.#unsettled && !moved && this.#controls.autoRotate === 0
         && now - this.#movedAt > SETTLE_DELAY_MS) {
@@ -443,15 +520,32 @@ export class SceneEngine {
     });
     this.#edl.render(this.#scene, this.#camera);
     this.#splats?.render(this.#camera);
+    this.#aircraft?.render(this.#camera, this.#size.height, Date.now(),
+      (worldX, worldZ) => this.#groundAt(worldX, worldZ) ?? this.#controls.target.y);
 
-    const frame = { project: this.#project, distance };
-    for (const overlay of this.#overlays.values()) overlay.update(frame);
+    this.#updateOverlays();
     this.#updateAltimeter();
 
     if (!this.#ready && this.#tree.stats.points > 0) {
       this.#ready = true;
       this.#listeners.onReady();
     }
+  }
+
+  #hasMovingOverlay(): boolean {
+    for (const overlay of this.#overlays.values()) if (overlay.animated) return true;
+    return false;
+  }
+
+  /** Replace les entités à l'écran : du DOM seulement, sans redessiner le relief. */
+  #updateOverlays(): void {
+    const frame = {
+      project: this.#project,
+      distance: this.#controls.distance,
+      azimuth: this.getPose().azimuth,
+      now: Date.now(),
+    };
+    for (const overlay of this.#overlays.values()) overlay.update(frame);
   }
 
   #updateAltimeter(): void {

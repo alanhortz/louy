@@ -1,6 +1,7 @@
 import { useSelector } from '@xstate/react';
 import { useApp } from './actors.ts';
 import { AboutPanel } from './components/AboutPanel.tsx';
+import { AircraftPanel } from './components/AircraftPanel.tsx';
 import { Brand } from './components/Brand.tsx';
 import { CameraPanel } from './components/CameraPanel.tsx';
 import { ControlsPanel } from './components/ControlsPanel.tsx';
@@ -44,6 +45,7 @@ export function App() {
         </aside>
         <aside className="stack stack-right">
           <CameraPanel />
+          <AircraftPanel />
           <AboutPanel />
         </aside>
       </div>

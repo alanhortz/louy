@@ -18,6 +18,14 @@ export interface OverlayFeature {
   rank: number;
   /** Éloignement de la caméra, en mètres, au-delà duquel l'entité n'est plus proposée. */
   maxDistance?: number;
+  /** Altitude au-dessus du niveau de la mer, en mètres ; à défaut, l'entité est posée sur le relief. */
+  altitude?: number;
+  /**
+   * Mouvement : vitesse en m/s dans le repère Lambert, valable depuis l'instant
+   * `at` (millisecondes Unix). L'entité est alors redessinée à chaque image, à
+   * sa position extrapolée, pendant `horizon` secondes au plus.
+   */
+  motion?: { vx: number; vy: number; vz: number; at: number; horizon: number };
   /** Éloignement en deçà duquel elle ne l'est plus : on est dessus, elle masquerait ce qu'elle désigne. */
   minDistance?: number;
 }
@@ -38,12 +46,21 @@ export interface OverlayStyle<F extends OverlayFeature> {
   footprint(feature: F): { width: number; height: number };
   create(): HTMLElement;
   paint(element: HTMLElement, feature: F, state: OverlayPaintState): void;
+  /** Appelé à chaque image pour une entité visible : ce qui dépend du point de vue (l'orientation d'une icône). */
+  orient?(element: HTMLElement, feature: F, frame: OverlayFrame): void;
 }
 
 export interface OverlayFrame {
-  /** Projette un point Lambert en pixels écran ; `null` s'il est hors champ. `range` : éloignement de la caméra. */
-  project(x: number, y: number, refine: boolean): { sx: number; sy: number; range: number } | null;
+  /**
+   * Projette un point Lambert en pixels écran ; `null` s'il est hors champ. `range` : éloignement de la caméra.
+   * Sans `altitude`, le point est posé sur le relief (`refine` l'y cale précisément).
+   */
+  project(x: number, y: number, refine: boolean, altitude?: number): { sx: number; sy: number; range: number } | null;
   distance: number;
+  /** Cap de la vue, en degrés depuis le nord. */
+  azimuth: number;
+  /** Instant de l'image, en millisecondes Unix. */
+  now: number;
 }
 
 interface Box { x0: number; y0: number; x1: number; y1: number }
@@ -87,6 +104,11 @@ export class OverlayLayer<F extends OverlayFeature = OverlayFeature> {
     this.#activeId = id;
   }
 
+  /** Une entité au moins se déplace : le calque doit être redessiné même quand la vue est immobile. */
+  get animated(): boolean {
+    return this.#features.some((feature) => feature.motion !== undefined);
+  }
+
   update(frame: OverlayFrame): void {
     const { maxVisible, detailDistance } = this.#style;
     const horizon = frame.distance * HORIZON_FACTOR;
@@ -95,11 +117,19 @@ export class OverlayLayer<F extends OverlayFeature = OverlayFeature> {
 
     for (const feature of this.#features) {
       if (used >= maxVisible) break;
+      // une entité en mouvement est dessinée là où elle est maintenant, pas là où elle a été vue
+      let { x, y, altitude } = feature;
+      if (feature.motion) {
+        const dt = Math.min(feature.motion.horizon, Math.max(0, (frame.now - feature.motion.at) / 1000));
+        x += feature.motion.vx * dt;
+        y += feature.motion.vy * dt;
+        if (altitude !== undefined) altitude += feature.motion.vz * dt;
+      }
       // premier passage grossier (altitude de la cible) pour écarter le hors-champ et le lointain
-      const coarse = frame.project(feature.x, feature.y, false);
+      const coarse = frame.project(x, y, false, altitude);
       if (!coarse || coarse.range > Math.min(horizon, feature.maxDistance ?? Infinity)) continue;
       if (coarse.range < (feature.minDistance ?? 0)) continue;
-      const point = frame.project(feature.x, feature.y, true);
+      const point = frame.project(x, y, true, altitude);
       if (!point) continue;
 
       const active = feature.id === this.#activeId;
@@ -121,6 +151,7 @@ export class OverlayLayer<F extends OverlayFeature = OverlayFeature> {
         this.#style.paint(element, feature, { active, detailed });
         this.#shown.set(element, signature);
       }
+      this.#style.orient?.(element, feature, frame);
       element.hidden = false;
     }
 

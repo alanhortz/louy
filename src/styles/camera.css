@@ -107,3 +107,18 @@
   .cctv-frame { height: 120px; }
   .cctv-frame-wrap { min-height: 120px; }
 }
+
+/* ---- panneau des avions : carte du vol choisi, recherche, liste ---- */
+.aircraft-panel .panel-body { display: flex; flex-direction: column; gap: 10px; }
+.aircraft-empty { display: flex; flex-direction: column; gap: 10px; font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
+.aircraft-card { display: flex; flex-direction: column; gap: 8px; padding: 10px 10px 10px; border: 1px solid rgba(0, 212, 255, 0.28); border-radius: 10px; background: rgba(0, 212, 255, 0.05); }
+.aircraft-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.aircraft-callsign { display: block; font-family: var(--font-mono); font-size: 18px; font-weight: 600; letter-spacing: 2px; color: var(--text-primary); }
+.aircraft-identity { display: block; margin-top: 2px; font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-secondary); }
+.aircraft-phase { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--accent); }
+.aircraft-telemetry { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+.aircraft-telemetry dt { font-family: var(--font-mono); font-size: 8px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-dim); }
+.aircraft-telemetry dd { margin-top: 1px; font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.aircraft-list { max-height: 220px; overflow-y: auto; }
+.aircraft-list .search-result[aria-current='true'] { border-color: rgba(255, 217, 122, 0.6); }
+.scene-btn.active { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }

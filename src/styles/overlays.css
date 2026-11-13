@@ -143,3 +143,41 @@
 .scan-caption span { font-size: 9px; letter-spacing: 0.7px; color: var(--text-primary); }
 .scan-marker.active .scan-caption { border-color: rgba(255, 217, 122, 0.5); }
 .scan-marker.active .scan-caption b { color: #ffd97a; }
+
+/* ---- avions : silhouette orientée sur sa route, indicatif et altitude ---- */
+.aircraft-marker {
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.aircraft-marker-icon { opacity: 0.95; filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 6px rgba(0, 212, 255, 0.4)); }
+.aircraft-marker.active { z-index: 2; }
+.aircraft-marker.active .aircraft-marker-icon { filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 8px rgba(255, 217, 122, 0.6)); }
+.aircraft-marker:focus-visible { outline: none; }
+.aircraft-caption {
+  position: absolute;
+  left: calc(50% + 15px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 6px 3px;
+  border-radius: 4px;
+  background: rgba(4, 12, 16, 0.74);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.aircraft-caption b { font-size: 9px; font-weight: 600; letter-spacing: 0.9px; color: var(--text-primary); }
+.aircraft-caption span { font-size: 8px; letter-spacing: 0.6px; color: #6be8ff; }
+.aircraft-marker.active .aircraft-caption { background: rgba(20, 16, 4, 0.82); }
+.aircraft-marker.active .aircraft-caption span { color: #ffd97a; }
+/* l'avion lui-même est une maquette en volume : le marqueur n'en garde que la zone de toucher et l'étiquette */
+.aircraft-marker-icon { visibility: hidden; }

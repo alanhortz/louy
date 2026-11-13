@@ -180,6 +180,19 @@ en mètres autour de l’ancrage). Le moteur de splats ([Spark](https://sparkjs.
 n’est téléchargé qu’à la première activation du calque. Les splats sont dessinés
 par-dessus le relief, sans être masqués par lui.
 
+## Avions en direct
+
+Le calque « Avions en direct » montre les appareils au-dessus de la Wallonie, à leur
+altitude réelle, d'après les transpondeurs ADS-B captés par le réseau bénévole
+[adsb.lol](https://adsb.lol) (données ouvertes, ODbL). Le site ne l'interroge jamais
+directement : le Worker relaie `/edge/v1/aircraft.json` et garde chaque réponse cinq
+secondes, si bien que la charge sur ce réseau ne dépend pas du nombre de visiteurs.
+
+Entre deux relevés (toutes les huit secondes), chaque appareil est prolongé sur sa route.
+Le panneau « Avions » donne la télémétrie du vol choisi, une recherche par indicatif,
+immatriculation ou type, et une vue depuis le poste de pilotage : la caméra prend la
+place de l'avion au-dessus du relief LiDAR.
+
 ## Compatibilité
 
 | Navigateur | Version minimale |

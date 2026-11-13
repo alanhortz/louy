@@ -9,7 +9,7 @@
  *   scene ──▶ viewer, acquisition          viewer ──▶ places, cameras, acquisition
  *   places, cameras ──▶ viewer             sites ──▶ viewer
  *   (demande de partage) ──▶ viewer ──▶ share          viewer ──▶ activity
- *   scans ──▶ viewer
+ *   scans ──▶ viewer                       aircraft ⇄ viewer
  */
 
 import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate';
@@ -23,6 +23,7 @@ import { isAcknowledged } from '../services/preferences.ts';
 import type { TelemetryBuffer } from '../services/telemetry.ts';
 import { acquisitionMachine } from './acquisition.machine.ts';
 import { activityMachine } from './activity.machine.ts';
+import { aircraftMachine, type AircraftEmitted } from './aircraft.machine.ts';
 import { camerasMachine, type CamerasEmitted } from './cameras.machine.ts';
 import { chromeMachine, type PanelId } from './chrome.machine.ts';
 import { compatibilityMachine } from './compatibility.machine.ts';
@@ -42,7 +43,8 @@ export type AppEvent =
   | PlacesEmitted
   | CamerasEmitted
   | SitesEmitted
-  | ScansEmitted;
+  | ScansEmitted
+  | AircraftEmitted;
 
 export interface AppInput {
   /** Vue lue dans l'URL au chargement. */
@@ -85,6 +87,7 @@ export const appMachine = setup({
       cameras: 'cameras';
       sites: 'sites';
       scans: 'scans';
+      aircraft: 'aircraft';
       acquisition: 'acquisition';
       activity: 'activity';
       share: 'share';
@@ -100,6 +103,7 @@ export const appMachine = setup({
     cameras: camerasMachine,
     sites: sitesMachine,
     scans: scansMachine,
+    aircraft: aircraftMachine,
     acquisition: acquisitionMachine,
     activity: activityMachine,
     share: shareMachine,
@@ -195,6 +199,7 @@ export const appMachine = setup({
         },
         { id: 'sites', src: 'sites' },
         { id: 'scans', src: 'scans' },
+        { id: 'aircraft', src: 'aircraft', input: ({ context }) => ({ visible: context.view.overlays.aircraft }) },
         {
           id: 'acquisition',
           src: 'acquisition',
@@ -270,6 +275,10 @@ export const appMachine = setup({
             actions: sendTo('cameras', ({ event }) => ({ type: 'cameras.picked', id: event.id })),
           },
           {
+            guard: ({ event }) => event.layer === 'aircraft',
+            actions: sendTo('aircraft', ({ event }) => ({ type: 'aircraft.picked', id: event.id })),
+          },
+          {
             guard: ({ event }) => event.layer === 'scans',
             actions: sendTo('scans', ({ event }) => ({ type: 'scans.picked', id: event.id })),
           },
@@ -315,6 +324,39 @@ export const appMachine = setup({
         'scans.flyRequested': {
           actions: sendTo('viewer', ({ event }) =>
             ({ type: 'viewer.flyoverRequested', flyover: scanFlyover(event.scan) })),
+        },
+
+        /* ---- avions en direct : marqueurs, sélection, poste de pilotage ---- */
+        'aircraft.changed': {
+          actions: [
+            assign({
+              view: ({ context, event }) =>
+                ({ ...context.view, overlays: { ...context.view.overlays, aircraft: event.visible } }),
+            }),
+            sendTo('viewer', ({ event }) =>
+              ({ type: 'viewer.overlayChanged', layer: 'aircraft', features: event.features })),
+            'syncUrl',
+          ],
+        },
+        'aircraft.selectionChanged': {
+          actions: [
+            sendTo('viewer', ({ event }) =>
+              ({ type: 'viewer.overlayActivated', layer: 'aircraft', id: event.aircraft?.id ?? null })),
+            sendTo('chrome', ({ event }) => (event.aircraft
+              ? { type: 'chrome.revealed', panel: 'aircraft' }
+              : { type: 'chrome.dismissed', panel: 'aircraft' })),
+          ],
+        },
+        'aircraft.followChanged': {
+          actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.followChanged', target: event.target })),
+        },
+        // le visiteur a repris la main sur la carte : il n'est plus au poste de pilotage
+        'viewer.followEnded': { actions: sendTo('aircraft', { type: 'aircraft.cockpitLeft' }) },
+        'aircraft.flyRequested': {
+          actions: sendTo('viewer', ({ event }) => ({
+            type: 'viewer.flyoverRequested',
+            flyover: { x: event.x, y: event.y, height: event.height, orbit: false },
+          })),
         },
 
         /* ---- partage : on capture d'abord la pose exacte, orbite comprise ---- */
