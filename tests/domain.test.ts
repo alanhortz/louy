@@ -175,7 +175,8 @@ describe('manifeste des scans 3D', () => {
     const scans = parseScans(manifest);
     expect(scans).toHaveLength(manifest.length);
     for (const published of scans) {
-      expect(existsSync(new URL(`../public${published.splats}`, import.meta.url))).toBe(true);
+      // un lieu a ses splats, un objet son maillage
+      expect(existsSync(new URL(`../public${published.splats ?? published.mesh}`, import.meta.url))).toBe(true);
     }
   });
 
