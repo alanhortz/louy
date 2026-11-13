@@ -9,7 +9,7 @@
  *   scene ──▶ viewer, acquisition          viewer ──▶ places, cameras, acquisition
  *   places, cameras ──▶ viewer             sites ──▶ viewer
  *   (demande de partage) ──▶ viewer ──▶ share          viewer ──▶ activity
- *   scans ──▶ viewer
+ *   scans ──▶ viewer, object
  */
 
 import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate';
@@ -26,6 +26,7 @@ import { activityMachine } from './activity.machine.ts';
 import { camerasMachine, type CamerasEmitted } from './cameras.machine.ts';
 import { chromeMachine, type PanelId } from './chrome.machine.ts';
 import { compatibilityMachine } from './compatibility.machine.ts';
+import { objectMachine } from './object.machine.ts';
 import { placesMachine, type PlacesEmitted } from './places.machine.ts';
 import { scansMachine, type ScansEmitted } from './scans.machine.ts';
 import { sceneMachine, type SceneEmitted } from './scene.machine.ts';
@@ -85,6 +86,7 @@ export const appMachine = setup({
       cameras: 'cameras';
       sites: 'sites';
       scans: 'scans';
+      object: 'object';
       acquisition: 'acquisition';
       activity: 'activity';
       share: 'share';
@@ -100,6 +102,7 @@ export const appMachine = setup({
     cameras: camerasMachine,
     sites: sitesMachine,
     scans: scansMachine,
+    object: objectMachine,
     acquisition: acquisitionMachine,
     activity: activityMachine,
     share: shareMachine,
@@ -195,6 +198,7 @@ export const appMachine = setup({
         },
         { id: 'sites', src: 'sites' },
         { id: 'scans', src: 'scans' },
+        { id: 'object', src: 'object' },
         {
           id: 'acquisition',
           src: 'acquisition',
@@ -311,6 +315,9 @@ export const appMachine = setup({
         },
         'scans.changed': {
           actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.scansChanged', scans: event.scans })),
+        },
+        'scans.objectRequested': {
+          actions: sendTo('object', ({ event }) => ({ type: 'object.opened', scan: event.scan })),
         },
         'scans.flyRequested': {
           actions: sendTo('viewer', ({ event }) =>

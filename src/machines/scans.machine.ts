@@ -1,11 +1,12 @@
 /**
  * Machine des scans 3D : sait quels scans le site publie, les signale sur la
- * carte par un marqueur, et retient si le visiteur veut les voir. Les afficher
- * — par le calque ou par un marqueur — emmène la caméra au-dessus d'un scan.
+ * carte par un marqueur, et retient si le visiteur veut les voir. Afficher les
+ * lieux — par le calque ou par un marqueur — emmène la caméra au-dessus de l'un
+ * d'eux ; le marqueur d'un objet, lui, demande l'ouverture de sa visionneuse.
  */
 
 import { assign, fromPromise, sendParent, setup, type SnapshotFrom } from 'xstate';
-import type { Scan } from '../domain/scans.ts';
+import { isObjectScan, placeScans, type Scan } from '../domain/scans.ts';
 import type { ScanFeature } from '../engine/overlays/scanMarkers.ts';
 import { loadScans } from '../services/scans.ts';
 import type { LayerFeed } from './places.machine.ts';
@@ -17,6 +18,7 @@ export type ScansEvent =
 export type ScansEmitted =
   | { type: 'scans.changed'; scans: Scan[] }
   | { type: 'scans.flyRequested'; scan: Scan }
+  | { type: 'scans.objectRequested'; scan: Scan }
   | { type: 'scans.markersChanged'; features: ScanFeature[]; activeId: string | null };
 
 interface ScansContext {
@@ -40,7 +42,11 @@ const toFeature = (scan: Scan, shown: boolean): ScanFeature => ({
   ...(shown ? { minDistance: MARKER_CLEARANCE } : {}),
 });
 
-const focused = ({ scans, focus }: ScansContext): Scan => scans.find((scan) => scan.id === focus) ?? scans[0]!;
+/** Lieu vers lequel voler : celui qui a été désigné, à défaut le premier. */
+const focused = ({ scans, focus }: ScansContext): Scan => {
+  const places = placeScans(scans);
+  return places.find((scan) => scan.id === focus) ?? places[0]!;
+};
 
 export const scansMachine = setup({
   types: {
@@ -52,15 +58,22 @@ export const scansMachine = setup({
   },
   guards: {
     foundScans: ({ event }) => (event as unknown as { output: Scan[] }).output.length > 0,
-    picksKnownScan: ({ context, event }) =>
-      event.type === 'scans.picked' && context.scans.some((scan) => scan.id === event.id),
+    hasPlaces: ({ context }) => placeScans(context.scans).length > 0,
+    picksPlace: ({ context, event }) =>
+      event.type === 'scans.picked' && placeScans(context.scans).some((scan) => scan.id === event.id),
+    picksObject: ({ context, event }) =>
+      event.type === 'scans.picked' && context.scans.some((scan) => scan.id === event.id && isObjectScan(scan)),
   },
   actions: {
-    focusFirst: assign({ focus: ({ context }) => context.scans[0]?.id ?? null }),
+    focusFirst: assign({ focus: ({ context }) => placeScans(context.scans)[0]?.id ?? null }),
     focusPicked: assign({ focus: ({ context, event }) => (event.type === 'scans.picked' ? event.id : context.focus) }),
-    show: sendParent(({ context }): ScansEmitted => ({ type: 'scans.changed', scans: context.scans })),
+    show: sendParent(({ context }): ScansEmitted => ({ type: 'scans.changed', scans: placeScans(context.scans) })),
     hide: sendParent((): ScansEmitted => ({ type: 'scans.changed', scans: [] })),
     fly: sendParent(({ context }): ScansEmitted => ({ type: 'scans.flyRequested', scan: focused(context) })),
+    openObject: sendParent(({ context, event }): ScansEmitted => ({
+      type: 'scans.objectRequested',
+      scan: context.scans.find((scan) => event.type === 'scans.picked' && scan.id === event.id)!,
+    })),
     markIdle: sendParent(({ context }): ScansEmitted => ({
       type: 'scans.markersChanged',
       features: context.scans.map((scan) => toFeature(scan, false)),
@@ -68,7 +81,8 @@ export const scansMachine = setup({
     })),
     markShown: sendParent(({ context }): ScansEmitted => ({
       type: 'scans.markersChanged',
-      features: context.scans.map((scan) => toFeature(scan, true)),
+      // seul un lieu dessiné dans la carte peut masquer son propre marqueur
+      features: context.scans.map((scan) => toFeature(scan, !isObjectScan(scan))),
       activeId: focused(context).id,
     })),
   },
@@ -94,8 +108,12 @@ export const scansMachine = setup({
     hidden: {
       entry: 'markIdle',
       on: {
-        'scans.toggled': { target: 'shown', actions: 'focusFirst' },
-        'scans.picked': { guard: 'picksKnownScan', target: 'shown', actions: 'focusPicked' },
+        'scans.toggled': { guard: 'hasPlaces', target: 'shown', actions: 'focusFirst' },
+        'scans.picked': [
+          // un objet s'ouvre dans sa visionneuse, sans rien changer à la carte
+          { guard: 'picksObject', actions: 'openObject' },
+          { guard: 'picksPlace', target: 'shown', actions: 'focusPicked' },
+        ],
       },
     },
     shown: {
@@ -103,8 +121,11 @@ export const scansMachine = setup({
       exit: 'hide',
       on: {
         'scans.toggled': 'hidden',
-        // un autre marqueur : la caméra change de lieu, les scans restent affichés
-        'scans.picked': { guard: 'picksKnownScan', actions: ['focusPicked', 'markShown', 'fly'] },
+        'scans.picked': [
+          { guard: 'picksObject', actions: 'openObject' },
+          // un autre lieu : la caméra s'y rend, les scans restent affichés
+          { guard: 'picksPlace', actions: ['focusPicked', 'markShown', 'fly'] },
+        ],
       },
     },
   },
@@ -124,4 +145,4 @@ const NONE: Scan[] = [];
 
 /** Scans actuellement à l'écran : leurs auteurs doivent alors être crédités. */
 export const shownScans = (snapshot: ScansSnapshot): Scan[] =>
-  snapshot.matches('shown') ? snapshot.context.scans : NONE;
+  snapshot.matches('shown') ? placeScans(snapshot.context.scans) : NONE;

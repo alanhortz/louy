@@ -7,6 +7,7 @@ import { ControlsPanel } from './components/ControlsPanel.tsx';
 import { Indicator } from './components/Indicator.tsx';
 import { LayersPanel } from './components/LayersPanel.tsx';
 import { ManualShare } from './components/ManualShare.tsx';
+import { ObjectViewer } from './components/ObjectViewer.tsx';
 import { Rail } from './components/Rail.tsx';
 import { RenderDock } from './components/RenderDock.tsx';
 import { SiteSearch } from './components/SiteSearch.tsx';
@@ -51,6 +52,7 @@ export function App() {
       <StatusLine />
       <SiteSearch />
       <ManualShare />
+      <ObjectViewer />
     </>
   );
 }
