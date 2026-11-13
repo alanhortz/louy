@@ -10,6 +10,7 @@
  * survivent aux relevés, qui ne font que rafraîchir la liste.
  */
 
+import { airframeType, attitude } from '../domain/airframes.ts';
 import { assign, fromPromise, sendParent, setup, type SnapshotFrom } from 'xstate';
 import {
   AIRCRAFT_POLL_MS, MAX_EXTRAPOLATION_S, aircraftVelocity, searchAircraft, type Aircraft,
@@ -59,6 +60,9 @@ const toFeature = (aircraft: Aircraft): AircraftFeature => ({
   label: aircraft.callsign,
   detail: aircraft.altitude === null ? 'au sol' : `${metres.format(aircraft.altitude)} m`,
   track: aircraft.track,
+  airframe: airframeType(aircraft.type, aircraft.category),
+  attitude: attitude(aircraft),
+  turnRate: aircraft.turnRate ?? 0,
   // les appareils en vol passent avant ceux au sol quand la place manque
   rank: aircraft.altitude ?? -1,
   ...(aircraft.altitude === null ? {} : { altitude: aircraft.altitude }),

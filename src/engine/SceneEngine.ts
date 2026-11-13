@@ -23,6 +23,7 @@ import { TileLoader } from './core/TileLoader.js';
 import { TileTree } from './core/TileTree.js';
 import mntLut from './lut/mnt.json';
 import mnsLut from './lut/mns.json';
+import { AircraftLayer, type AircraftModel } from './AircraftLayer.ts';
 import { OverlayLayer, type OverlayFeature, type OverlayStyle } from './OverlayLayer.ts';
 import type { SplatLayer } from './SplatLayer.ts';
 
@@ -144,6 +145,8 @@ export class SceneEngine {
   #splats: SplatLayer | null = null;
   #disposed = false;
   #follow: FollowTarget | null = null;
+  /** Maquettes des avions ; créé au premier appareil à dessiner. */
+  #aircraft: AircraftLayer | null = null;
   #raf = 0;
   #last = performance.now();
   #idleFrames = IDLE_FRAMES;
@@ -276,6 +279,18 @@ export class SceneEngine {
     this.#wake();
   }
 
+  /** Avions à dessiner en volume, à leur altitude et dans leur assiette. */
+  setAircraftModels(models: readonly AircraftModel[]): void {
+    if (models.length > 0) this.#aircraft ??= new AircraftLayer(this.#renderer);
+    this.#aircraft?.setModels(models);
+    this.#wake();
+  }
+
+  setAircraftActive(id: string | null): void {
+    this.#aircraft?.setActive(id);
+    this.#wake();
+  }
+
   /** Déclare un calque en superposition ; sans effet s'il existe déjà. */
   addOverlay<F extends OverlayFeature>(name: string, style: OverlayStyle<F>): void {
     if (this.#overlays.has(name)) return;
@@ -307,6 +322,7 @@ export class SceneEngine {
   dispose(): void {
     this.#disposed = true;
     this.#splats?.dispose();
+    this.#aircraft?.dispose();
     cancelAnimationFrame(this.#raf);
     this.#teardown.abort();
     this.#resizeObserver.disconnect();
@@ -469,7 +485,8 @@ export class SceneEngine {
 
     // Rendu à la demande : une vue immobile dont toutes les tuiles sont arrivées
     // ne coûte plus rien — ni GPU, ni batterie.
-    const busy = moved || this.#loader.pending > 0;
+    // des maquettes d'avions à l'écran avancent et s'inclinent à chaque image
+    const busy = moved || this.#loader.pending > 0 || (this.#aircraft?.count ?? 0) > 0;
     this.#idleFrames = busy ? 0 : this.#idleFrames + 1;
     if (this.#idleFrames <= IDLE_FRAMES) this.#render();
     // la vue est immobile mais des entités bougent (avions) : seules leurs étiquettes sont replacées
@@ -503,6 +520,8 @@ export class SceneEngine {
     });
     this.#edl.render(this.#scene, this.#camera);
     this.#splats?.render(this.#camera);
+    this.#aircraft?.render(this.#camera, this.#size.height, Date.now(),
+      (worldX, worldZ) => this.#groundAt(worldX, worldZ) ?? this.#controls.target.y);
 
     this.#updateOverlays();
     this.#updateAltimeter();

@@ -12,6 +12,7 @@ import type { SceneSource } from '../../domain/scene.ts';
 import { directTileUrl, edgeTileUrl } from '../../domain/tiles.ts';
 import type { Pose } from '../../domain/view.ts';
 import type { OverlayFeature } from '../../engine/OverlayLayer.ts';
+import type { AircraftModel } from '../../engine/AircraftLayer.ts';
 import { aircraftMarkerStyle } from '../../engine/overlays/aircraftMarkers.ts';
 import { cameraMarkerStyle } from '../../engine/overlays/cameraMarkers.ts';
 import { placeLabelStyle } from '../../engine/overlays/placeLabels.ts';
@@ -102,13 +103,20 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
       engine.setOverlayFeatures(layer, input.overlays[layer]);
       engine.setOverlayActive(layer, input.active[layer]);
     }
+    engine.setAircraftModels(input.overlays.aircraft as unknown as AircraftModel[]);
+    engine.setAircraftActive(input.active.aircraft);
     engine.setScans(input.scans);
 
     receive((command) => {
       switch (command.type) {
         case 'viewer.sceneChanged': return engine.setSource(command.source);
-        case 'viewer.overlayChanged': return engine.setOverlayFeatures(command.layer, command.features);
-        case 'viewer.overlayActivated': return engine.setOverlayActive(command.layer, command.id);
+        case 'viewer.overlayChanged':
+          // les avions sont aussi dessinés en volume : leurs marqueurs n'en gardent que l'étiquette
+          if (command.layer === 'aircraft') engine.setAircraftModels(command.features as unknown as AircraftModel[]);
+          return engine.setOverlayFeatures(command.layer, command.features);
+        case 'viewer.overlayActivated':
+          if (command.layer === 'aircraft') engine.setAircraftActive(command.id);
+          return engine.setOverlayActive(command.layer, command.id);
         case 'viewer.scansChanged': return engine.setScans(command.scans);
         case 'viewer.poseApplied': return engine.setPose(command.pose, { sharpen: command.sharpen });
         case 'viewer.flyoverRequested': return engine.flyOver(command.flyover);

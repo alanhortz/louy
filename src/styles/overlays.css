@@ -179,3 +179,5 @@
 .aircraft-caption span { font-size: 8px; letter-spacing: 0.6px; color: #6be8ff; }
 .aircraft-marker.active .aircraft-caption { background: rgba(20, 16, 4, 0.82); }
 .aircraft-marker.active .aircraft-caption span { color: #ffd97a; }
+/* l'avion lui-même est une maquette en volume : le marqueur n'en garde que la zone de toucher et l'étiquette */
+.aircraft-marker-icon { visibility: hidden; }

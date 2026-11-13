@@ -51,6 +51,14 @@ export interface Aircraft {
   speed: number;
   /** Route suivie, en degrés depuis le nord. */
   track: number;
+  /** Cap du nez diffusé par l'avion, en degrés ; `null` s'il ne le diffuse pas. */
+  heading: number | null;
+  /** Roulis diffusé par l'avion, en degrés (positif aile droite basse) ; `null` sinon. */
+  roll: number | null;
+  /** Taux de virage observé, en degrés par seconde (positif à droite) ; `null` sinon. */
+  turnRate: number | null;
+  /** Catégorie d'émetteur ADS-B (« A3 ») : donne un gabarit quand le type est inconnu. */
+  category: string | null;
   /** Vitesse verticale, en m/s (positive en montée). */
   verticalRate: number;
   squawk: string | null;
@@ -104,6 +112,10 @@ export function parseAircraft(payload: unknown): Aircraft[] {
       onGround,
       speed: (number(entry.gs) ?? 0) * KNOT,
       track: number(entry.track) ?? number(entry.true_heading) ?? 0,
+      heading: number(entry.true_heading) ?? number(entry.mag_heading),
+      roll: number(entry.roll),
+      turnRate: number(entry.track_rate),
+      category: text(entry.category),
       verticalRate: (number(entry.baro_rate) ?? number(entry.geom_rate) ?? 0) * FOOT_PER_MINUTE,
       squawk: text(entry.squawk),
       selectedAltitude: number(entry.nav_altitude_mcp) === null ? null : Math.round(number(entry.nav_altitude_mcp)! * FOOT),

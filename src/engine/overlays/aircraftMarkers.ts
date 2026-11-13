@@ -5,12 +5,17 @@
  * car son orientation à l'écran dépend aussi du cap de la vue.
  */
 
+import type { Attitude } from '../../domain/airframes.ts';
 import type { OverlayFeature, OverlayStyle } from '../OverlayLayer.ts';
 import { TINT_ACTIVE, TINT_IDLE, tinted } from './tint.ts';
 
 export interface AircraftFeature extends OverlayFeature {
   /** Route suivie, en degrés depuis le nord. */
   track: number;
+  /** Ce qu'il faut à la maquette en volume (`AircraftLayer`) : cellule, assiette, taux de virage. */
+  airframe: string;
+  attitude: Attitude;
+  turnRate: number;
   /** Seconde ligne de l'étiquette : l'altitude, ou « au sol ». */
   detail: string;
 }
