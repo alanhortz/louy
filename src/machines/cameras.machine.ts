@@ -162,12 +162,13 @@ export const camerasMachine = setup({
           entry: 'publish',
           initial: 'routing',
           on: {
-            'cameras.picked': {
-              guard: 'picksAnother',
-              target: '.watching',
-              reenter: true,
-              actions: 'selectPicked',
-            },
+            'cameras.picked': [
+              { guard: 'picksAnother', target: '.watching', reenter: true, actions: 'selectPicked' },
+              // La caméra déjà active est touchée de nouveau : rien ne change, mais le
+              // visiteur la redemande. On la ré-annonce, ce qui rouvre son panneau s'il
+              // avait été refermé — sans cela, le marqueur actif ne répondait plus.
+              { guard: 'hasSelection', actions: 'announceSelection' },
+            ],
             'cameras.stepped': { guard: 'hasList', target: '.watching', reenter: true, actions: ['selectNeighbour', 'requestFly'] },
             'cameras.nearestRequested': { guard: 'hasList', target: '.watching', reenter: true, actions: ['selectNearest', 'requestFly'] },
           },

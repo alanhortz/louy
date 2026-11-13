@@ -155,6 +155,22 @@ describe('machine des caméras', () => {
     expect(announced.at(-1)).toEqual({ type: 'cameras.selectionChanged', camera: null });
   });
 
+  it('ré-annonce la caméra active quand on la touche de nouveau, pour rouvrir son panneau', async () => {
+    const { actor, send, announced } = underParent(machine(async () => 'blob:image'),
+      { visible: true, selectedId: null, focus: { x: 0, y: 0 } });
+    await waitFor(actor, (snapshot) => snapshot.matches({ visible: { listed: 'standby' } }));
+    send({ type: 'cameras.picked', id: '1' });
+    await waitFor(actor, (snapshot) => frameState(snapshot) === 'ready');
+    const selections = () => announced.filter((event) => event.type === 'cameras.selectionChanged');
+    const before = selections().length;
+
+    // même caméra : l'image n'est pas rechargée, mais la sélection est annoncée de nouveau
+    send({ type: 'cameras.picked', id: '1' });
+    expect(selections()).toHaveLength(before + 1);
+    expect(selections().at(-1)).toMatchObject({ camera: { id: '1' } });
+    expect(frameState(actor.getSnapshot())).toBe('ready');
+  });
+
   it('signale une image indisponible sans quitter la caméra', async () => {
     const { actor, send } = underParent(machine(async () => { throw new Error('404'); }),
       { visible: true, selectedId: null, focus: { x: 0, y: 0 } });
