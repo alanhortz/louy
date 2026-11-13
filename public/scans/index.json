@@ -11,6 +11,25 @@
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
       "licence": "CC BY"
     },
-    "view": { "x": 685325, "y": 627923, "height": 123, "azimuth": 197, "sweep": -60 }
+    "view": {
+      "x": 685325,
+      "y": 627923,
+      "height": 123,
+      "azimuth": 197,
+      "sweep": -60
+    }
+  },
+  {
+    "id": "lettres-namur",
+    "name": "Lettres « NAMUR », esplanade de la Confluence",
+    "x": 685567,
+    "y": 627965,
+    "mesh": "/scans/lettres-namur.glb",
+    "credit": {
+      "author": "Alan Hortz",
+      "title": "Relevé Polycam du 13 novembre 2026",
+      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
+      "licence": "© 2026"
+    }
   }
 ]
