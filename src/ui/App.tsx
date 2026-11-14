@@ -1,4 +1,5 @@
 import { useSelector } from '@xstate/react';
+import { useEffect } from 'react';
 import { useApp } from './actors.ts';
 import { AboutPanel } from './components/AboutPanel.tsx';
 import { AircraftPanel } from './components/AircraftPanel.tsx';
@@ -28,6 +29,19 @@ export function App() {
   const support = useSelector(app, (snapshot) => snapshot.context.support);
   // les machines filles sont créées à l'entrée dans `running` : on attend qu'elles existent
   const started = useSelector(app, (snapshot) => snapshot.children.viewer !== undefined);
+
+  // Échap désélectionne le marqueur choisi — sauf dans un champ de saisie, ou quand une
+  // visionneuse plein écran est ouverte : la touche lui revient, pour la refermer.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      if (event.target instanceof Element && event.target.closest('input, textarea, select, [role="dialog"]')) return;
+      if (document.querySelector('[aria-modal="true"]')) return;
+      app.send({ type: 'app.selectionDismissed' });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [app]);
 
   if (phase === 'unsupported' && support) return <UnsupportedNotice report={support} />;
   if (phase !== 'running' || !started) {

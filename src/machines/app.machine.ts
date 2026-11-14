@@ -52,6 +52,8 @@ import { viewerMachine, type ViewerEmitted } from './viewer.machine.ts';
 export type AppEvent =
   | { type: 'app.shareRequested' }
   | { type: 'app.homeRequested' }
+  /** Touche Échap sur la carte : plus aucun marqueur n'est sélectionné. */
+  | { type: 'app.selectionDismissed' }
   | { type: 'app.timelineRequested' }
   | SceneEmitted
   | ViewerEmitted
@@ -553,6 +555,17 @@ export const appMachine = setup({
 
         'app.homeRequested': {
           actions: sendTo('viewer', { type: 'viewer.poseApplied', pose: DEFAULT_VIEW.pose, sharpen: true }),
+        },
+
+        // chaque calque lâche sa sélection ; celui qui n'en a pas n'en fait rien
+        'app.selectionDismissed': {
+          actions: [
+            sendTo('aircraft', { type: 'aircraft.dismissed' }),
+            sendTo('cameras', { type: 'cameras.dismissed' }),
+            sendTo('layers', { type: 'layers.dismissed', layer: AERIAL_LAYER }),
+            sendTo('layers', { type: 'layers.dismissed', layer: OBJECTS_LAYER }),
+            sendTo('layers', { type: 'layers.dismissed', layer: SURVIVAL_LAYER }),
+          ],
         },
       },
     },
