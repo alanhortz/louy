@@ -32,7 +32,9 @@ import { compatibilityMachine } from './compatibility.machine.ts';
 import { objectMachine, type ObjectEmitted } from './object.machine.ts';
 import { placesMachine, type PlacesEmitted } from './places.machine.ts';
 import { createLayersMachine, type LayersEmitted } from './layers.machine.ts';
-import { AERIAL_LAYER, OBJECTS_LAYER, aerialLayer, drawnScans, objectsLayer } from './scans.layer.ts';
+import {
+  AERIAL_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER, aerialLayer, drawnScans, objectsLayer, survivalLayer,
+} from './scans.layer.ts';
 import type { OverlayName } from './actors/engine.actor.ts';
 import { filmsMachine, type FilmsEmitted } from './films.machine.ts';
 import { sceneMachine, type SceneEmitted } from './scene.machine.ts';
@@ -123,7 +125,7 @@ export const appMachine = setup({
     cameras: camerasMachine,
     sites: sitesMachine,
     // les calques à sélection naissent tous du même état générique, sous un orchestrateur
-    layers: createLayersMachine([aerialLayer, objectsLayer]),
+    layers: createLayersMachine([aerialLayer, objectsLayer, survivalLayer]),
     object: objectMachine,
     aircraft: aircraftMachine,
     films: filmsMachine,
@@ -229,7 +231,11 @@ export const appMachine = setup({
           id: 'layers',
           src: 'layers',
           input: ({ context }) => ({
-            visible: { [AERIAL_LAYER]: context.view.overlays.scans, [OBJECTS_LAYER]: context.view.overlays.objects },
+            visible: {
+              [AERIAL_LAYER]: context.view.overlays.scans,
+              [OBJECTS_LAYER]: context.view.overlays.objects,
+              [SURVIVAL_LAYER]: context.view.overlays.survival,
+            },
             distance: context.view.pose.distance,
           }),
         },
@@ -377,7 +383,7 @@ export const appMachine = setup({
           },
           {
             // imagerie aérienne ou objets scannés : le calque reçoit ce que le marqueur touché rassemble
-            guard: ({ event }) => event.layer === AERIAL_LAYER || event.layer === OBJECTS_LAYER,
+            guard: ({ event }) => [AERIAL_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER].includes(event.layer),
             actions: sendTo('layers', ({ event }) =>
               ({ type: 'layers.picked', layer: event.layer, id: event.id, members: event.members })),
           },
@@ -461,7 +467,8 @@ export const appMachine = setup({
         // l'élément vient d'être désigné : un objet s'ouvre dans sa visionneuse, la caméra se rend sur un lieu
         'layers.activated': [
           {
-            guard: ({ event }) => event.layer === OBJECTS_LAYER,
+            // objets scannés et équipements de survie s'examinent dans la même visionneuse
+            guard: ({ event }) => event.layer === OBJECTS_LAYER || event.layer === SURVIVAL_LAYER,
             actions: sendTo('object', ({ event }) => ({ type: 'object.opened', scan: event.item, group: event.siblings })),
           },
           {
@@ -470,7 +477,12 @@ export const appMachine = setup({
           },
         ],
         // la visionneuse refermée, son objet n'est plus sélectionné
-        'object.left': { actions: sendTo('layers', { type: 'layers.dismissed', layer: OBJECTS_LAYER }) },
+        'object.left': {
+          actions: [
+            sendTo('layers', { type: 'layers.dismissed', layer: OBJECTS_LAYER }),
+            sendTo('layers', { type: 'layers.dismissed', layer: SURVIVAL_LAYER }),
+          ],
+        },
 
         /* ---- avions en direct : marqueurs, sélection, poste de pilotage ---- */
         'aircraft.changed': {

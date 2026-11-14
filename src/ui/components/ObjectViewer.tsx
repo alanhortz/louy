@@ -3,7 +3,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import { useEffect, useRef } from 'react';
-import { OBJECTS_LABEL } from '../../domain/scans.ts';
+import { objectLabel } from '../../domain/scans.ts';
 import { objectPage, objectPhase } from '../../machines/object.machine.ts';
 import { useApp, useChild } from '../actors.ts';
 import { count } from '../format.ts';
@@ -51,10 +51,10 @@ export function ObjectViewer() {
       className="object-backdrop"
       onClick={(event) => { if (event.target === event.currentTarget) object.send({ type: 'object.closed', by: 'backdrop' }); }}
     >
-      <section className="object-viewer" role="dialog" aria-modal="true" aria-label={`${OBJECTS_LABEL} : ${scan.name}`}>
+      <section className="object-viewer" role="dialog" aria-modal="true" aria-label={`${objectLabel(scan)} : ${scan.name}`}>
         <header className="object-header">
           <div className="object-title">
-            <span className="object-kicker">{OBJECTS_LABEL}</span>
+            <span className="object-kicker">{objectLabel(scan)}</span>
             <h2>{scan.name}</h2>
           </div>
           <div className="object-actions">

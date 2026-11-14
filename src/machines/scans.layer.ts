@@ -7,18 +7,21 @@
  *     l'y garder affiché pendant que l'on en regarde un autre.
  *   - « Objets scannés » : les objets relevés de près. En toucher un l'ouvre dans
  *     sa visionneuse ; ceux d'un même marqueur s'y feuillettent.
+ *   - « Équipements de survie » : parmi ces objets, ceux qui peuvent sauver une
+ *     vie, signalés à part.
  *
  * Chaque scan a son marqueur. Quand plusieurs se recouvrent à l'écran, c'est la
  * carte qui les rassemble sous un seul, avec leur nombre.
  */
 
-import { isObjectScan, placeScans, type Scan } from '../domain/scans.ts';
+import { isObjectScan, isSurvivalScan, placeScans, type Scan } from '../domain/scans.ts';
 import type { ScanFeature } from '../engine/overlays/scanMarkers.ts';
 import { loadScans } from '../services/scans.ts';
 import type { SelectionLayerSpec } from './selectionLayer.machine.ts';
 
 export const AERIAL_LAYER = 'scans';
 export const OBJECTS_LAYER = 'objects';
+export const SURVIVAL_LAYER = 'survival';
 
 /**
  * Éloignement sous lequel le marqueur d'un lieu dessiné s'efface : on a alors
@@ -42,7 +45,17 @@ export const aerialLayer: SelectionLayerSpec<Scan> = {
 
 export const objectsLayer: SelectionLayerSpec<Scan> = {
   name: OBJECTS_LAYER,
-  load: async (signal) => (await loadScans(signal)).filter(isObjectScan),
+  load: async (signal) => (await loadScans(signal)).filter((scan) => isObjectScan(scan) && !isSurvivalScan(scan)),
+  markers: (scans) => scans.map(toFeature),
+};
+
+/**
+ * Équipements de survie : les objets relevés qui peuvent sauver une vie — les défibrillateurs d'abord.
+ * Même mécanique que les objets scannés, mais un calque à eux : on doit pouvoir les voir seuls.
+ */
+export const survivalLayer: SelectionLayerSpec<Scan> = {
+  name: SURVIVAL_LAYER,
+  load: async (signal) => (await loadScans(signal)).filter(isSurvivalScan),
   markers: (scans) => scans.map(toFeature),
 };
 

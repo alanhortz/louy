@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createMachine, createActor, sendTo, waitFor, type AnyActorLogic, type AnyEventObject } from 'xstate';
 import { createTelemetryInspector } from '../src/app/inspector.ts';
-import { fitFlyover, scansSpread, type Scan } from '../src/domain/scans.ts';
+import { fitFlyover, objectLabel, parseScans, scansSpread, type Scan } from '../src/domain/scans.ts';
 import { createLayersMachine, layerRef } from '../src/machines/layers.machine.ts';
 import { objectMachine, objectPage } from '../src/machines/object.machine.ts';
-import { aerialLayer, drawnScans, objectsLayer } from '../src/machines/scans.layer.ts';
+import { aerialLayer, drawnScans, objectsLayer, survivalLayer } from '../src/machines/scans.layer.ts';
 import {
   createSelectionLayer, layerAvailable, layerFeed, layerKept, layerSelection, type SelectionLayerSpec,
 } from '../src/machines/selectionLayer.machine.ts';
@@ -282,6 +282,38 @@ describe('calque des objets scannés', () => {
     const activated = announced.at(-1)!;
     expect(activated).toMatchObject({ type: 'layer.activated', layer: 'objects', item: { id: 'facade' } });
     expect(activated.siblings.map((scan: Scan) => scan.id)).toEqual(['facade', 'mur']);
+  });
+});
+
+describe('calque des équipements de survie', () => {
+  const defibrillator: Scan = { ...object('dea', 636210, 619128), name: 'Défibrillateur', survival: 'defibrillator' };
+
+  it('prend les équipements de survie, que le calque des objets scannés ne montre plus', async () => {
+    const list = async () => [citadelle, lettres, defibrillator];
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify(await list())));
+    const signal = new AbortController().signal;
+    expect((await survivalLayer.load(signal)).map((scan) => scan.id)).toEqual(['dea']);
+    expect((await objectsLayer.load(signal)).map((scan) => scan.id)).toEqual(['lettres']);
+    expect((await aerialLayer.load(signal)).map((scan) => scan.id)).toEqual(['citadelle']);
+    spy.mockRestore();
+  });
+
+  it('n’accepte qu’un genre d’équipement connu, et seulement sur un objet', () => {
+    expect(parseScans([defibrillator])).toHaveLength(1);
+    expect(parseScans([{ ...defibrillator, survival: 'extincteur' }])).toEqual([]);
+    expect(parseScans([{ ...citadelle, survival: 'defibrillator' }])).toEqual([]);
+  });
+
+  it('s’annonce sous le nom de son calque dans la visionneuse', () => {
+    expect(objectLabel(defibrillator)).toBe('Équipements de survie');
+    expect(objectLabel(lettres)).toBe('Objets scannés');
+  });
+
+  it('ouvre l’équipement touché, sous son propre nom de calque', async () => {
+    const { actor, send, announced } = underParent(createSelectionLayer({ ...survivalLayer, load: async () => [defibrillator] }));
+    await waitFor(actor, (snapshot) => snapshot.matches('visible'));
+    send({ type: 'layer.picked', id: 'dea', members: ['dea'] });
+    expect(announced.at(-1)).toMatchObject({ type: 'layer.activated', layer: 'survival', item: { id: 'dea' } });
   });
 });
 

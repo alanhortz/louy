@@ -1,13 +1,13 @@
 import {
-  ClockIcon, CubeTransparentIcon, PaperAirplaneIcon, PhotoIcon, TagIcon, VideoCameraIcon,
+  ClockIcon, CubeTransparentIcon, HeartIcon, PaperAirplaneIcon, PhotoIcon, TagIcon, VideoCameraIcon,
 } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import type { ReactNode } from 'react';
-import { AERIAL_LABEL, OBJECTS_LABEL, type Scan } from '../../domain/scans.ts';
+import { AERIAL_LABEL, OBJECTS_LABEL, SURVIVAL_LABEL, type Scan } from '../../domain/scans.ts';
 import { aircraftFeed } from '../../machines/aircraft.machine.ts';
 import { camerasFeed } from '../../machines/cameras.machine.ts';
 import { placesStatus, type LayerFeed } from '../../machines/places.machine.ts';
-import { AERIAL_LAYER, OBJECTS_LAYER } from '../../machines/scans.layer.ts';
+import { AERIAL_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER } from '../../machines/scans.layer.ts';
 import { layerAvailable, layerFeed } from '../../machines/selectionLayer.machine.ts';
 import { AIRCRAFT_SOURCE } from '../../services/aircraft.ts';
 import { FILMS_LABEL } from '../../domain/timeline.ts';
@@ -171,6 +171,7 @@ export function LayersPanel() {
         <AircraftRow />
         <ScanLayerRow layer={AERIAL_LAYER} name={AERIAL_LABEL} icon={<PhotoIcon aria-hidden="true" />} meta="Lieux filmés au drone, reconstruits en volume" />
         <ScanLayerRow layer={OBJECTS_LAYER} name={OBJECTS_LABEL} icon={<CubeTransparentIcon aria-hidden="true" />} meta="Relevés sur place, au téléphone" />
+        <ScanLayerRow layer={SURVIVAL_LAYER} name={SURVIVAL_LABEL} icon={<HeartIcon aria-hidden="true" />} meta="Défibrillateurs relevés sur place" />
         <FilmsRow />
       </div>
     </Panel>
