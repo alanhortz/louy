@@ -6,8 +6,8 @@
  * à deux lignes — le genre, puis le nom. De loin l'icône est seule ; de près la
  * légende apparaît, avec au-dessus la dernière image de la caméra.
  *
- * Le dessin de l'icône et ses teintes (repos `#6be8ff`, active `#ffd97a`)
- * reprennent God's Eye View — © 2026 Bilawal Sidhu, licence MIT.
+ * Les teintes (repos `#6be8ff`, active `#ffd97a`) reprennent God's Eye View —
+ * © 2026 Bilawal Sidhu, licence MIT.
  */
 
 import type { OverlayFeature, OverlayStyle } from '../OverlayLayer.ts';
@@ -17,20 +17,14 @@ export interface CameraFeature extends OverlayFeature {
   thumbnail: string;
 }
 
+/**
+ * Le pictogramme du panneau « Caméras » (Heroicons, `video-camera`, contour) :
+ * une caméra se reconnaît ainsi du rail jusqu'à la carte. Le fond sombre le
+ * détache de l'orthophoto, comme les autres marqueurs.
+ */
 const ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
-  <defs>
-    <linearGradient id="lens" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#c9f6ff"/>
-      <stop offset="45%" stop-color="#6fd9ff"/>
-      <stop offset="100%" stop-color="#1a5f78"/>
-    </linearGradient>
-  </defs>
-  <g transform="translate(4 6)">
-    <rect x="0" y="8" width="20" height="9" rx="2.5" fill="#0e1720" stroke="#75e7ff" stroke-width="1.2"/>
-    <rect x="17" y="10" width="10" height="5" rx="1.5" fill="#132433" stroke="#75e7ff" stroke-width="1"/>
-    <circle cx="24" cy="12.5" r="3.1" fill="url(#lens)" stroke="#dbfbff" stroke-width="0.8"/>
-    <rect x="6.4" y="17" width="4.2" height="8.5" rx="1.2" fill="#10212d" stroke="#75e7ff" stroke-width="1"/>
-    <rect x="4.2" y="24" width="8.6" height="2.5" rx="1.1" fill="#0b151d" stroke="#4ecde7" stroke-width="0.8"/>
+  <g transform="translate(3 3) scale(1.25)" fill="#0e1720" stroke="#75e7ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"/>
   </g>
 </svg>`;
 
