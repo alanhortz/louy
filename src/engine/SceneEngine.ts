@@ -142,6 +142,8 @@ export class SceneEngine {
 
   #source: SceneSource;
   #scans: readonly Scan[] = [];
+  /** Fichiers de scans à faire venir d'avance, dès que le relief de la vue est chargé. */
+  #preload: string[] = [];
   #splats: SplatLayer | null = null;
   #disposed = false;
   #follow: FollowTarget | null = null;
@@ -309,6 +311,30 @@ export class SceneEngine {
   }
 
   /** Scans 3D à dessiner par-dessus le relief ; le moteur de splats n'est chargé qu'au premier. */
+  /**
+   * Prépare des scans avant qu'on les demande : leur fichier (plusieurs mégaoctets)
+   * et le moteur de splats sont téléchargés en tâche de fond, une fois le relief
+   * de la vue arrivé — jamais en concurrence avec lui. Le jour où le visiteur
+   * touche le marqueur, tout vient du cache du navigateur.
+   */
+  preloadScans(scans: readonly Scan[]): void {
+    this.#preload = scans.flatMap((scan) => (scan.splats ? [scan.splats] : []));
+    this.#wake();
+  }
+
+  #prewarm(): void {
+    const urls = this.#preload;
+    this.#preload = [];
+    // le visiteur a demandé d'économiser ses données, ou sa liaison est trop lente : on ne télécharge rien d'avance
+    const link = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    if (link?.saveData || link?.effectiveType === '2g' || link?.effectiveType === 'slow-2g') return;
+    void import('./SplatLayer.ts').catch(() => {});
+    for (const url of urls) {
+      // priorité basse : la navigation et les tuiles passent d'abord ; le corps est lu pour que le cache le garde
+      void fetch(url, { priority: 'low' } as RequestInit).then((response) => response.blob()).catch(() => {});
+    }
+  }
+
   setScans(scans: readonly Scan[]): void {
     this.#scans = scans;
     if (this.#splats) {
@@ -497,6 +523,8 @@ export class SceneEngine {
       this.#unsettled = false;
       this.#listeners.onViewSettled(this.getPose());
     }
+    // le relief de la vue est là : c'est le moment de faire venir ce qui a été demandé d'avance
+    if (this.#preload.length > 0 && this.#ready && this.#loader.pending === 0) this.#prewarm();
     this.#reportActivity();
   }
 

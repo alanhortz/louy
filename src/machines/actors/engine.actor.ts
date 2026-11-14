@@ -33,6 +33,8 @@ export type EngineCommand =
   | { type: 'viewer.overlayChanged'; layer: OverlayName; features: OverlayFeature[] }
   | { type: 'viewer.overlayActivated'; layer: OverlayName; id: string | null }
   | { type: 'viewer.scansChanged'; scans: Scan[] }
+  /** Lieux à préparer d'avance : leur fichier sera déjà là quand on les demandera. */
+  | { type: 'viewer.scansPreloaded'; scans: Scan[] }
   | { type: 'viewer.poseApplied'; pose: Pose; sharpen?: boolean }
   | { type: 'viewer.flyoverRequested'; flyover: Flyover }
   | { type: 'viewer.orbitStopped' }
@@ -62,6 +64,7 @@ export interface EngineInput {
   overlays: Record<OverlayName, OverlayFeature[]>;
   active: Record<OverlayName, string | null>;
   scans: Scan[];
+  preload: Scan[];
 }
 
 const OVERLAYS: readonly OverlayName[] = ['places', 'cameras', 'scans', 'aircraft'];
@@ -106,6 +109,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
     engine.setAircraftModels(input.overlays.aircraft as unknown as AircraftModel[]);
     engine.setAircraftActive(input.active.aircraft);
     engine.setScans(input.scans);
+    engine.preloadScans(input.preload);
 
     receive((command) => {
       switch (command.type) {
@@ -118,6 +122,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
           if (command.layer === 'aircraft') engine.setAircraftActive(command.id);
           return engine.setOverlayActive(command.layer, command.id);
         case 'viewer.scansChanged': return engine.setScans(command.scans);
+        case 'viewer.scansPreloaded': return engine.preloadScans(command.scans);
         case 'viewer.poseApplied': return engine.setPose(command.pose, { sharpen: command.sharpen });
         case 'viewer.flyoverRequested': return engine.flyOver(command.flyover);
         case 'viewer.orbitStopped': return engine.stopOrbit();

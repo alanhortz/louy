@@ -38,7 +38,7 @@ export interface LayersInput {
 interface LayersContext { layers: Record<string, SelectionLayerRef> }
 
 const GESTURES = ['toggled', 'picked', 'stepped', 'dismissed'] as const;
-const REPORTS = ['changed', 'selectionChanged', 'activated'] as const;
+const REPORTS = ['listed', 'changed', 'selectionChanged', 'activated'] as const;
 
 // `any` : chaque calque a son propre type d'élément, que l'orchestrateur n'a pas à connaître
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
