@@ -472,6 +472,43 @@ export const appMachine = setup({
         // la visionneuse refermée, son objet n'est plus sélectionné
         'object.left': { actions: sendTo('layers', { type: 'layers.dismissed', layer: OBJECTS_LAYER }) },
 
+        /* ---- avions en direct : marqueurs, sélection, poste de pilotage ---- */
+        'aircraft.changed': {
+          actions: [
+            assign({
+              view: ({ context, event }) =>
+                ({ ...context.view, overlays: { ...context.view.overlays, aircraft: event.visible } }),
+            }),
+            sendTo('viewer', ({ event }) =>
+              ({ type: 'viewer.overlayChanged', layer: 'aircraft', features: event.features })),
+            'syncUrl',
+          ],
+        },
+        'aircraft.selectionChanged': {
+          actions: [
+            sendTo('viewer', ({ event }) =>
+              ({ type: 'viewer.overlayActivated', layer: 'aircraft', id: event.aircraft?.id ?? null })),
+            sendTo('chrome', ({ event }) => (event.aircraft
+              ? { type: 'chrome.revealed', panel: 'aircraft' }
+              : { type: 'chrome.dismissed', panel: 'aircraft' })),
+          ],
+        },
+        'aircraft.followChanged': {
+          actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.followChanged', target: event.target })),
+        },
+        // le visiteur a repris la main sur la carte : il n'est plus au poste de pilotage
+        'viewer.followEnded': { actions: sendTo('aircraft', { type: 'aircraft.cockpitLeft' }) },
+        'aircraft.flyRequested': {
+          actions: sendTo('viewer', ({ event }) => ({
+            type: 'viewer.flyoverRequested',
+            flyover: {
+              x: event.x, y: event.y, height: event.height, orbit: false,
+              // l'avion est en l'air : c'est lui, et non le sol sous lui, qui doit être au centre de la vue
+              ...(event.altitude === null ? {} : { aimAltitude: event.altitude }),
+            },
+          })),
+        },
+
         /* ---- partage : on capture d'abord la pose exacte, orbite comprise ---- */
         'app.shareRequested': {
           actions: sendTo('viewer', { type: 'viewer.poseCaptureRequested' }),
