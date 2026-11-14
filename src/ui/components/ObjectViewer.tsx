@@ -1,8 +1,10 @@
-import { ArrowPathIcon, PauseIcon, PlayIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon, PauseIcon, PlayIcon, XMarkIcon,
+} from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import { useEffect, useRef } from 'react';
 import { SCANS_LABEL } from '../../domain/scans.ts';
-import { objectPhase } from '../../machines/object.machine.ts';
+import { objectPage, objectPhase } from '../../machines/object.machine.ts';
 import { useApp, useChild } from '../actors.ts';
 import { count } from '../format.ts';
 
@@ -19,6 +21,7 @@ export function ObjectViewer() {
   const stats = useSelector(object, (snapshot) => snapshot.context.stats);
   const autoRotate = useSelector(object, (snapshot) => snapshot.context.autoRotate);
   const failure = useSelector(object, (snapshot) => snapshot.context.failure);
+  const page = useSelector(object, objectPage, (a, b) => a.index === b.index && a.total === b.total);
   const awaitsCanvas = useSelector(object, (snapshot) => snapshot.matches({ open: 'mounting' }));
   const touch = useSelector(useApp(), (snapshot) => snapshot.context.support?.touch ?? false);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -33,6 +36,9 @@ export function ObjectViewer() {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') object.send({ type: 'object.closed', by: 'escape' });
+      // dans un groupe, les flèches feuillettent les objets ; la machine ignore les bouts
+      else if (event.key === 'ArrowRight') object.send({ type: 'object.paged', delta: 1, by: 'keyboard' });
+      else if (event.key === 'ArrowLeft') object.send({ type: 'object.paged', delta: -1, by: 'keyboard' });
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -105,6 +111,28 @@ export function ObjectViewer() {
             </div>
           )}
         </div>
+
+        {page.total > 1 && (
+          <nav className="object-pager" aria-label="Objets de ce lieu">
+            <button
+              type="button" className="rail-item" title="Objet précédent (←)" aria-label="Objet précédent"
+              disabled={page.index <= 1}
+              onClick={() => object.send({ type: 'object.paged', delta: -1, by: 'button' })}
+            >
+              <ChevronLeftIcon className="rail-glyph" aria-hidden="true" />
+            </button>
+            <span className="object-page" aria-live="polite">
+              <b>{page.index}</b> / {page.total}
+            </span>
+            <button
+              type="button" className="rail-item" title="Objet suivant (→)" aria-label="Objet suivant"
+              disabled={page.index >= page.total}
+              onClick={() => object.send({ type: 'object.paged', delta: 1, by: 'button' })}
+            >
+              <ChevronRightIcon className="rail-glyph" aria-hidden="true" />
+            </button>
+          </nav>
+        )}
 
         <footer className="object-footer">
           <span>{touch ? 'Un doigt pour tourner · deux doigts pour zoomer' : 'Glisser pour tourner · molette pour zoomer'}</span>

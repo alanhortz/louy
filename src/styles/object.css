@@ -113,3 +113,10 @@
     padding: calc(12px + var(--safe-top)) calc(12px + var(--safe-right)) calc(12px + var(--safe-bottom)) calc(12px + var(--safe-left));
   }
 }
+
+/* pagination d'un groupe d'objets : sous la scène, au centre */
+.object-pager { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.object-pager .rail-item { border-color: rgba(255, 255, 255, 0.16); }
+.object-pager .rail-item:disabled { opacity: 0.35; cursor: default; }
+.object-page { min-width: 64px; text-align: center; font-family: var(--font-mono); font-size: 11px; letter-spacing: 2px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.object-page b { color: var(--text-primary); font-size: 15px; font-weight: 600; }
