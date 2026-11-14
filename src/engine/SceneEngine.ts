@@ -314,7 +314,7 @@ export class SceneEngine {
 
   /** Trajectoire d'un vol : chemin parcouru, estimation devant l'appareil, instant désigné. Listes vides pour la retirer. */
   setTrajectory(past: readonly TrajectoryPoint[], future: readonly TrajectoryPoint[], cursor: TrajectoryPoint | null): void {
-    if (past.length + future.length > 0) this.#trajectory ??= new TrajectoryLayer(this.#renderer);
+    if (past.length + future.length > 0) this.#trajectory ??= new TrajectoryLayer(this.#overlayRoot);
     this.#trajectory?.set(past, future, cursor, this.#controls.target.y);
     this.#wake();
   }
@@ -620,10 +620,10 @@ export class SceneEngine {
     });
     this.#edl.render(this.#scene, this.#camera);
     this.#splats?.render(this.#camera);
-    // la trajectoire d'abord : la maquette de l'avion se lit par-dessus
-    this.#trajectory?.render(this.#camera);
     this.#aircraft?.render(this.#camera, this.#size.height, Date.now(),
       (worldX, worldZ) => this.#groundAt(worldX, worldZ) ?? this.#controls.target.y);
+    // la trajectoire ensuite : elle se raccorde à l'appareil tel qu'il vient d'être dessiné
+    this.#trajectory?.render(this.#camera, this.#size.width, this.#size.height, this.#aircraft?.anchor ?? null);
 
     this.#updateOverlays();
     this.#updateAltimeter();
