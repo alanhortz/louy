@@ -3,7 +3,8 @@ import { aircraftPhase, militaryLabel, phaseLabel, type Aircraft } from '../../d
 import { aircraftFeed, listedAircraft, selectedAircraft } from '../../machines/aircraft.machine.ts';
 import { AIRCRAFT_SOURCE } from '../../services/aircraft.ts';
 import { useChild } from '../actors.ts';
-import { trajectoryCursor } from '../../machines/trajectory.machine.ts';
+import { ROUTE_SOURCE } from '../../domain/flightRoute.ts';
+import { trajectoryCursor, trajectoryRoute } from '../../machines/trajectory.machine.ts';
 import { AircraftPhoto } from './AircraftPhoto.tsx';
 import { Panel } from './Panel.tsx';
 
@@ -50,6 +51,7 @@ export function AircraftPanel() {
   const aircraft = useSelector(actor, selectedAircraft);
   const inCockpit = useSelector(actor, (snapshot) => snapshot.context.inCockpit);
   const trajectory = useChild('trajectory');
+  const route = useSelector(trajectory, trajectoryRoute);
   const cursor = useSelector(trajectory, trajectoryCursor, (a, b) =>
     a.earliest === b.earliest && a.latest === b.latest && a.offset === b.offset && a.point?.altitude === b.point?.altitude);
   const enabled = feed !== 'off';
@@ -84,6 +86,22 @@ export function AircraftPanel() {
             </button>
           </header>
           <AircraftPhoto type={aircraft.type} category={aircraft.category} />
+          {route && (
+            <p className="aircraft-route" title={`Liaison habituelle de ce vol, d’après son indicatif (source : ${ROUTE_SOURCE})`}>
+              <span className="aircraft-route-end">
+                <strong>{route.origin.city}</strong>
+                <small>{route.origin.code}</small>
+              </span>
+              <span className="aircraft-route-arrow" aria-label="vers">→</span>
+              <span className="aircraft-route-end">
+                <strong>{route.destination.city}</strong>
+                <small>{route.destination.code}</small>
+              </span>
+              <span className="aircraft-route-note">
+                {[route.airline, `liaison habituelle · ${ROUTE_SOURCE}`].filter(Boolean).join(' · ')}
+              </span>
+            </p>
+          )}
           <p className="aircraft-phase">
             {phaseLabel(aircraftPhase(aircraft))}
             {militaryLabel(aircraft) && <span className="aircraft-military" data-military={aircraft.military}>{militaryLabel(aircraft)}</span>}

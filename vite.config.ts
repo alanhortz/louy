@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { AIRCRAFT_EDGE_PATH, aircraftFeedUrl } from './src/domain/aircraft.ts';
+import { routeUrl } from './src/domain/flightRoute.ts';
 import { entropy } from './build/entropy/plugin.ts';
 import { supportGate } from './build/support-gate.ts';
 
@@ -36,6 +37,12 @@ export default defineConfig({
         target: new URL(aircraftFeedUrl()).origin,
         changeOrigin: true,
         rewrite: () => new URL(aircraftFeedUrl()).pathname,
+      },
+      // liaison d'un vol : même rôle, vers la base adsbdb
+      '^/edge/v1/aircraft/route/[A-Z0-9]{3,8}\\.json$': {
+        target: new URL(routeUrl('X')).origin,
+        changeOrigin: true,
+        rewrite: (path) => new URL(routeUrl(path.split('/').pop()!.replace('.json', ''))).pathname,
       },
     },
   },

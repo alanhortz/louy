@@ -15,6 +15,9 @@
  * Il relaie aussi `/edge/v1/aircraft.json`, les avions en vol : la réponse du
  * réseau adsb.lol est gardée quelques secondes, de sorte que le nombre de
  * requêtes vers ce réseau bénévole ne dépende pas du nombre de visiteurs.
+ * De même `/edge/v1/aircraft/route/<indicatif>.json`, la liaison que dessert
+ * un indicatif, demandée à la base ouverte adsbdb et gardée un jour.
+ *
  * Préchauffage : une tuile de photo aérienne demandée par le film du temps
  * (`?film`) et absente du cache annonce que la même tuile va être demandée à
  * tous les autres millésimes. Le Worker va les chercher sans attendre, en
@@ -28,6 +31,7 @@
 import { FLIGHT_CELL, flightDatesUrl } from '../src/domain/acquisition.ts';
 import { AIRCRAFT_CACHE_SECONDS, AIRCRAFT_EDGE_PATH, aircraftFeedUrl } from '../src/domain/aircraft.ts';
 import { LATEST_VINTAGE, VINTAGES } from '../src/domain/catalog.ts';
+import { ROUTE_CACHE_SECONDS, ROUTE_ROUTE, routeUrl } from '../src/domain/flightRoute.ts';
 import {
   SERVICE_PATTERN, TILE_SIZES, WARM_FLAG, edgeTileUrl, exportUrl, isImmutableService, parseTilePath, siblingVintages,
 } from '../src/domain/tiles.ts';
@@ -91,6 +95,17 @@ function aircraftUpstream(path: string): Upstream | null {
   };
 }
 
+/** Liaison d'un vol : seul un indicatif — lettres capitales et chiffres — entre dans l'adresse demandée. */
+function routeUpstream(path: string): Upstream | null {
+  const match = ROUTE_ROUTE.exec(path);
+  if (!match) return null;
+  return {
+    url: routeUrl(match[1]!),
+    contentType: 'application/json',
+    cacheControl: `public, max-age=${ROUTE_CACHE_SECONDS}, s-maxage=${ROUTE_CACHE_SECONDS}`,
+  };
+}
+
 const refusal = (status: number, message: string): Response =>
   new Response(message, { status, headers: { 'Cache-Control': 'no-store', 'Content-Type': 'text/plain; charset=utf-8' } });
 
@@ -136,7 +151,7 @@ async function warmSiblings(cache: Cache, origin: string, route: string): Promis
 async function relay(request: Request, context: ExecutionContext): Promise<Response> {
   const { origin, pathname, searchParams } = new URL(request.url);
   const route = pathname.slice(PREFIX.length);
-  const upstream = tileUpstream(route) ?? flightsUpstream(route) ?? aircraftUpstream(route);
+  const upstream = tileUpstream(route) ?? flightsUpstream(route) ?? aircraftUpstream(route) ?? routeUpstream(route);
   if (!upstream) return refusal(404, 'Ressource inconnue');
 
   // la clef ignore la chaîne de requête : impossible de fragmenter le cache par des paramètres
