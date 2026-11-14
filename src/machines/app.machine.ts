@@ -15,7 +15,7 @@
 import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate';
 import { PROJECT } from '../config/project.ts';
 import { QUALITY_PROFILES } from '../domain/quality.ts';
-import { isObjectScan, scanFlyover, type Scan } from '../domain/scans.ts';
+import { isObjectScan, placeScans, scanFlyover, type Scan } from '../domain/scans.ts';
 import { resolveScene } from '../domain/scene.ts';
 import { DEFAULT_VIEW, encodeView, viewUrl, type View } from '../domain/view.ts';
 import type { SupportReport } from '../services/capabilities.ts';
@@ -323,6 +323,12 @@ export const appMachine = setup({
         },
 
         /* ---- calques à sélection (imagerie 3D) : leurs marqueurs, puis l'élément que l'on sélectionne ---- */
+        // la liste des scans est connue : les lieux sont préparés d'avance, pour s'afficher sans attente
+        'layers.listed': {
+          // calque éteint, rien n'est préparé : ce serait télécharger ce que le visiteur a choisi de ne pas voir
+          guard: ({ context, event }) => event.layer === SCANS_LAYER && context.view.overlays.scans,
+          actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.scansPreloaded', scans: placeScans(event.items) })),
+        },
         'layers.changed': {
           actions: [
             assign({

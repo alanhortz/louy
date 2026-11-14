@@ -59,8 +59,12 @@ describe('état générique d’un calque à sélection', () => {
   it('allumé, pose ses marqueurs et rien d’autre ; éteint, les retire', async () => {
     const { actor, send, announced } = await start({ distance: 500 });
     expect(layerFeed(actor.getSnapshot())).toBe('nominal');
-    expect(announced).toMatchObject([{ type: 'layer.changed', layer: 'posts', visible: true }]);
-    expect(announced[0]!.features.map((feature: { id: string }) => feature.id)).toEqual(['a', 'b']);
+    // la liste est annoncée dès son arrivée, puis les marqueurs sont posés
+    expect(announced).toMatchObject([
+      { type: 'layer.listed', layer: 'posts', items: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] },
+      { type: 'layer.changed', layer: 'posts', visible: true },
+    ]);
+    expect(announced[1]!.features.map((feature: { id: string }) => feature.id)).toEqual(['a', 'b']);
 
     send({ type: 'layer.toggled' });
     expect(layerFeed(actor.getSnapshot())).toBe('off');
@@ -73,7 +77,8 @@ describe('état générique d’un calque à sélection', () => {
   it('peut naître éteint : aucun marqueur, et rien ne se laisse toucher', async () => {
     const { send, announced } = await start({ visible: false });
     send({ type: 'layer.picked', id: 'a' });
-    expect(announced).toEqual([]);
+    // sa liste est connue — de quoi préparer ce qu'il montrera — mais rien n'est sur la carte
+    expect(announced.map((event) => event.type)).toEqual(['layer.listed']);
   });
 
   it('sélectionne et active l’élément du marqueur touché', async () => {
@@ -113,7 +118,7 @@ describe('état générique d’un calque à sélection', () => {
   it('désélectionne à la demande', async () => {
     const { actor, send, announced } = await start({ distance: 500 });
     send({ type: 'layer.dismissed' });
-    expect(announced).toHaveLength(1);
+    expect(announced).toHaveLength(2);
     send({ type: 'layer.picked', id: 'a' });
     send({ type: 'layer.dismissed' });
     expect(layerSelection(actor.getSnapshot())).toBeNull();
@@ -152,7 +157,8 @@ describe('orchestrateur des calques', () => {
     expect(layerFeed(layer('posts').getSnapshot())).toBe('nominal');
     expect(layerFeed(layer('bornes').getSnapshot())).toBe('off');
     // seul le calque allumé a posé ses marqueurs, relayés sous le nom de l'orchestrateur
-    expect(announced).toMatchObject([{ type: 'layers.changed', layer: 'posts', visible: true }]);
+    expect(announced.filter((event) => event.type === 'layers.changed')).toMatchObject([{ layer: 'posts', visible: true }]);
+    expect(announced.filter((event) => event.type === 'layers.listed').map((event) => event.layer).sort()).toEqual(['bornes', 'posts']);
   });
 
   it('remet chaque geste au calque nommé, et relaie ce que les calques annoncent', async () => {

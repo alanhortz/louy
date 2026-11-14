@@ -43,6 +43,8 @@ export type LayerEvent =
   | { type: 'layer.viewChanged'; distance: number };
 
 export type LayerEmitted<T extends LayerItem = LayerItem> =
+  /** La liste du calque vient d'arriver, qu'il soit allumé ou non : de quoi préparer ce qu'il montrera. */
+  | { type: 'layer.listed'; layer: string; items: T[] }
   | { type: 'layer.changed'; layer: string; visible: boolean; features: OverlayFeature[] }
   /** `markerId` : le marqueur à mettre en valeur — celui du groupe, pour un élément groupé. */
   | { type: 'layer.selectionChanged'; layer: string; item: T | null; siblings: T[]; markerId: string | null }
@@ -123,6 +125,7 @@ export function createSelectionLayer<T extends LayerItem>(spec: SelectionLayerSp
         },
       }),
       deselect: assign({ selectedId: null }),
+      announceList: sendParent(({ context }): LayerEmitted<T> => ({ type: 'layer.listed', layer: spec.name, items: context.items })),
       publish: sendParent(({ context }): LayerEmitted<T> => ({
         type: 'layer.changed', layer: spec.name, visible: true, features: spec.markers(context.items, view(context)),
       })),
@@ -149,7 +152,7 @@ export function createSelectionLayer<T extends LayerItem>(spec: SelectionLayerSp
           id: `${spec.name}.list`,
           src: 'load',
           onDone: [
-            { guard: 'foundItems', target: 'resolving', actions: assign({ items: ({ event }) => event.output }) },
+            { guard: 'foundItems', target: 'resolving', actions: [assign({ items: ({ event }) => event.output }), 'announceList'] },
             { target: 'absent' },
           ],
           onError: 'absent',
