@@ -90,6 +90,7 @@
     "x": 636210,
     "y": 619128,
     "mesh": "/scans/defibrillateur-crossfit-hawks-nest.glb",
+    "survival": "defibrillator",
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam, 2026",

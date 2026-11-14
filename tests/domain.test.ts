@@ -110,7 +110,7 @@ describe('vue partageable', () => {
   const view: View = {
     pose: { x: 688879, y: 605554, distance: 426, azimuth: 137, tilt: 58 },
     scene: { campaign: '2013-2014', surface: 'mnt', tint: 'infrared', vintage: '2019' },
-    overlays: { places: false, cameras: true, aircraft: true, scans: true, objects: true },
+    overlays: { places: false, cameras: true, aircraft: true, scans: true, objects: true, survival: true },
     cameraId: '519',
   };
 
@@ -123,17 +123,18 @@ describe('vue partageable', () => {
   });
 
   it('produit un lien lisible', () => {
-    expect(encodeView(view)).toBe('c=688879,605554,426,137,58&s=2013-2014.mnt.infrared.2019&o=caio&cam=519');
+    expect(encodeView(view)).toBe('c=688879,605554,426,137,58&s=2013-2014.mnt.infrared.2019&o=caiod&cam=519');
   });
 
   it('garde l’imagerie et les objets allumés pour un lien d’avant leur existence, et éteints si le lien le dit', () => {
     const old = decodeView('c=685300,628200,1500&s=2021-2022.mnt.ortho.last&o=p');
-    expect([old.overlays.scans, old.overlays.objects]).toEqual([true, true]);
-    const off = encodeView({ ...view, overlays: { ...view.overlays, scans: false, objects: false } });
-    expect(off).toContain('o=caxy');
+    expect([old.overlays.scans, old.overlays.objects, old.overlays.survival]).toEqual([true, true, true]);
+    const off = encodeView({ ...view, overlays: { ...view.overlays, scans: false, objects: false, survival: false } });
+    expect(off).toContain('o=caxyz');
+    expect(decodeView(off).overlays.survival).toBe(false);
     expect([decodeView(off).overlays.scans, decodeView(off).overlays.objects]).toEqual([false, false]);
     const onlyObjects = encodeView({ ...view, overlays: { ...view.overlays, scans: false } });
-    expect(onlyObjects).toContain('o=caox');
+    expect(onlyObjects).toContain('o=caodx');
     expect([decodeView(onlyObjects).overlays.scans, decodeView(onlyObjects).overlays.objects]).toEqual([false, true]);
   });
 

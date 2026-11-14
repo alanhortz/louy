@@ -6,7 +6,7 @@
  * représente et porte leur nombre.
  */
 
-import { AERIAL_LABEL, OBJECTS_LABEL } from '../../domain/scans.ts';
+import { AERIAL_LABEL, OBJECTS_LABEL, SURVIVAL_LABEL } from '../../domain/scans.ts';
 import type { OverlayFeature, OverlayStyle } from '../OverlayLayer.ts';
 import { TINT_ACTIVE, TINT_IDLE, tinted } from './tint.ts';
 
@@ -29,6 +29,14 @@ const AERIAL_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="
     <path d="M9 24.500 15 17l4 4.500 3-3.200 5 6.200" stroke="#75e7ff" stroke-width="1.3"/>
     <circle cx="23.500" cy="13.500" r="1.800" fill="#c9f6ff" stroke="#dbfbff" stroke-width="0.6"/>
     <path d="M3 12V7a2 2 0 0 1 2-2h5M33 12V7a2 2 0 0 0-2-2h-5M3 24v5a2 2 0 0 0 2 2h5M33 24v5a2 2 0 0 1-2 2h-5" stroke="#4ecde7" stroke-width="1"/>
+  </g>
+</svg>`;
+
+/** Équipement de survie : le cœur barré d'un éclair, pictogramme des défibrillateurs. */
+const SURVIVAL_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <g fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M18 30.500C8.500 24 5 19.500 5 14.200 5 10.300 8 7.500 11.500 7.500c2.600 0 4.900 1.400 6.500 3.800 1.600-2.400 3.900-3.800 6.500-3.800C28 7.500 31 10.300 31 14.200c0 5.300-3.500 9.800-13 16.300Z" fill="#0e1720" stroke="#75e7ff" stroke-width="1.500"/>
+    <path d="M19.800 11.500 14.200 19h4.300l-2 6.500 6.300-8.300h-4.500Z" fill="#c9f6ff" stroke="#dbfbff" stroke-width="0.700"/>
   </g>
 </svg>`;
 
@@ -78,4 +86,8 @@ export const aerialMarkerStyle = scanMarker({
 
 export const objectMarkerStyle = scanMarker({
   className: 'overlay-objects', kicker: OBJECTS_LABEL, plural: (count) => `${count} objets`, icon: OBJECT_ICON,
+});
+
+export const survivalMarkerStyle = scanMarker({
+  className: 'overlay-survival', kicker: SURVIVAL_LABEL, plural: (count) => `${count} équipements`, icon: SURVIVAL_ICON,
 });
