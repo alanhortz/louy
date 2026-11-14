@@ -7,6 +7,7 @@
 import { fromCallback } from 'xstate';
 import { EDGE_PREFIX, TILE_ENDPOINT } from '../../config/project.ts';
 import type { QualityProfile } from '../../domain/quality.ts';
+import type { ScanProgress } from '../../engine/SplatLayer.ts';
 import type { Scan } from '../../domain/scans.ts';
 import type { SceneSource } from '../../domain/scene.ts';
 import { directTileUrl, edgeTileUrl } from '../../domain/tiles.ts';
@@ -47,6 +48,7 @@ export type EngineReport =
   | { type: 'engine.poseCaptured'; pose: Pose }
   | { type: 'engine.activityChanged'; loading: boolean; points: number }
   | { type: 'engine.orbitEnded' }
+  | { type: 'engine.scanProgressed'; id: string; phase: ScanProgress['phase']; fraction: number }
   | { type: 'engine.followEnded' }
   | { type: 'engine.overlayPicked'; layer: OverlayName; id: string }
   | { type: 'engine.contextLost' }
@@ -83,6 +85,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
           onViewSettled: (pose) => sendBack({ type: 'engine.viewSettled', pose }),
           onActivity: (activity) => sendBack({ type: 'engine.activityChanged', ...activity }),
           onOrbitEnded: () => sendBack({ type: 'engine.orbitEnded' }),
+          onScanProgress: (progress) => sendBack({ type: 'engine.scanProgressed', ...progress }),
           onFollowEnded: () => sendBack({ type: 'engine.followEnded' }),
           onOverlayPicked: (layer, id) =>
             sendBack({ type: 'engine.overlayPicked', layer: layer as OverlayName, id }),

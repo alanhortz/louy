@@ -25,7 +25,7 @@ import mntLut from './lut/mnt.json';
 import mnsLut from './lut/mns.json';
 import { AircraftLayer, type AircraftModel } from './AircraftLayer.ts';
 import { OverlayLayer, type OverlayFeature, type OverlayStyle } from './OverlayLayer.ts';
-import type { SplatLayer } from './SplatLayer.ts';
+import type { ScanProgress, SplatLayer } from './SplatLayer.ts';
 
 const DEG = Math.PI / 180;
 const METRES = new Intl.NumberFormat('fr-BE', { maximumFractionDigits: 0 });
@@ -53,6 +53,8 @@ export interface EngineListeners {
   onViewSettled(pose: Pose): void;
   onActivity(activity: EngineActivity): void;
   onOrbitEnded(): void;
+  /** Un scan 3D arrive : téléchargement, puis construction à l'écran. */
+  onScanProgress(progress: ScanProgress): void;
   onOverlayPicked(layer: string, id: string): void;
   /** Le visiteur a repris la main : la caméra ne suit plus rien. */
   onFollowEnded(): void;
@@ -311,6 +313,8 @@ export class SceneEngine {
   /** Scans 3D à dessiner par-dessus le relief ; le moteur de splats n'est chargé qu'au premier. */
   setScans(scans: readonly Scan[]): void {
     this.#scans = scans;
+    // annoncé tout de suite : le moteur de splats lui-même met un instant à arriver
+    if (!this.#splats && scans[0]) this.#listeners.onScanProgress({ id: scans[0].id, phase: 'loading', fraction: 0 });
     if (this.#splats) {
       this.#splats.setScans(scans);
       this.#wake();
@@ -360,7 +364,7 @@ export class SceneEngine {
   async #loadSplats(): Promise<void> {
     const { SplatLayer } = await import('./SplatLayer.ts');
     if (this.#disposed || this.#splats) return;
-    this.#splats = new SplatLayer(this.#renderer, () => this.#wake());
+    this.#splats = new SplatLayer(this.#renderer, () => this.#wake(), (progress) => this.#listeners.onScanProgress(progress));
     this.#splats.setScans(this.#scans);
     this.#wake();
   }

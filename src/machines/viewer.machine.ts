@@ -34,6 +34,8 @@ interface ViewerContext extends Omit<EngineInput, 'mount'> {
   loading: boolean;
   points: number;
   failure: string | null;
+  /** Scan 3D en cours d'arrivée (téléchargement ou construction à l'écran) ; `null` quand tout est là. */
+  scanBuild: { id: string; phase: 'loading' | 'building'; fraction: number } | null;
 }
 
 export interface ViewerInput {
@@ -90,6 +92,7 @@ export const viewerMachine = viewer.createMachine({
     overlays: { places: [], cameras: [], scans: [], aircraft: [] },
     active: { places: null, cameras: null, scans: null, aircraft: null },
     scans: [],
+    scanBuild: null,
     loading: true,
     points: 0,
     failure: null,
@@ -143,6 +146,16 @@ export const viewerMachine = viewer.createMachine({
             sendParent(({ event }): ViewerEmitted =>
               ({ type: 'viewer.activityChanged', loading: event.loading, points: event.points })),
           ],
+        },
+        'engine.scanProgressed': {
+          actions: assign({
+            scanBuild: ({ event }) =>
+              (event.phase === 'ready' ? null : { id: event.id, phase: event.phase, fraction: event.fraction }),
+          }),
+        },
+        // le calque éteint, plus rien n'arrive
+        'viewer.scansChanged': {
+          actions: ['remember', 'command', assign({ scanBuild: ({ context, event }) => (event.scans.length === 0 ? null : context.scanBuild) })],
         },
         'engine.overlayPicked': {
           actions: sendParent(({ event }): ViewerEmitted =>
