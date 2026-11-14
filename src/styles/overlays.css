@@ -45,64 +45,38 @@
   text-shadow: 0 0 3px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.85), 0 0 16px rgba(0, 212, 255, 0.35);
 }
 
-/* ---- caméras : icône 24 px, active ×1,25 ; vignette 104×77 sous filet cyan — GEV ---- */
-.camera-marker {
-  width: 44px;
-  height: 44px;
-  margin: -22px 0 0 -22px;
-  display: grid;
-  place-items: center;
-  background: none;
-  border: 0;
-  cursor: pointer;
-  pointer-events: auto;
-}
-.camera-marker-icon { opacity: 0.88; transition: transform var(--transition-fast); }
-.camera-marker.active { z-index: 2; }
-.camera-marker.active .camera-marker-icon { opacity: 0.95; transform: scale(1.25); }
-.camera-marker:hover .camera-marker-icon { transform: scale(1.15); }
-
+/* ---- caméras : même gabarit que l'imagerie 3D (voir plus bas) ; de près, la dernière image au-dessus de l'icône ---- */
 .camera-card {
   position: absolute;
   left: 50%;
-  bottom: calc(50% + 22px);
+  bottom: calc(50% + 17px);
   width: 104px;
-  height: 77px;
+  height: 62px;
   margin-left: -52px;
   border-radius: 4px;
+  border: 1px solid rgba(107, 232, 255, 0.35);
   background: rgba(4, 12, 16, 0.82);
   overflow: hidden;
   pointer-events: none;
 }
-.camera-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 2px;
-  border-radius: 1px;
-  background: rgba(107, 232, 255, 0.95);
-}
-.camera-card img { position: absolute; left: 4px; top: 4px; width: 96px; height: 54px; object-fit: cover; }
-.camera-card span {
-  position: absolute;
-  left: 4px;
-  top: 61px;
-  font: 600 10px/13px var(--font-mono);
-  color: rgba(210, 236, 244, 0.95);
-  white-space: nowrap;
-}
+.camera-card img { position: absolute; left: 3px; top: 3px; width: 96px; height: 54px; object-fit: cover; border-radius: 2px; }
+.camera-card[hidden], .camera-marker .scan-caption[hidden] { display: none; }
 /* filet de rappel entre la vignette et l'icône */
 .camera-marker:has(.camera-card:not([hidden]))::before {
   content: '';
   position: absolute;
   left: 50%;
-  bottom: calc(50% + 10px);
+  bottom: calc(50% + 8px);
   width: 1px;
-  height: 12px;
+  height: 9px;
   background: rgba(107, 232, 255, 0.6);
 }
+/* l'icône est moitié moins grande que celle d'un scan : la légende remonte d'autant */
+.camera-marker .scan-caption { top: calc(50% + 10px); }
+/* un nom de caméra peut être long : la légende le coupe proprement */
+.camera-marker .scan-caption span { max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
 
-/* ---- scans 3D : un volume en fil de fer et le nom du lieu ---- */
+/* ---- marqueurs à légende (imagerie 3D, caméras) : une icône au halo cyan, et dessous le genre puis le nom ---- */
 
 .scan-marker {
   width: 44px;
