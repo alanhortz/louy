@@ -21,7 +21,6 @@ export function AboutPanel() {
     <Panel
       id="about"
       title="À propos"
-      glyphs={['◀', '▶']}
       className="about"
       onExpand={() => telemetry.send({ type: 'telemetry.summaryRequested' })}
     >
