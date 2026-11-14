@@ -13,7 +13,7 @@
  *                    └─ failed
  */
 
-import { assign, sendTo, setup, type SnapshotFrom } from 'xstate';
+import { assign, enqueueActions, sendTo, setup, type SnapshotFrom } from 'xstate';
 import { DEFAULT_OBJECT_POSE, type ObjectGesture, type ObjectPose } from '../domain/objectView.ts';
 import type { Scan } from '../domain/scans.ts';
 import type { ObjectStats } from '../engine/ObjectEngine.ts';
@@ -23,7 +23,8 @@ import {
 
 export type ObjectEvent =
   | ObjectEngineReport
-  | { type: 'object.opened'; scan: Scan }
+  | { type: 'object.opened'; scan: Scan; group?: Scan[] }
+  | { type: 'object.paged'; delta: 1 | -1; by: 'button' | 'keyboard' }
   | { type: 'object.closed'; by: 'button' | 'backdrop' | 'escape' }
   | { type: 'object.canvasAttached'; canvas: HTMLCanvasElement }
   | { type: 'object.canvasDetached' }
@@ -31,8 +32,13 @@ export type ObjectEvent =
   | { type: 'object.autoRotateToggled' }
   | { type: 'object.retryRequested' };
 
+/** Annoncé au parent quand la visionneuse se referme : l'objet n'est plus regardé. */
+export type ObjectEmitted = { type: 'object.left' };
+
 interface ObjectContext {
   scan: Scan | null;
+  /** Objets du même marqueur, dans l'ordre où on les feuillette ; un seul quand l'objet est isolé. */
+  group: Scan[];
   canvas: HTMLCanvasElement | null;
   /** Avancement du chargement, de 0 à 1. */
   progress: number;
@@ -55,17 +61,34 @@ export const objectMachine = setup({
   actors: { engine: objectEngineActor },
   guards: {
     opensObject: ({ event }) => event.type === 'object.opened' && event.scan.mesh !== undefined,
+    /** La page demandée existe-t-elle ? Le feuilletage s'arrête aux deux bouts. */
+    canPage: ({ context, event }) => {
+      if (event.type !== 'object.paged' || !context.scan) return false;
+      const next = context.group.indexOf(context.scan) + event.delta;
+      return next >= 0 && next < context.group.length;
+    },
   },
   actions: {
-    open: assign(({ event }) => ({ ...fresh, scan: event.type === 'object.opened' ? event.scan : null })),
-    forget: assign({ ...fresh, scan: null }),
+    open: assign(({ event }) => (event.type === 'object.opened'
+      ? { ...fresh, scan: event.scan, group: event.group ?? [event.scan] }
+      : { ...fresh, scan: null, group: [] })),
+    forget: assign({ ...fresh, scan: null, group: [] }),
+    /** Prévient la machine applicative ; sans parent (essais), il n'y a personne à prévenir. */
+    announceLeft: enqueueActions(({ self, enqueue }) => {
+      if (self._parent) enqueue.sendParent({ type: 'object.left' } satisfies ObjectEmitted);
+    }),
+    /** Passe à l'objet voisin du groupe : il s'ouvre comme un objet neuf. */
+    page: assign(({ context, event }) => ({
+      ...fresh,
+      scan: event.type === 'object.paged' ? context.group[context.group.indexOf(context.scan!) + event.delta]! : context.scan,
+    })),
     commandReset: sendTo('engine', { type: 'objectEngine.resetView' } satisfies ObjectEngineCommand),
     commandAutoRotate: sendTo('engine', ({ context }): ObjectEngineCommand =>
       ({ type: 'objectEngine.autoRotateSet', on: context.autoRotate })),
   },
 }).createMachine({
   id: 'object',
-  context: { ...fresh, scan: null },
+  context: { ...fresh, scan: null, group: [] },
   initial: 'closed',
   states: {
     closed: {
@@ -75,7 +98,8 @@ export const objectMachine = setup({
     open: {
       initial: 'mounting',
       on: {
-        'object.closed': { target: 'closed', actions: 'forget' },
+        'object.closed': { target: 'closed', actions: ['forget', 'announceLeft'] },
+        'object.paged': { guard: 'canPage', target: 'open', reenter: true, actions: 'page' },
         // un autre objet demandé pendant que celui-ci est ouvert : on repart de zéro
         'object.opened': { guard: 'opensObject', target: 'open', reenter: true, actions: 'open' },
       },
@@ -172,3 +196,9 @@ export function objectPhase(snapshot: ObjectSnapshot): ObjectPhase {
   if (snapshot.matches({ open: { viewing: 'suspended' } })) return 'suspended';
   return 'loading';
 }
+
+/** Place de l'objet ouvert dans son groupe : `{ index, total }`, comptés à partir de 1. */
+export const objectPage = (snapshot: ObjectSnapshot): { index: number; total: number } => ({
+  index: snapshot.context.scan ? snapshot.context.group.indexOf(snapshot.context.scan) + 1 : 0,
+  total: snapshot.context.group.length,
+});

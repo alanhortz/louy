@@ -110,7 +110,7 @@ describe('vue partageable', () => {
   const view: View = {
     pose: { x: 688879, y: 605554, distance: 426, azimuth: 137, tilt: 58 },
     scene: { campaign: '2013-2014', surface: 'mnt', tint: 'infrared', vintage: '2019' },
-    overlays: { places: false, cameras: true },
+    overlays: { places: false, cameras: true, scans: true },
     cameraId: '519',
   };
 
@@ -123,7 +123,7 @@ describe('vue partageable', () => {
   });
 
   it('produit un lien lisible', () => {
-    expect(encodeView(view)).toBe('c=688879,605554,426,137,58&s=2013-2014.mnt.infrared.2019&o=c&cam=519');
+    expect(encodeView(view)).toBe('c=688879,605554,426,137,58&s=2013-2014.mnt.infrared.2019&o=ci&cam=519');
   });
 
   it('retombe sur la vue d’accueil pour un lien vide ou abîmé', () => {

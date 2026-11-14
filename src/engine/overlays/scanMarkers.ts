@@ -8,7 +8,10 @@ import { SCANS_LABEL } from '../../domain/scans.ts';
 import type { OverlayFeature, OverlayStyle } from '../OverlayLayer.ts';
 import { TINT_ACTIVE, TINT_IDLE, tinted } from './tint.ts';
 
-export type ScanFeature = OverlayFeature;
+export interface ScanFeature extends OverlayFeature {
+  /** Nombre d'objets que ce marqueur rassemble, quand il y en a plusieurs. */
+  count?: number;
+}
 
 const ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
   <g fill="none" stroke-linejoin="round" stroke-linecap="round">
@@ -32,12 +35,14 @@ export const scanMarkerStyle: OverlayStyle<ScanFeature> = {
     element.type = 'button';
     element.className = 'scan-marker';
     element.innerHTML =
-      '<img class="scan-marker-icon" alt="" width="28" height="28" />'
+      '<img class="scan-marker-icon" alt="" width="28" height="28" /><i class="scan-count" hidden></i>'
       + `<span class="scan-caption"><b>${SCANS_LABEL}</b><span></span></span>`;
     return element;
   },
   paint(element, scan, { active }) {
-    const [icon, caption] = element.children as unknown as [HTMLImageElement, HTMLElement];
+    const [icon, badge, caption] = element.children as unknown as [HTMLImageElement, HTMLElement, HTMLElement];
+    badge.hidden = scan.count === undefined;
+    badge.textContent = String(scan.count ?? '');
     element.setAttribute('aria-label', `${SCANS_LABEL} : ${scan.label}`);
     element.classList.toggle('active', active);
     icon.src = active ? ICON_ACTIVE : ICON_IDLE;

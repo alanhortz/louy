@@ -26,7 +26,7 @@ import { activityMachine } from './activity.machine.ts';
 import { camerasMachine, type CamerasEmitted } from './cameras.machine.ts';
 import { chromeMachine, type PanelId } from './chrome.machine.ts';
 import { compatibilityMachine } from './compatibility.machine.ts';
-import { objectMachine } from './object.machine.ts';
+import { objectMachine, type ObjectEmitted } from './object.machine.ts';
 import { placesMachine, type PlacesEmitted } from './places.machine.ts';
 import { scansMachine, type ScansEmitted } from './scans.machine.ts';
 import { sceneMachine, type SceneEmitted } from './scene.machine.ts';
@@ -43,7 +43,8 @@ export type AppEvent =
   | PlacesEmitted
   | CamerasEmitted
   | SitesEmitted
-  | ScansEmitted;
+  | ScansEmitted
+  | ObjectEmitted;
 
 export interface AppInput {
   /** Vue lue dans l'URL au chargement. */
@@ -197,7 +198,7 @@ export const appMachine = setup({
           }),
         },
         { id: 'sites', src: 'sites' },
-        { id: 'scans', src: 'scans' },
+        { id: 'scans', src: 'scans', input: ({ context }) => ({ visible: context.view.overlays.scans, distance: context.view.pose.distance }) },
         { id: 'object', src: 'object' },
         {
           id: 'acquisition',
@@ -230,6 +231,7 @@ export const appMachine = setup({
             }),
             sendTo('places', ({ event }) => ({ type: 'places.viewChanged', distance: event.pose.distance })),
             sendTo('cameras', ({ event }) => ({ type: 'cameras.viewChanged', x: event.pose.x, y: event.pose.y })),
+            sendTo('scans', ({ event }) => ({ type: 'scans.viewChanged', distance: event.pose.distance })),
             sendTo('acquisition', ({ event }) => ({
               type: 'acquisition.viewChanged', x: event.pose.x, y: event.pose.y, distance: event.pose.distance,
             })),
@@ -304,20 +306,30 @@ export const appMachine = setup({
           })),
         },
 
-        /* ---- scans 3D : un marqueur par lieu, le viewer dessine les scans, la caméra vient tourner autour ---- */
-        'scans.markersChanged': {
+        /* ---- imagerie 3D : un calque comme les autres — ses marqueurs, puis le scan que l'on sélectionne ---- */
+        'scans.changed': {
           actions: [
+            assign({
+              view: ({ context, event }) =>
+                ({ ...context.view, overlays: { ...context.view.overlays, scans: event.visible } }),
+            }),
             sendTo('viewer', ({ event }) =>
               ({ type: 'viewer.overlayChanged', layer: 'scans', features: event.features })),
-            sendTo('viewer', ({ event }) =>
-              ({ type: 'viewer.overlayActivated', layer: 'scans', id: event.activeId })),
+            'syncUrl',
           ],
         },
-        'scans.changed': {
+        'scans.selectionChanged': {
+          actions: sendTo('viewer', ({ event }) =>
+            ({ type: 'viewer.overlayActivated', layer: 'scans', id: event.markerId })),
+        },
+        // le lieu sélectionné est dessiné dans la carte
+        'scans.drawn': {
           actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.scansChanged', scans: event.scans })),
         },
+        // la visionneuse refermée, son objet n'est plus sélectionné
+        'object.left': { actions: sendTo('scans', { type: 'scans.dismissed' }) },
         'scans.objectRequested': {
-          actions: sendTo('object', ({ event }) => ({ type: 'object.opened', scan: event.scan })),
+          actions: sendTo('object', ({ event }) => ({ type: 'object.opened', scan: event.scan, group: event.group })),
         },
         'scans.flyRequested': {
           actions: sendTo('viewer', ({ event }) =>

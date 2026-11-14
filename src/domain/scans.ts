@@ -108,6 +108,34 @@ export const placeScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan
 /** Le scan est un objet, à examiner dans la visionneuse. */
 export const isObjectScan = (scan: Scan): boolean => scan.mesh !== undefined;
 
+/**
+ * Distance au sol, en mètres, sous laquelle deux objets partagent le même
+ * marqueur : plus proches, leurs marqueurs se recouvriraient à l'écran et un
+ * seul resterait accessible. Elle suit l'éloignement de la caméra — environ
+ * soixante-dix pixels d'écran — : de loin les objets voisins se rassemblent, et
+ * dès que l'on s'approche assez chacun retrouve sa place.
+ */
+export const scanGroupRadius = (distance: number): number => distance * 0.07;
+
+/**
+ * Regroupe les objets voisins. Deux objets sont du même groupe s'ils sont à
+ * portée l'un de l'autre, directement ou par un voisin commun ; l'ordre du
+ * manifeste est conservé, dans les groupes comme entre eux.
+ */
+export function groupObjects(scans: readonly Scan[], radius: number): Scan[][] {
+  const groups: Scan[][] = [];
+  for (const scan of scans.filter(isObjectScan)) {
+    const near = groups.filter((group) =>
+      group.some((other) => Math.hypot(other.x - scan.x, other.y - scan.y) <= radius));
+    if (near.length === 0) { groups.push([scan]); continue; }
+    // l'objet relie peut-être plusieurs groupes jusque-là distincts : ils n'en font plus qu'un
+    const [first, ...others] = near as [Scan[], ...Scan[][]];
+    first.push(...others.flat(), scan);
+    for (const merged of others) groups.splice(groups.indexOf(merged), 1);
+  }
+  return groups;
+}
+
 /** Lecture tolérante du manifeste : toute entrée incomplète est écartée. */
 export const parseScans = (manifest: unknown): Scan[] =>
   Array.isArray(manifest) ? manifest.filter(isScan) : [];

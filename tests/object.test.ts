@@ -51,7 +51,7 @@ describe('scans : lieux et objets', () => {
     expect(isObjectScan(citadel)).toBe(false);
   });
 
-  it('demande la visionneuse pour le marqueur d’un objet, sans toucher à la carte', async () => {
+  it('sélectionne l’objet touché et demande sa visionneuse, sans toucher à la carte', async () => {
     // la machine tourne sous un parent qui consigne ce qu'elle lui annonce, comme sous la machine applicative
     const announced: AnyEventObject[] = [];
     const scans = scansMachine.provide({ actors: { loadScans: fromPromise(async () => [citadel, letters]) } });
@@ -63,18 +63,26 @@ describe('scans : lieux et objets', () => {
       },
     })).start();
     const actor = root.getSnapshot().children.scans!;
-    const parent = { send: (event: AnyEventObject) => root.send({ type: 'to.scans', event }), getSnapshot: () => actor.getSnapshot() };
-    await waitFor(actor, (snapshot) => snapshot.matches('hidden'));
+    const send = (event: AnyEventObject) => root.send({ type: 'to.scans', event });
+    await waitFor(actor, (snapshot) => snapshot.matches('visible'));
 
-    parent.send({ type: 'scans.picked', id: 'lettres' });
-    expect(parent.getSnapshot().matches('hidden')).toBe(true);
-    expect(announced.at(-1)).toMatchObject({ type: 'scans.objectRequested', scan: { id: 'lettres' } });
+    send({ type: 'scans.picked', id: 'lettres' });
+    expect(announced.slice(-3)).toMatchObject([
+      { type: 'scans.drawn', scans: [] },
+      { type: 'scans.selectionChanged', scan: { id: 'lettres' }, markerId: 'lettres' },
+      { type: 'scans.objectRequested', scan: { id: 'lettres' } },
+    ]);
+    expect(announced.some((event) => event.type === 'scans.flyRequested')).toBe(false);
 
-    // le calque n'affiche que les lieux ; l'objet garde son marqueur, jamais masqué
-    parent.send({ type: 'scans.toggled' });
-    expect(announced.find((event) => event.type === 'scans.changed')).toMatchObject({ scans: [citadel] });
-    const markers = announced.findLast((event) => event.type === 'scans.markersChanged')!;
-    expect(markers.features.find((feature: { id: string }) => feature.id === 'lettres').minDistance).toBeUndefined();
+    // la visionneuse refermée, l'objet n'est plus sélectionné
+    send({ type: 'scans.dismissed' });
+    expect(announced.at(-1)).toMatchObject({ type: 'scans.selectionChanged', scan: null, markerId: null });
+
+    // un lieu sélectionné n'est pas désélectionné par la fermeture d'une visionneuse
+    send({ type: 'scans.picked', id: 'namur' });
+    const before = announced.length;
+    send({ type: 'scans.dismissed' });
+    expect(announced).toHaveLength(before);
   });
 });
 
