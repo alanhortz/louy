@@ -42,8 +42,8 @@ const IDLE_FRAMES = 4;
 const ORBIT_SPEED = (2 * Math.PI) / 64;
 /** Côté, en pixels, de la vignette qui sert à juger une capture. */
 const CAPTURE_PROBE = 32;
-/** Part de pixels blancs au-delà de laquelle une capture est tenue pour vide. */
-const BLANK_SHARE = 0.6;
+/** Part de pixels clairs et sans couleur au-delà de laquelle une capture est tenue pour vide. */
+const BLANK_SHARE = 0.75;
 /** Inclinaison adoptée pour survoler un lieu. */
 const FLYOVER_TILT = 58;
 
@@ -234,8 +234,14 @@ export class SceneEngine {
   /** Change le contenu des tuiles (campagne, surface, habillage). */
   setSource(source: SceneSource): void {
     if (source.key === this.#source.key) return;
+    const previous = this.#source;
     this.#source = source;
-    this.#tree.reset();
+    // Seule la photo change (un autre millésime) : le relief est le même, on le garde
+    // et on le rhabille tuile par tuile. Tout autre changement repart de zéro.
+    const sameRelief = previous.elevationService === source.elevationService && previous.lutKey === source.lutKey
+      && previous.maxLevel === source.maxLevel && previous.colorMode === 'service' && source.colorMode === 'service';
+    if (sameRelief) this.#tree.retint();
+    else this.#tree.reset();
     this.#wake();
   }
 
@@ -331,7 +337,10 @@ export class SceneEngine {
       const { data } = context.getImageData(0, 0, CAPTURE_PROBE, CAPTURE_PROBE);
       let white = 0;
       for (let at = 0; at < data.length; at += 4) {
-        if (data[at]! > 232 && data[at + 1]! > 232 && data[at + 2]! > 232) white++;
+        // Un relief sans photo est blanc, ombré de gris par l'éclairage : clair et sans couleur.
+        // Une vraie photo en noir et blanc est sans couleur elle aussi, mais sombre par endroits.
+        const r = data[at]!, g = data[at + 1]!, b = data[at + 2]!;
+        if (Math.min(r, g, b) > 165 && Math.max(r, g, b) - Math.min(r, g, b) < 16) white++;
       }
       blank = white / (data.length / 4) > BLANK_SHARE;
     }

@@ -60,11 +60,11 @@ interface TimelineContext {
 }
 
 /** Si la carte ne signale aucun chargement dans ce délai, ses tuiles étaient déjà là. */
-const LOAD_START_MS = 1600;
+const LOAD_START_MS = 900;
 /** Délai au-delà duquel on photographie ce qui est arrivé, plutôt que d'attendre indéfiniment. */
 const LOAD_TIMEOUT_MS = 30_000;
 /** Répit après la dernière tuile : le temps que l'image se stabilise. */
-const SETTLE_MS = 900;
+const SETTLE_MS = 600;
 
 const clampIndex = (index: number, frames: readonly unknown[]) => Math.max(0, Math.min(frames.length - 1, index));
 

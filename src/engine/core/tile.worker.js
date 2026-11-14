@@ -205,6 +205,23 @@ function borderAnchors(quantized, w) {
   return anchors;
 }
 
+/**
+ * Surfaces deja reconstruites, par tuile : les plus recemment servies sont gardees.
+ * Une surface pese 300 ko ; la limite borne la memoire de chaque worker a une
+ * vingtaine de megaoctets.
+ */
+const surfaces = new Map();
+const SURFACE_LIMIT = 64;
+/** Marque une tuile sans aucune donnee d'altitude : inutile de la redemander. */
+const EMPTY_SURFACE = new Float32Array(0);
+
+function rememberSurface(key, surface) {
+  surfaces.delete(key);
+  surfaces.set(key, surface);
+  // la plus ancienne sort : une Map itere dans l'ordre d'insertion
+  if (surfaces.size > SURFACE_LIMIT) surfaces.delete(surfaces.keys().next().value);
+}
+
 async function loadTile(msg) {
   const {
     id, px, cpx, sup, spacing, elevUrl, colorUrl, colorMode, stride, smooth, lutKey,
@@ -214,22 +231,32 @@ async function loadTile(msg) {
   inflight.set(id, ctrl);
   try {
     const lut = luts.get(lutKey);
+    const computed = colorMode === 'elevation' || colorMode === 'slope';
+    // Le relief d'une tuile ne depend pas de son habillage : quand seule la photo
+    // change (un autre millesime), la surface deja reconstruite est reprise telle
+    // quelle, et il ne reste qu'a telecharger la nouvelle image.
+    const surfaceKey = `${elevUrl}|${lutKey}|${px}|${smooth}|${computed}`;
+    const known = surfaces.get(surfaceKey);
     const [elevPx, colorPx] = await Promise.all([
-      fetchPixels(elevUrl, px, ctrl.signal),
+      known ? Promise.resolve(null) : fetchPixels(elevUrl, px, ctrl.signal),
       colorUrl ? fetchPixels(colorUrl, cpx, ctrl.signal) : Promise.resolve(null),
     ]);
+    if (known === EMPTY_SURFACE) return { id, empty: true };
 
     // 1. rampe -> altitudes (sur la tuile elargie de TILE_PAD)
-    const h = new Float32Array(px * px);
-    let any = false;
-    for (let i = 0, p = 0; i < h.length; i++, p += 4) {
-      if (elevPx[p + 3] < 250) { h[i] = NaN; continue; }
-      const z = lookup(lut, (elevPx[p] << 16) | (elevPx[p + 1] << 8) | elevPx[p + 2]);
-      h[i] = z;
-      if (!Number.isNaN(z)) any = true;
-    }
-    if (!any) {
-      return { id, empty: true };
+    const h = known ?? new Float32Array(px * px);
+    if (!known) {
+      let any = false;
+      for (let i = 0, p = 0; i < h.length; i++, p += 4) {
+        if (elevPx[p + 3] < 250) { h[i] = NaN; continue; }
+        const z = lookup(lut, (elevPx[p] << 16) | (elevPx[p + 1] << 8) | elevPx[p + 2]);
+        h[i] = z;
+        if (!Number.isNaN(z)) any = true;
+      }
+      if (!any) {
+        rememberSurface(surfaceKey, EMPTY_SURFACE);
+        return { id, empty: true };
+      }
     }
 
     // 2. surface continue compatible avec la quantification
@@ -237,8 +264,10 @@ async function loadTile(msg) {
     // ondulation qu'ils laissent le long des tuiles est invisible. Les habillages
     // calcules sur le relief lui-meme (altitude, pente) la reveleraient : ils
     // gardent la surface libre, et la jupe ci-dessous ferme leurs jointures.
-    const computed = colorMode === 'elevation' || colorMode === 'slope';
-    reconstruct(h, px, lut.step / 2, smooth, computed ? null : borderAnchors(h, px));
+    if (!known) {
+      reconstruct(h, px, lut.step / 2, smooth, computed ? null : borderAnchors(h, px));
+      rememberSurface(surfaceKey, h);
+    }
 
     // 3. echantillonnage de l'interieur -> geometrie
     //

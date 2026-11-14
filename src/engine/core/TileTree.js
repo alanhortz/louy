@@ -53,13 +53,24 @@ export class TileTree {
     loader.onError = (key, msg) => {
       const t = this.tiles.get(key);
       if (!t) return;
+      // une tuile affichee dont seul le rhabillage echoue ou est annule reste affichee, a rhabiller plus tard
+      if (t.state === 'ready') { this.#unrefreshed(t); return; }
       if (msg) { t.state = 'error'; t.errorAt = this.frame; }
       else t.state = 'idle';                      // annulation : rechargeable
     };
     loader.onDropped = (key) => {
       const t = this.tiles.get(key);
-      if (t && t.state === 'loading') t.state = 'idle';
+      if (!t) return;
+      if (t.state === 'loading') t.state = 'idle';
+      else if (t.state === 'ready') this.#unrefreshed(t);
     };
+  }
+
+  /** Le rhabillage demande n'a pas abouti : la tuile le redemandera. */
+  #unrefreshed(tile) {
+    if (!tile.refreshing) return;
+    tile.refreshing = false;
+    tile.stale = true;
   }
 
   #get(level, i, j) {
@@ -128,6 +139,16 @@ export class TileTree {
     // chargement repartirait de zero en boucle.
     ctx.wanted.add(tile.key);
 
+    if (tile.state === 'ready' && tile.stale) {
+      // meme relief, autre habillage : la tuile reste a l'ecran pendant que sa remplacante se prepare.
+      // Tant qu'une demande abandonnee de cette tuile n'a pas rendu sa reponse, on attend l'image suivante.
+      if (this.loader.inflight.has(tile.key)) return;
+      tile.stale = false;
+      tile.refreshing = true;
+      this.loader.enqueue(tile.key, ctx.describe(tile), dist);
+      this.stats.requested++;
+      return;
+    }
     if (tile.state === 'loading' || tile.state === 'ready') {
       // reevalue la priorite : ce que la camera approche doit passer devant
       this.loader.enqueue(tile.key, null, dist);
@@ -151,7 +172,7 @@ export class TileTree {
     const tile = this.tiles.get(key);
     if (!tile) return;
     // une tuile arrivee apres un changement de modele ou de couleur est perimee
-    if (desc && desc.generation !== this.generation) return;
+    if (desc && desc.generation !== this.generation) { this.#unrefreshed(tile); return; }
 
     const g = new BufferGeometry();
     g.setAttribute('position', new BufferAttribute(payload.positions, 3));
@@ -166,6 +187,12 @@ export class TileTree {
     pts.matrixAutoUpdate = false;
     pts.updateMatrix();
 
+    // une tuile rhabillee remplace l'ancienne sans laisser de trou a l'ecran
+    if (tile.points) {
+      if (tile.inScene) { this.scene.remove(tile.points); this.scene.add(pts); }
+      tile.points.geometry.dispose();
+    }
+    tile.refreshing = false;
     tile.points = pts;
     tile.count = payload.count;
     tile.minY = payload.minY;
@@ -255,6 +282,21 @@ export class TileTree {
       }
       stale.sort((a, b) => a.lastUsed - b.lastUsed);
       for (let k = 0; k < stale.length >> 1; k++) this.tiles.delete(stale[k].key);
+    }
+  }
+
+  /**
+   * Meme relief, autre habillage (un autre millesime de photo aerienne) : rien
+   * n'est vide. Chaque tuile deja la reste affichee et sera redemandee quand la
+   * selection la voudra ; ce qui etait en chemin est abandonne.
+   */
+  retint() {
+    this.generation++;
+    this.loader.cancelAll();
+    for (const t of this.tiles.values()) {
+      if (t.state === 'ready') { t.stale = true; t.refreshing = false; }
+      // la file vient d'etre videe : ce qui attendait d'etre charge sera redemande
+      else if (t.state === 'loading') t.state = 'idle';
     }
   }
 
