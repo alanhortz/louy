@@ -2,6 +2,7 @@ import { useSelector } from '@xstate/react';
 import { useApp } from './actors.ts';
 import { AboutPanel } from './components/AboutPanel.tsx';
 import { AircraftPanel } from './components/AircraftPanel.tsx';
+import { CockpitExit } from './components/CockpitExit.tsx';
 import { Brand } from './components/Brand.tsx';
 import { CameraPanel } from './components/CameraPanel.tsx';
 import { ControlsPanel } from './components/ControlsPanel.tsx';
@@ -38,6 +39,7 @@ export function App() {
       <Indicator />
       <StatusChips />
       <Rail />
+      <CockpitExit />
       <div className="stacks">
         <aside className="stack stack-left">
           <LayersPanel />

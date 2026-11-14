@@ -1,0 +1,38 @@
+/* Vue cockpit sur petit écran : la vue d'abord, et une seule commande pour en sortir. */
+
+.cockpit-exit { display: none; }
+
+@media (max-width: 720px) {
+  /* le rail et les panneaux s'effacent : rien ne doit couvrir ce que l'on voit du poste de pilotage */
+  body:has(.cockpit-exit) .stacks,
+  body:has(.cockpit-exit) .rail { display: none; }
+
+  .cockpit-exit {
+    position: fixed;
+    left: 50%;
+    bottom: calc(26px + var(--safe-bottom));
+    z-index: 110;
+    transform: translateX(-50%);
+    /* cible de toucher de 44 px, comme le rail */
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px 0 16px;
+    background: rgba(8, 10, 18, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    color: #e8eaed;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .cockpit-exit-flight { color: var(--accent); font-weight: 600; }
+  .cockpit-exit svg { width: 18px; height: 18px; stroke-width: 1.8; }
+  .cockpit-exit:active { background: rgba(0, 212, 255, 0.18); border-color: var(--accent); }
+}
