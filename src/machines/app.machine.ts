@@ -9,13 +9,13 @@
  *   scene ──▶ viewer, acquisition          viewer ──▶ places, cameras, acquisition
  *   places, cameras ──▶ viewer             sites ──▶ viewer
  *   (demande de partage) ──▶ viewer ──▶ share          viewer ──▶ activity
- *   scans ──▶ viewer                       aircraft ⇄ viewer
+ *   layers (imagerie 3D) ──▶ viewer, object    aircraft ⇄ viewer
  */
 
 import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate';
 import { PROJECT } from '../config/project.ts';
 import { QUALITY_PROFILES } from '../domain/quality.ts';
-import { scanFlyover } from '../domain/scans.ts';
+import { isObjectScan, scanFlyover, type Scan } from '../domain/scans.ts';
 import { resolveScene } from '../domain/scene.ts';
 import { DEFAULT_VIEW, encodeView, viewUrl, type View } from '../domain/view.ts';
 import type { SupportReport } from '../services/capabilities.ts';
@@ -27,8 +27,11 @@ import { aircraftMachine, type AircraftEmitted } from './aircraft.machine.ts';
 import { camerasMachine, type CamerasEmitted } from './cameras.machine.ts';
 import { chromeMachine, type PanelId } from './chrome.machine.ts';
 import { compatibilityMachine } from './compatibility.machine.ts';
+import { objectMachine, type ObjectEmitted } from './object.machine.ts';
 import { placesMachine, type PlacesEmitted } from './places.machine.ts';
-import { scansMachine, type ScansEmitted } from './scans.machine.ts';
+import { createLayersMachine, type LayersEmitted } from './layers.machine.ts';
+import { SCANS_LAYER, drawnScans, scansLayer } from './scans.layer.ts';
+import type { OverlayName } from './actors/engine.actor.ts';
 import { sceneMachine, type SceneEmitted } from './scene.machine.ts';
 import { shareMachine } from './share.machine.ts';
 import { sitesMachine, type SitesEmitted } from './sites.machine.ts';
@@ -43,7 +46,8 @@ export type AppEvent =
   | PlacesEmitted
   | CamerasEmitted
   | SitesEmitted
-  | ScansEmitted
+  | LayersEmitted<Scan>
+  | ObjectEmitted
   | AircraftEmitted;
 
 export interface AppInput {
@@ -86,7 +90,8 @@ export const appMachine = setup({
       places: 'places';
       cameras: 'cameras';
       sites: 'sites';
-      scans: 'scans';
+      layers: 'layers';
+      object: 'object';
       aircraft: 'aircraft';
       acquisition: 'acquisition';
       activity: 'activity';
@@ -102,7 +107,9 @@ export const appMachine = setup({
     places: placesMachine,
     cameras: camerasMachine,
     sites: sitesMachine,
-    scans: scansMachine,
+    // les calques à sélection naissent tous du même état générique, sous un orchestrateur
+    layers: createLayersMachine([scansLayer]),
+    object: objectMachine,
     aircraft: aircraftMachine,
     acquisition: acquisitionMachine,
     activity: activityMachine,
@@ -198,7 +205,12 @@ export const appMachine = setup({
           }),
         },
         { id: 'sites', src: 'sites' },
-        { id: 'scans', src: 'scans' },
+        {
+          id: 'layers',
+          src: 'layers',
+          input: ({ context }) => ({ visible: { [SCANS_LAYER]: context.view.overlays.scans }, distance: context.view.pose.distance }),
+        },
+        { id: 'object', src: 'object' },
         { id: 'aircraft', src: 'aircraft', input: ({ context }) => ({ visible: context.view.overlays.aircraft }) },
         {
           id: 'acquisition',
@@ -231,6 +243,7 @@ export const appMachine = setup({
             }),
             sendTo('places', ({ event }) => ({ type: 'places.viewChanged', distance: event.pose.distance })),
             sendTo('cameras', ({ event }) => ({ type: 'cameras.viewChanged', x: event.pose.x, y: event.pose.y })),
+            sendTo('layers', ({ event }) => ({ type: 'layers.viewChanged', distance: event.pose.distance })),
             sendTo('acquisition', ({ event }) => ({
               type: 'acquisition.viewChanged', x: event.pose.x, y: event.pose.y, distance: event.pose.distance,
             })),
@@ -280,7 +293,7 @@ export const appMachine = setup({
           },
           {
             guard: ({ event }) => event.layer === 'scans',
-            actions: sendTo('scans', ({ event }) => ({ type: 'scans.picked', id: event.id })),
+            actions: sendTo('layers', ({ event }) => ({ type: 'layers.picked', layer: SCANS_LAYER, id: event.id })),
           },
         ],
         'cameras.selectionChanged': {
@@ -309,22 +322,39 @@ export const appMachine = setup({
           })),
         },
 
-        /* ---- scans 3D : un marqueur par lieu, le viewer dessine les scans, la caméra vient tourner autour ---- */
-        'scans.markersChanged': {
+        /* ---- calques à sélection (imagerie 3D) : leurs marqueurs, puis l'élément que l'on sélectionne ---- */
+        'layers.changed': {
           actions: [
+            assign({
+              view: ({ context, event }) =>
+                ({ ...context.view, overlays: { ...context.view.overlays, [event.layer]: event.visible } }),
+            }),
             sendTo('viewer', ({ event }) =>
-              ({ type: 'viewer.overlayChanged', layer: 'scans', features: event.features })),
-            sendTo('viewer', ({ event }) =>
-              ({ type: 'viewer.overlayActivated', layer: 'scans', id: event.activeId })),
+              ({ type: 'viewer.overlayChanged', layer: event.layer as OverlayName, features: event.features })),
+            'syncUrl',
           ],
         },
-        'scans.changed': {
-          actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.scansChanged', scans: event.scans })),
+        'layers.selectionChanged': {
+          actions: [
+            sendTo('viewer', ({ event }) =>
+              ({ type: 'viewer.overlayActivated', layer: event.layer as OverlayName, id: event.markerId })),
+            // le lieu sélectionné est dessiné dans la carte ; il s'en retire avec la sélection
+            sendTo('viewer', ({ event }) => ({ type: 'viewer.scansChanged', scans: drawnScans(event.item) })),
+          ],
         },
-        'scans.flyRequested': {
-          actions: sendTo('viewer', ({ event }) =>
-            ({ type: 'viewer.flyoverRequested', flyover: scanFlyover(event.scan) })),
-        },
+        // l'élément vient d'être désigné : un objet s'ouvre dans sa visionneuse, la caméra se rend sur un lieu
+        'layers.activated': [
+          {
+            guard: ({ event }) => isObjectScan(event.item),
+            actions: sendTo('object', ({ event }) => ({ type: 'object.opened', scan: event.item, group: event.siblings })),
+          },
+          {
+            actions: sendTo('viewer', ({ event }) =>
+              ({ type: 'viewer.flyoverRequested', flyover: scanFlyover(event.item) })),
+          },
+        ],
+        // la visionneuse refermée, son objet n'est plus sélectionné
+        'object.left': { actions: sendTo('layers', { type: 'layers.dismissed', layer: SCANS_LAYER }) },
 
         /* ---- avions en direct : marqueurs, sélection, poste de pilotage ---- */
         'aircraft.changed': {

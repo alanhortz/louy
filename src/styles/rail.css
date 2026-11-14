@@ -9,7 +9,7 @@
  * posé sur une orthophoto blanche.
  */
 
-.rail {
+:root {
   --rail-target: 44px;
   --rail-glyph: 22px;
   --rail-gap: 6px;
@@ -18,7 +18,9 @@
   --rail-active: #00d4ff;
   /* largeur du rail, pour que les panneaux se rangent à sa droite */
   --rail-width: calc(var(--rail-target) + 2 * var(--rail-pad));
+}
 
+.rail {
   position: fixed;
   top: var(--stack-top);
   left: calc(var(--edge) + var(--safe-left));

@@ -52,6 +52,7 @@ AGPL du code : les réutiliser demande son accord.
 | Positions des avions | Réseau communautaire [adsb.lol](https://adsb.lol), transpondeurs ADS-B | ODbL 1.0, relayées et non conservées |
 | Images des caméras routières | SPW — [Trafiroutes](https://trafiroutes.wallonie.be) | images publiques, chargées depuis la source |
 | Imagerie 3D de la citadelle de Namur (`public/scans/namur.spz`) | Œuvre dérivée de la vidéo [« Namur in 4K \| Walking + Drone Tour of Belgium’s Hidden Gem »](https://www.youtube.com/watch?v=hbZ72BQ3Q78) de **Joeys Journeys** : plans de drone reconstruits en « gaussian splats », recadrés et calés sur le LiDAR | Creative Commons Attribution (CC BY), telle que publiée sur YouTube |
+| Imagerie 3D des lettres « NAMUR », esplanade de la Confluence (`public/scans/lettres-namur.glb`) | Relevé photogrammétrique réalisé par Alan Hortz avec Polycam, le 13 novembre 2026 ; l'œuvre photographiée est installée à demeure dans l'espace public | © 2026 Alan Hortz — relevé non couvert par la licence AGPL du code |
 
 ## Bibliothèques
 

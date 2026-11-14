@@ -21,7 +21,7 @@ export interface Pose {
   tilt: number;
 }
 
-export type OverlayId = 'places' | 'cameras' | 'aircraft';
+export type OverlayId = 'places' | 'cameras' | 'aircraft' | 'scans';
 export type OverlayVisibility = Record<OverlayId, boolean>;
 
 export interface View {
@@ -45,11 +45,11 @@ export const POSE_LIMITS = {
 export const DEFAULT_VIEW: View = {
   pose: { x: 685070, y: 627918, distance: 1800, azimuth: 0, tilt: 58 },
   scene: DEFAULT_SCENE,
-  overlays: { places: true, cameras: false, aircraft: false },
+  overlays: { places: true, cameras: false, aircraft: false, scans: true },
   cameraId: null,
 };
 
-const OVERLAY_CODES: Record<OverlayId, string> = { places: 'p', cameras: 'c', aircraft: 'a' };
+const OVERLAY_CODES: Record<OverlayId, string> = { places: 'p', cameras: 'c', aircraft: 'a', scans: 'i' };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -105,6 +105,7 @@ export function decodeView(fragment: string, fallback: View = DEFAULT_VIEW): Vie
         places: codes.includes(OVERLAY_CODES.places),
         cameras: codes.includes(OVERLAY_CODES.cameras),
         aircraft: codes.includes(OVERLAY_CODES.aircraft),
+        scans: codes.includes(OVERLAY_CODES.scans),
       },
     cameraId: cameraId && /^\d{1,6}$/.test(cameraId) ? cameraId : null,
   };

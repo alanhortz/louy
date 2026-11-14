@@ -1,8 +1,14 @@
 /**
- * Scans 3D : des lieux reconstruits en « gaussian splats » à partir d'une
- * vidéo, puis calés sur le relief LiDAR. Chaque scan est un fichier de splats
- * exprimé dans le repère du viewer (x = est, y = altitude, z = −nord, en
- * mètres) autour d'un point d'ancrage donné en Lambert 2008.
+ * Scans 3D, de deux sortes.
+ *
+ * Un lieu reconstruit en « gaussian splats » à partir d'une vidéo, calé sur le
+ * relief LiDAR et dessiné dans la carte : un fichier de splats exprimé dans le
+ * repère du viewer (x = est, y = altitude, z = −nord, en mètres) autour d'un
+ * point d'ancrage donné en Lambert 2008.
+ *
+ * Ou un objet relevé de près — maillage texturé glTF, tel qu'en exporte une
+ * application de scan — signalé sur la carte et examiné dans sa propre
+ * visionneuse.
  *
  * Les images d'origine viennent de vidéos publiées sous licence libre : chaque
  * scan porte le crédit de son auteur, affiché partout où le scan l'est.
@@ -14,8 +20,10 @@ export interface Scan {
   /** Point d'ancrage, en Lambert 2008. */
   x: number;
   y: number;
-  /** Adresse du fichier de splats. */
-  splats: string;
+  /** Adresse du fichier de splats, pour un lieu dessiné dans la carte. */
+  splats?: string;
+  /** Adresse du maillage glTF (.glb), pour un objet ouvert dans la visionneuse. */
+  mesh?: string;
   /** Auteur et licence des images d'origine. */
   credit: ScanCredit;
   /** Cadrage d'ouverture ; à défaut, la caméra se place au-dessus de l'ancrage. */
@@ -65,7 +73,8 @@ const isScan = (value: unknown): value is Scan => {
   return typeof scan === 'object' && scan !== null
     && typeof scan.id === 'string' && typeof scan.name === 'string'
     && Number.isFinite(scan.x) && Number.isFinite(scan.y)
-    && typeof scan.splats === 'string' && isCredit(scan.credit)
+    // l'un ou l'autre, jamais les deux : un scan est soit un lieu, soit un objet
+    && (typeof scan.splats === 'string') !== (typeof scan.mesh === 'string') && isCredit(scan.credit)
     && (scan.view === undefined || isView(scan.view));
 };
 
@@ -92,6 +101,40 @@ export const scanFlyover = (scan: Scan) => ({
   orbit: true,
   turns: scan.view?.sweep === undefined ? undefined : scan.view.sweep / 360,
 });
+
+/** Scans dessinés dans la carte. */
+export const placeScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined);
+
+/** Le scan est un objet, à examiner dans la visionneuse. */
+export const isObjectScan = (scan: Scan): boolean => scan.mesh !== undefined;
+
+/**
+ * Distance au sol, en mètres, sous laquelle deux objets partagent le même
+ * marqueur : plus proches, leurs marqueurs se recouvriraient à l'écran et un
+ * seul resterait accessible. Elle suit l'éloignement de la caméra — environ
+ * soixante-dix pixels d'écran — : de loin les objets voisins se rassemblent, et
+ * dès que l'on s'approche assez chacun retrouve sa place.
+ */
+export const scanGroupRadius = (distance: number): number => distance * 0.07;
+
+/**
+ * Regroupe les objets voisins. Deux objets sont du même groupe s'ils sont à
+ * portée l'un de l'autre, directement ou par un voisin commun ; l'ordre du
+ * manifeste est conservé, dans les groupes comme entre eux.
+ */
+export function groupObjects(scans: readonly Scan[], radius: number): Scan[][] {
+  const groups: Scan[][] = [];
+  for (const scan of scans.filter(isObjectScan)) {
+    const near = groups.filter((group) =>
+      group.some((other) => Math.hypot(other.x - scan.x, other.y - scan.y) <= radius));
+    if (near.length === 0) { groups.push([scan]); continue; }
+    // l'objet relie peut-être plusieurs groupes jusque-là distincts : ils n'en font plus qu'un
+    const [first, ...others] = near as [Scan[], ...Scan[][]];
+    first.push(...others.flat(), scan);
+    for (const merged of others) groups.splice(groups.indexOf(merged), 1);
+  }
+  return groups;
+}
 
 /** Lecture tolérante du manifeste : toute entrée incomplète est écartée. */
 export const parseScans = (manifest: unknown): Scan[] =>
