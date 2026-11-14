@@ -35,8 +35,8 @@
   {
     "id": "detail-facade-namur",
     "name": "Détail de façade, Namur",
-    "x": 685355,
-    "y": 628074,
+    "x": 685188,
+    "y": 628493,
     "mesh": "/scans/detail-facade-namur.glb",
     "credit": {
       "author": "Alan Hortz",
