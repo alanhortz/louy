@@ -13,6 +13,7 @@ import { ObjectViewer } from './components/ObjectViewer.tsx';
 import { Rail } from './components/Rail.tsx';
 import { RenderDock } from './components/RenderDock.tsx';
 import { SiteSearch } from './components/SiteSearch.tsx';
+import { TimeFilm } from './components/TimeFilm.tsx';
 import { Stage } from './components/Stage.tsx';
 import { StatusChips } from './components/StatusChips.tsx';
 import { StatusLine } from './components/StatusLine.tsx';
@@ -57,6 +58,7 @@ export function App() {
       <SiteSearch />
       <ManualShare />
       <ObjectViewer />
+      <TimeFilm />
     </>
   );
 }
