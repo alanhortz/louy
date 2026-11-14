@@ -1,9 +1,13 @@
 /**
  * Marqueurs des caméras routières.
  *
- * L'icône, ses teintes (repos `#6be8ff`, active `#ffd97a` agrandie ×1,25) et la
- * vignette (96×54 px sous un filet cyan, titre en capitales tronqué à 15
- * caractères) reprennent God's Eye View — © 2026 Bilawal Sidhu, licence MIT.
+ * Même gabarit que les marqueurs de l'imagerie 3D : cible de 44 px, icône de
+ * 28 px au halo cyan (or quand elle est sélectionnée), et sous elle une légende
+ * à deux lignes — le genre, puis le nom. De loin l'icône est seule ; de près la
+ * légende apparaît, avec au-dessus la dernière image de la caméra.
+ *
+ * Le dessin de l'icône et ses teintes (repos `#6be8ff`, active `#ffd97a`)
+ * reprennent God's Eye View — © 2026 Bilawal Sidhu, licence MIT.
  */
 
 import type { OverlayFeature, OverlayStyle } from '../OverlayLayer.ts';
@@ -32,7 +36,6 @@ const ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" vie
 
 const ICON_IDLE = tinted(ICON, TINT_IDLE);
 const ICON_ACTIVE = tinted(ICON, TINT_ACTIVE);
-const CARD_TITLE_LENGTH = 15;
 
 export const cameraMarkerStyle: OverlayStyle<CameraFeature> = {
   className: 'overlay-cameras',
@@ -42,19 +45,22 @@ export const cameraMarkerStyle: OverlayStyle<CameraFeature> = {
   create() {
     const element = document.createElement('button');
     element.type = 'button';
-    element.className = 'camera-marker';
+    element.className = 'scan-marker camera-marker';
     element.innerHTML =
-      '<img class="camera-marker-icon" alt="" width="24" height="24" />'
-      + '<span class="camera-card"><img alt="" width="96" height="54" /><span></span></span>';
+      '<img class="scan-marker-icon" alt="" width="28" height="28" />'
+      + '<span class="camera-card"><img alt="" width="96" height="54" /></span>'
+      + '<span class="scan-caption"><b>Caméra</b><span></span></span>';
     return element;
   },
   paint(element, camera, { active, detailed }) {
-    const [icon, card] = element.children as unknown as [HTMLImageElement, HTMLElement];
-    const [thumbnail, title] = card.children as unknown as [HTMLImageElement, HTMLElement];
+    const [icon, card, caption] = element.children as unknown as [HTMLImageElement, HTMLElement, HTMLElement];
+    const thumbnail = card.firstElementChild as HTMLImageElement;
     element.setAttribute('aria-label', `Caméra ${camera.label}`);
     element.classList.toggle('active', active);
     icon.src = active ? ICON_ACTIVE : ICON_IDLE;
-    title.textContent = camera.label.toUpperCase().slice(0, CARD_TITLE_LENGTH);
+    caption.lastElementChild!.textContent = camera.label;
+    // de loin, des centaines de légendes se recouvriraient : seule la caméra sélectionnée garde la sienne
+    caption.hidden = !detailed && !active;
     // la caméra active n'a pas de vignette : son image est dans le panneau
     card.hidden = !detailed || active;
     if (!card.hidden) thumbnail.src = camera.thumbnail;
