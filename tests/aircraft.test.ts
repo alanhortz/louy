@@ -272,7 +272,7 @@ describe('relais des avions', () => {
 
 describe('avions : vue partageable', () => {
   it('garde le calque des avions dans le lien', () => {
-    const view = { ...DEFAULT_VIEW, overlays: { places: true, cameras: false, aircraft: true, scans: false } };
+    const view = { ...DEFAULT_VIEW, overlays: { places: true, cameras: false, aircraft: true, scans: false, objects: true } };
     expect(encodeView(view)).toContain('o=pa');
     expect(decodeView(encodeView(view)).overlays.aircraft).toBe(true);
   });

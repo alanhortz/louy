@@ -30,10 +30,15 @@ export interface OverlayFeature {
   minDistance?: number;
 }
 
-export interface OverlayPaintState {
+export interface OverlayPaintState<F extends OverlayFeature = OverlayFeature> {
   active: boolean;
   /** L'entité est assez proche de la caméra pour montrer son détail (vignette…). */
   detailed: boolean;
+  /**
+   * Entités que ce marqueur représente, la sienne en tête. Plusieurs quand le calque
+   * regroupe celles dont les marqueurs se recouvriraient à l'écran (`clusters`).
+   */
+  members: readonly F[];
 }
 
 /** Ce qui distingue un calque d'un autre : son apparence, pas sa mécanique. */
@@ -44,8 +49,14 @@ export interface OverlayStyle<F extends OverlayFeature> {
   detailDistance: number;
   /** Encombrement à l'écran, en pixels, centré sur le point d'ancrage. */
   footprint(feature: F): { width: number; height: number };
+  /**
+   * Regrouper plutôt que masquer : une entité dont le marqueur en recouvrirait un autre
+   * rejoint celui-ci, qui en porte alors le compte. Le regroupement est celui de l'écran,
+   * image par image — dès que deux marqueurs ne se touchent plus, chacun reprend sa place.
+   */
+  clusters?: boolean;
   create(): HTMLElement;
-  paint(element: HTMLElement, feature: F, state: OverlayPaintState): void;
+  paint(element: HTMLElement, feature: F, state: OverlayPaintState<F>): void;
   /** Appelé à chaque image pour une entité visible : ce qui dépend du point de vue (l'orientation d'une icône). */
   orient?(element: HTMLElement, feature: F, frame: OverlayFrame): void;
 }
@@ -81,7 +92,8 @@ export class OverlayLayer<F extends OverlayFeature = OverlayFeature> {
   #features: F[] = [];
   #activeId: string | null = null;
 
-  constructor(root: HTMLElement, style: OverlayStyle<F>, onPick?: (id: string) => void) {
+  /** `onPick` reçoit l'entité touchée et toutes celles que son marqueur rassemble (elle comprise). */
+  constructor(root: HTMLElement, style: OverlayStyle<F>, onPick?: (id: string, members: string[]) => void) {
     this.#style = style;
     this.#host = document.createElement('div');
     this.#host.className = `overlay ${style.className}`;
@@ -90,7 +102,7 @@ export class OverlayLayer<F extends OverlayFeature = OverlayFeature> {
     if (onPick) {
       this.#host.addEventListener('click', (event) => {
         const element = (event.target as HTMLElement).closest<HTMLElement>('[data-feature]');
-        if (element?.dataset.feature) onPick(element.dataset.feature);
+        if (element?.dataset.feature) onPick(element.dataset.feature, (element.dataset.members ?? element.dataset.feature).split(','));
       });
     }
   }
@@ -112,11 +124,10 @@ export class OverlayLayer<F extends OverlayFeature = OverlayFeature> {
   update(frame: OverlayFrame): void {
     const { maxVisible, detailDistance } = this.#style;
     const horizon = frame.distance * HORIZON_FACTOR;
-    const placed: Box[] = [];
-    let used = 0;
+    const placed: { box: Box; feature: F; sx: number; sy: number; detailed: boolean; active: boolean; members: F[] }[] = [];
 
     for (const feature of this.#features) {
-      if (used >= maxVisible) break;
+      if (placed.length >= maxVisible) break;
       // une entité en mouvement est dessinée là où elle est maintenant, pas là où elle a été vue
       let { x, y, altitude } = feature;
       if (feature.motion) {
@@ -140,22 +151,32 @@ export class OverlayLayer<F extends OverlayFeature = OverlayFeature> {
         x1: point.sx + width / 2, y1: point.sy + height / 2,
       };
       // l'entité active reste toujours visible, même au milieu d'un groupe
-      if (!active && placed.some((other) => overlaps(box, other))) continue;
-      placed.push(box);
+      const taken = active ? undefined : placed.find((other) => overlaps(box, other.box));
+      if (taken) {
+        // sa place est prise : elle rejoint le marqueur déjà posé, ou disparaît si le calque ne regroupe pas
+        if (this.#style.clusters) taken.members.push(feature);
+        continue;
+      }
+      placed.push({ box, feature, sx: point.sx, sy: point.sy, detailed, active, members: [feature] });
+    }
 
-      const element = this.#element(used++);
-      element.style.transform = `translate3d(${point.sx.toFixed(1)}px, ${point.sy.toFixed(1)}px, 0)`;
-      const signature = `${feature.id}|${active ? 1 : 0}|${detailed ? 1 : 0}`;
+    // les marqueurs ne sont peints qu'une fois les groupes complets
+    placed.forEach(({ feature, sx, sy, detailed, active, members }, index) => {
+      const element = this.#element(index);
+      element.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0)`;
+      const ids = members.map((member) => member.id).join(',');
+      const signature = `${ids}|${active ? 1 : 0}|${detailed ? 1 : 0}`;
       if (this.#shown.get(element) !== signature) {
         element.dataset.feature = feature.id;
-        this.#style.paint(element, feature, { active, detailed });
+        element.dataset.members = ids;
+        this.#style.paint(element, feature, { active, detailed, members });
         this.#shown.set(element, signature);
       }
       this.#style.orient?.(element, feature, frame);
       element.hidden = false;
-    }
+    });
 
-    for (let k = used; k < this.#pool.length; k++) this.#pool[k]!.hidden = true;
+    for (let k = placed.length; k < this.#pool.length; k++) this.#pool[k]!.hidden = true;
   }
 
   dispose(): void {

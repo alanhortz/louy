@@ -26,7 +26,7 @@ export type ViewerEmitted =
   | { type: 'viewer.viewSettled'; pose: Pose }
   | { type: 'viewer.poseCaptured'; pose: Pose }
   | { type: 'viewer.activityChanged'; loading: boolean; points: number }
-  | { type: 'viewer.overlayPicked'; layer: OverlayName; id: string }
+  | { type: 'viewer.overlayPicked'; layer: OverlayName; id: string; members: string[] }
   | { type: 'viewer.followEnded' }
   | { type: 'viewer.captured'; blob: Blob | null; blank: boolean };
 
@@ -92,8 +92,8 @@ export const viewerMachine = viewer.createMachine({
   context: ({ input }) => ({
     ...input,
     mount: null,
-    overlays: { places: [], cameras: [], scans: [], aircraft: [], films: [] },
-    active: { places: null, cameras: null, scans: null, aircraft: null, films: null },
+    overlays: { places: [], cameras: [], scans: [], objects: [], aircraft: [], films: [] },
+    active: { places: null, cameras: null, scans: null, objects: null, aircraft: null, films: null },
     scans: [],
     preload: [],
     scanBuild: null,
@@ -168,7 +168,7 @@ export const viewerMachine = viewer.createMachine({
         },
         'engine.overlayPicked': {
           actions: sendParent(({ event }): ViewerEmitted =>
-            ({ type: 'viewer.overlayPicked', layer: event.layer, id: event.id })),
+            ({ type: 'viewer.overlayPicked', layer: event.layer, id: event.id, members: event.members })),
         },
         'engine.contextLost': '.suspended',
       },

@@ -1,11 +1,13 @@
-import { ClockIcon, CubeTransparentIcon, PaperAirplaneIcon, TagIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
+import {
+  ClockIcon, CubeTransparentIcon, PaperAirplaneIcon, PhotoIcon, TagIcon, VideoCameraIcon,
+} from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import type { ReactNode } from 'react';
-import { SCANS_LABEL, isObjectScan, type Scan } from '../../domain/scans.ts';
+import { AERIAL_LABEL, OBJECTS_LABEL, type Scan } from '../../domain/scans.ts';
 import { aircraftFeed } from '../../machines/aircraft.machine.ts';
 import { camerasFeed } from '../../machines/cameras.machine.ts';
 import { placesStatus, type LayerFeed } from '../../machines/places.machine.ts';
-import { SCANS_LAYER } from '../../machines/scans.layer.ts';
+import { AERIAL_LAYER, OBJECTS_LAYER } from '../../machines/scans.layer.ts';
 import { layerAvailable, layerFeed } from '../../machines/selectionLayer.machine.ts';
 import { AIRCRAFT_SOURCE } from '../../services/aircraft.ts';
 import { FILMS_LABEL } from '../../domain/timeline.ts';
@@ -120,33 +122,23 @@ function AircraftRow() {
   );
 }
 
-/** Ce que le calque contient, en quelques mots : les crédits détaillés sont dans « À propos ». */
-function summary(scans: readonly Scan[]): string {
-  const objects = scans.filter(isObjectScan).length;
-  const places = scans.length - objects;
-  return [
-    places > 0 && `${places} ${places > 1 ? 'lieux' : 'lieu'}`,
-    objects > 0 && `${objects} ${objects > 1 ? 'objets' : 'objet'}`,
-  ].filter(Boolean).join(' · ');
-}
-
-/** Imagerie 3D (les scans) : la ligne n'existe que si le site en publie. */
-function ScansRow() {
+/** Un calque tiré des scans : sa ligne n'existe que si le site en publie. */
+function ScanLayerRow({ layer, name, icon, meta }: { layer: string; name: string; icon: ReactNode; meta: string }) {
   const layers = useChild('layers');
-  const scans = useLayer<Scan>(SCANS_LAYER);
-  const available = useSelector(scans, layerAvailable);
-  const feed = useSelector(scans, layerFeed);
-  const list = useSelector(scans, (snapshot) => snapshot.context.items);
+  const actor = useLayer<Scan>(layer);
+  const available = useSelector(actor, layerAvailable);
+  const feed = useSelector(actor, layerFeed);
+  const total = useSelector(actor, (snapshot) => snapshot.context.items.length);
   if (!available) return null;
 
   return (
     <LayerRow
-      icon={<CubeTransparentIcon aria-hidden="true" />}
-      name={SCANS_LABEL}
-      count={list.length}
+      icon={icon}
+      name={name}
+      count={total}
       feed={feed}
-      meta={summary(list)}
-      onToggle={() => layers.send({ type: 'layers.toggled', layer: SCANS_LAYER })}
+      meta={meta}
+      onToggle={() => layers.send({ type: 'layers.toggled', layer })}
     />
   );
 }
@@ -177,7 +169,8 @@ export function LayersPanel() {
         <PlacesRow />
         <CamerasRow />
         <AircraftRow />
-        <ScansRow />
+        <ScanLayerRow layer={AERIAL_LAYER} name={AERIAL_LABEL} icon={<PhotoIcon aria-hidden="true" />} meta="Lieux filmés au drone, reconstruits en volume" />
+        <ScanLayerRow layer={OBJECTS_LAYER} name={OBJECTS_LABEL} icon={<CubeTransparentIcon aria-hidden="true" />} meta="Relevés sur place, au téléphone" />
         <FilmsRow />
       </div>
     </Panel>

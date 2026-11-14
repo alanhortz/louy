@@ -7,7 +7,7 @@
  */
 
 import {
-  HandRaisedIcon, InformationCircleIcon, PaperAirplaneIcon, Square3Stack3DIcon, SwatchIcon, VideoCameraIcon,
+  HandRaisedIcon, InformationCircleIcon, PaperAirplaneIcon, PhotoIcon, Square3Stack3DIcon, SwatchIcon, VideoCameraIcon,
 } from '@heroicons/react/24/outline';
 import type { ComponentType, SVGProps } from 'react';
 import type { PanelId } from '../machines/chrome.machine.ts';
@@ -24,6 +24,7 @@ export const RAIL_ITEMS: readonly RailItem[] = [
   { panel: 'render', label: 'Rendu', Icon: SwatchIcon },
   { panel: 'controls', label: 'Navigation', Icon: HandRaisedIcon },
   { panel: 'camera', label: 'Caméras', Icon: VideoCameraIcon },
+  { panel: 'imagery', label: 'Imagerie', Icon: PhotoIcon },
   { panel: 'aircraft', label: 'Avions', Icon: PaperAirplaneIcon },
   { panel: 'about', label: 'À propos', Icon: InformationCircleIcon },
 ];

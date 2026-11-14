@@ -1,15 +1,14 @@
 import { useSelector } from '@xstate/react';
 import { acquisitionLabel } from '../../machines/acquisition.machine.ts';
-import type { Scan } from '../../domain/scans.ts';
-import { SCANS_LAYER, drawnScans } from '../../machines/scans.layer.ts';
-import { layerSelection } from '../../machines/selectionLayer.machine.ts';
-import { useChild, useLayer } from '../actors.ts';
+import { useApp, useChild } from '../actors.ts';
+import { drawnScans } from '../../machines/scans.layer.ts';
 
 /** Ligne discrète du bas : date des mesures LiDAR sous le point visé, et attributions. */
 export function StatusLine() {
   const label = useSelector(useChild('acquisition'), acquisitionLabel);
-  // le lieu dessiné dans la carte est à l'écran : son auteur est crédité
-  const scans = drawnScans(useSelector(useLayer<Scan>(SCANS_LAYER), layerSelection));
+  // les lieux dessinés dans la carte sont à l'écran : leurs auteurs sont crédités
+  const imagery = useSelector(useApp(), (snapshot) => snapshot.context.imagery);
+  const scans = drawnScans(imagery.selected, imagery.kept);
   return (
     <footer className="status-line">
       <span>{label}</span>
