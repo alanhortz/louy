@@ -17,6 +17,7 @@ import {
 } from '../domain/aircraft.ts';
 import type { FollowTarget } from '../engine/SceneEngine.ts';
 import type { AircraftFeature } from '../engine/overlays/aircraftMarkers.ts';
+import { recordTracks, type TrackPoint, type Tracks } from '../domain/trajectory.ts';
 import { loadAircraft } from '../services/aircraft.ts';
 import type { LayerFeed } from './places.machine.ts';
 
@@ -32,6 +33,8 @@ export type AircraftEvent =
 export type AircraftEmitted =
   | { type: 'aircraft.changed'; visible: boolean; features: AircraftFeature[] }
   | { type: 'aircraft.selectionChanged'; aircraft: Aircraft | null }
+  /** L'appareil sélectionné, tel que le dernier relevé le donne, et sa trace depuis qu'on le voit : de quoi tenir sa trajectoire à jour. */
+  | { type: 'aircraft.tracked'; aircraft: Aircraft | null; track: TrackPoint[] }
   | { type: 'aircraft.followChanged'; target: FollowTarget | null }
   /** `altitude` : celle de l'appareil, que la vue doit placer en son centre ; `null` au sol. */
   | { type: 'aircraft.flyRequested'; x: number; y: number; height: number; altitude: number | null };
@@ -45,6 +48,8 @@ interface AircraftContext {
   /** Le visiteur est au poste de pilotage de l'appareil sélectionné. */
   inCockpit: boolean;
   query: string;
+  /** Positions relevées de chaque appareil présent, depuis qu'on le voit. */
+  tracks: Tracks;
 }
 
 /** Délai avant un nouvel essai quand le réseau n'a pas répondu. */
@@ -64,6 +69,7 @@ const toFeature = (aircraft: Aircraft): AircraftFeature => ({
   airframe: airframeType(aircraft.type, aircraft.category),
   attitude: attitude(aircraft),
   turnRate: aircraft.turnRate ?? 0,
+  military: aircraft.military,
   // les appareils en vol passent avant ceux au sol quand la place manque
   rank: aircraft.altitude ?? -1,
   ...(aircraft.altitude === null ? {} : { altitude: aircraft.altitude }),
@@ -110,6 +116,10 @@ export const aircraftMachine = setup({
     withdraw: sendParent((): AircraftEmitted => ({ type: 'aircraft.changed', visible: false, features: [] })),
     announceSelection: sendParent(({ context }): AircraftEmitted =>
       ({ type: 'aircraft.selectionChanged', aircraft: selected(context) })),
+    announceTracked: sendParent(({ context }): AircraftEmitted => {
+      const aircraft = selected(context);
+      return { type: 'aircraft.tracked', aircraft, track: aircraft ? [...(context.tracks.get(aircraft.id) ?? [])] : [] };
+    }),
     announceFollow: sendParent(({ context }): AircraftEmitted => {
       const aircraft = selected(context);
       return { type: 'aircraft.followChanged', target: context.inCockpit && aircraft ? toFollow(aircraft) : null };
@@ -120,16 +130,17 @@ export const aircraftMachine = setup({
       const { x, y, altitude } = aircraftAt(aircraft, Date.now());
       return { type: 'aircraft.flyRequested', x, y, height: (altitude ?? 0) + LOCATE_HEIGHT, altitude };
     }),
-    /** Un relevé vient d'arriver : il remplace la liste. */
+    /** Un relevé vient d'arriver : il remplace la liste, et prolonge la trace de chaque appareil. */
     keepList: assign({
       list: ({ event }) => (event as unknown as { output: Aircraft[] }).output,
+      tracks: ({ context, event }) => recordTracks(context.tracks, (event as unknown as { output: Aircraft[] }).output, Date.now()),
       updatedAt: () => Date.now(),
     }),
     dropSelection: assign({ selectedId: null, inCockpit: false }),
   },
 }).createMachine({
   id: 'aircraft',
-  context: ({ input }) => ({ visible: input.visible, list: [], updatedAt: null, selectedId: null, inCockpit: false, query: '' }),
+  context: ({ input }) => ({ visible: input.visible, list: [], updatedAt: null, selectedId: null, inCockpit: false, query: '', tracks: new Map() }),
   initial: 'resolving',
   states: {
     resolving: {
@@ -143,7 +154,7 @@ export const aircraftMachine = setup({
       entry: assign({ visible: true }),
       exit: [
         assign({ list: [], selectedId: null, inCockpit: false, query: '' }),
-        'withdraw', 'announceSelection', 'announceFollow',
+        'withdraw', 'announceSelection', 'announceFollow', 'announceTracked',
       ],
       initial: 'fetching',
       on: {
@@ -152,10 +163,10 @@ export const aircraftMachine = setup({
         'aircraft.picked': {
           guard: 'picksKnownAircraft',
           // changer d'appareil fait quitter le cockpit du précédent
-          actions: [assign({ selectedId: ({ event }) => event.id, inCockpit: false }), 'announceSelection', 'announceFollow'],
+          actions: [assign({ selectedId: ({ event }) => event.id, inCockpit: false }), 'announceSelection', 'announceFollow', 'announceTracked'],
         },
         'aircraft.dismissed': {
-          actions: [assign({ selectedId: null, inCockpit: false }), 'announceSelection', 'announceFollow'],
+          actions: [assign({ selectedId: null, inCockpit: false }), 'announceSelection', 'announceFollow', 'announceTracked'],
         },
         'aircraft.cockpitRequested': {
           guard: 'hasSelection',
@@ -179,9 +190,10 @@ export const aircraftMachine = setup({
               {
                 guard: 'lostSelection',
                 target: 'waiting',
-                actions: ['keepList', 'dropSelection', 'publish', 'announceSelection', 'announceFollow'],
+                actions: ['keepList', 'dropSelection', 'publish', 'announceSelection', 'announceFollow', 'announceTracked'],
               },
-              { guard: 'isInCockpit', target: 'waiting', actions: ['keepList', 'publish', 'announceFollow'] },
+              { guard: 'isInCockpit', target: 'waiting', actions: ['keepList', 'publish', 'announceFollow', 'announceTracked'] },
+              { guard: 'hasSelection', target: 'waiting', actions: ['keepList', 'publish', 'announceTracked'] },
               { target: 'waiting', actions: ['keepList', 'publish'] },
             ],
             onError: 'faltering',

@@ -127,6 +127,7 @@ export const viewerMachine = viewer.createMachine({
         'viewer.followChanged': { actions: 'command' },
         'engine.followEnded': { actions: sendParent((): ViewerEmitted => ({ type: 'viewer.followEnded' })) },
         'viewer.captureRequested': { actions: 'command' },
+        'viewer.trajectoryChanged': { actions: 'command' },
         'engine.captured': {
           actions: sendParent(({ event }): ViewerEmitted =>
             ({ type: 'viewer.captured', blob: event.blob, blank: event.blank })),

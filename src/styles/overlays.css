@@ -175,3 +175,8 @@
   pointer-events: none;
 }
 .scan-count[hidden] { display: none; }
+
+/* appareil militaire : un losange devant l'indicatif, teinte kaki à peine marquée — plein pour un belge, creux pour un étranger */
+.aircraft-caption[data-military] b { color: #d5dcb4; }
+.aircraft-caption[data-military] b::before { content: '◆ '; font-size: 7px; vertical-align: 1px; color: #b7c283; }
+.aircraft-caption[data-military='foreign'] b::before { content: '◇ '; }

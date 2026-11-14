@@ -16,6 +16,7 @@ const ANNOUNCEMENTS = [
   'sites.chosen',
   // avions en direct
   'aircraft.changed', 'aircraft.selectionChanged', 'aircraft.followChanged', 'aircraft.flyRequested',
+  'aircraft.tracked', 'trajectory.changed',
   // imagerie aérienne et objets scannés
   'layers.listed', 'layers.changed', 'layers.selectionChanged', 'layers.keptChanged', 'layers.expandRequested', 'layers.activated',
   'object.left',

@@ -42,6 +42,7 @@ import { shareMachine } from './share.machine.ts';
 import { sitesMachine, type SitesEmitted } from './sites.machine.ts';
 import { telemetryMachine } from './telemetry.machine.ts';
 import { timelineMachine, type TimelineEmitted } from './timeline.machine.ts';
+import { trajectoryMachine, type TrajectoryEmitted } from './trajectory.machine.ts';
 
 /** Cadrage du film tourné qui remplit le mieux l'écran : debout sur un téléphone tenu droit. */
 const filmFraming = (): FilmFraming =>
@@ -61,7 +62,8 @@ export type AppEvent =
   | ObjectEmitted
   | AircraftEmitted
   | FilmsEmitted
-  | TimelineEmitted;
+  | TimelineEmitted
+  | TrajectoryEmitted;
 
 export interface AppInput {
   /** Vue lue dans l'URL au chargement. */
@@ -110,6 +112,7 @@ export const appMachine = setup({
       aircraft: 'aircraft';
       films: 'films';
       timeline: 'timeline';
+      trajectory: 'trajectory';
       acquisition: 'acquisition';
       activity: 'activity';
       share: 'share';
@@ -130,6 +133,7 @@ export const appMachine = setup({
     aircraft: aircraftMachine,
     films: filmsMachine,
     timeline: timelineMachine,
+    trajectory: trajectoryMachine,
     acquisition: acquisitionMachine,
     activity: activityMachine,
     share: shareMachine,
@@ -243,6 +247,7 @@ export const appMachine = setup({
         { id: 'aircraft', src: 'aircraft', input: ({ context }) => ({ visible: context.view.overlays.aircraft }) },
         { id: 'films', src: 'films' },
         { id: 'timeline', src: 'timeline' },
+        { id: 'trajectory', src: 'trajectory' },
         {
           id: 'acquisition',
           src: 'acquisition',
@@ -504,6 +509,12 @@ export const appMachine = setup({
               ? { type: 'chrome.revealed', panel: 'aircraft' }
               : { type: 'chrome.dismissed', panel: 'aircraft' })),
           ],
+        },
+        // la quatrième dimension : la trajectoire de l'appareil sélectionné, passée et estimée
+        'aircraft.tracked': { actions: sendTo('trajectory', ({ event }) => ({ type: 'trajectory.aircraftChanged', aircraft: event.aircraft, track: event.track })) },
+        'trajectory.changed': {
+          actions: sendTo('viewer', ({ event }) =>
+            ({ type: 'viewer.trajectoryChanged', past: event.past, future: event.future, cursor: event.cursor })),
         },
         'aircraft.followChanged': {
           actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.followChanged', target: event.target })),
