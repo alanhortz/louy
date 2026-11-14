@@ -7,14 +7,15 @@ interface PanelProps {
   id: PanelId;
   title: string;
   className?: string;
-  /** Glyphes du bouton, repliée puis dépliée. */
-  glyphs?: readonly [string, string];
   onExpand?: () => void;
   children: ReactNode;
 }
 
+/** Pictogramme du bouton de repli, le même pour tous les panneaux : replié, puis déplié. */
+const GLYPHS = ['+', '−'] as const;
+
 /** Panneau « verre » repliable ; son état vit dans la machine `chrome`. */
-export function Panel({ id, title, className = '', glyphs = ['+', '−'], onExpand, children }: PanelProps) {
+export function Panel({ id, title, className = '', onExpand, children }: PanelProps) {
   const chrome = useChild('chrome');
   const expanded = useSelector(chrome, (snapshot) => snapshot.matches({ [id]: 'expanded' }));
 
@@ -37,7 +38,7 @@ export function Panel({ id, title, className = '', glyphs = ['+', '−'], onExpa
             aria-label={expanded ? `Replier ${title}` : `Déplier ${title}`}
             onClick={toggle}
           >
-            {glyphs[expanded ? 1 : 0]}
+            {GLYPHS[expanded ? 1 : 0]}
           </button>
         </header>
         {expanded && <div className="panel-body">{children}</div>}
