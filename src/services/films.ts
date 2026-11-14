@@ -24,7 +24,8 @@ const preload = (url: string, signal: AbortSignal): Promise<boolean> => new Prom
  * l'appelant le tournera sur place.
  */
 export async function loadPreparedFilm(base: string, framing: FilmFraming, signal: AbortSignal): Promise<LoadedFilm> {
-  const response = await fetch(preparedIndexUrl(base), { signal });
+  // l'index est toujours revalidé : seules les images, qui ne changent pas, vivent longtemps en cache
+  const response = await fetch(preparedIndexUrl(base), { signal, cache: 'no-cache' });
   const film = response.ok ? parsePreparedFilm(await response.json().catch(() => null)) : null;
   if (!film) return { frames: [], skipped: [] };
   const frames = film.frames.map((step) => ({ ...step, url: preparedFrameUrl(base, framing, step.vintage) }));
