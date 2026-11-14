@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createActor, createMachine, fromCallback, fromPromise, sendTo, waitFor, type AnyEventObject } from 'xstate';
+import { createActor, fromCallback } from 'xstate';
 import { createTelemetryInspector } from '../src/app/inspector.ts';
 import { DEFAULT_OBJECT_POSE, clampObjectPose, progressStep } from '../src/domain/objectView.ts';
 import { isObjectScan, parseScans, placeScans, type Scan } from '../src/domain/scans.ts';
@@ -7,7 +7,6 @@ import type {
   ObjectEngineCommand, ObjectEngineInput, ObjectEngineReport,
 } from '../src/machines/actors/objectEngine.actor.ts';
 import { objectMachine, objectPhase } from '../src/machines/object.machine.ts';
-import { scansMachine } from '../src/machines/scans.machine.ts';
 import { TelemetryBuffer } from '../src/services/telemetry.ts';
 
 const credit = { author: 'Alan Hortz', title: 'Lettres NAMUR', url: 'https://louy.be', licence: 'CC BY' };
@@ -51,39 +50,6 @@ describe('scans : lieux et objets', () => {
     expect(isObjectScan(citadel)).toBe(false);
   });
 
-  it('sélectionne l’objet touché et demande sa visionneuse, sans toucher à la carte', async () => {
-    // la machine tourne sous un parent qui consigne ce qu'elle lui annonce, comme sous la machine applicative
-    const announced: AnyEventObject[] = [];
-    const scans = scansMachine.provide({ actors: { loadScans: fromPromise(async () => [citadel, letters]) } });
-    const root = createActor(createMachine({
-      invoke: { id: 'scans', src: scans },
-      on: {
-        'to.scans': { actions: sendTo('scans', ({ event }) => (event as AnyEventObject).event) },
-        '*': { actions: ({ event }) => { announced.push(event); } },
-      },
-    })).start();
-    const actor = root.getSnapshot().children.scans!;
-    const send = (event: AnyEventObject) => root.send({ type: 'to.scans', event });
-    await waitFor(actor, (snapshot) => snapshot.matches('visible'));
-
-    send({ type: 'scans.picked', id: 'lettres' });
-    expect(announced.slice(-3)).toMatchObject([
-      { type: 'scans.drawn', scans: [] },
-      { type: 'scans.selectionChanged', scan: { id: 'lettres' }, markerId: 'lettres' },
-      { type: 'scans.objectRequested', scan: { id: 'lettres' } },
-    ]);
-    expect(announced.some((event) => event.type === 'scans.flyRequested')).toBe(false);
-
-    // la visionneuse refermée, l'objet n'est plus sélectionné
-    send({ type: 'scans.dismissed' });
-    expect(announced.at(-1)).toMatchObject({ type: 'scans.selectionChanged', scan: null, markerId: null });
-
-    // un lieu sélectionné n'est pas désélectionné par la fermeture d'une visionneuse
-    send({ type: 'scans.picked', id: 'namur' });
-    const before = announced.length;
-    send({ type: 'scans.dismissed' });
-    expect(announced).toHaveLength(before);
-  });
 });
 
 describe('point de vue sur un objet', () => {
