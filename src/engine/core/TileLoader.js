@@ -118,9 +118,12 @@ export class TileLoader {
       const { desc } = this.queue.get(bestKey);
       this.queue.delete(bestKey);
 
-      // le worker le moins charge : le decodage est le seul travail CPU
-      let w = this.workers[0];
-      for (const c of this.workers) if (c.pending < w.pending) w = c;
+      // Une tuile va toujours au meme worker : il garde sa surface reconstruite, et
+      // n'a plus qu'a la rhabiller si seule la photo change. La repartition reste
+      // egale, les clefs se distribuant uniformement.
+      let hash = 0;
+      for (let k = 0; k < bestKey.length; k++) hash = (hash * 31 + bestKey.charCodeAt(k)) >>> 0;
+      const w = this.workers[hash % this.workers.length];
       w.pending++;
       this.inflight.set(bestKey, { worker: w, desc });
       w.postMessage({ type: 'load', id: bestKey, ...desc });
