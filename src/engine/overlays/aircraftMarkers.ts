@@ -16,6 +16,8 @@ export interface AircraftFeature extends OverlayFeature {
   airframe: string;
   attitude: Attitude;
   turnRate: number;
+  /** Appareil militaire, belge ou étranger : sa légende le dit, discrètement. */
+  military: 'belgian' | 'foreign' | null;
   /** Seconde ligne de l'étiquette : l'altitude, ou « au sol ». */
   detail: string;
 }
@@ -46,10 +48,13 @@ export const aircraftMarkerStyle: OverlayStyle<AircraftFeature> = {
   paint(element, aircraft, { active }) {
     const [icon, caption] = element.children as unknown as [HTMLImageElement, HTMLElement];
     const [callsign, detail] = caption.children as unknown as [HTMLElement, HTMLElement];
-    element.setAttribute('aria-label', `Avion ${aircraft.label}, ${aircraft.detail}`);
+    const kind = aircraft.military === 'belgian' ? 'Avion militaire belge' : aircraft.military === 'foreign' ? 'Avion militaire étranger' : 'Avion';
+    element.setAttribute('aria-label', `${kind} ${aircraft.label}, ${aircraft.detail}`);
     element.classList.toggle('active', active);
     icon.src = active ? ICON_ACTIVE : ICON_IDLE;
     callsign.textContent = aircraft.label;
+    // militaire : un losange devant l'indicatif, plein pour un belge, creux pour un étranger
+    if (aircraft.military) caption.dataset.military = aircraft.military; else delete caption.dataset.military;
     detail.textContent = aircraft.detail;
   },
   orient(element, aircraft, frame) {

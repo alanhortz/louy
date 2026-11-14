@@ -24,6 +24,7 @@ import { TileTree } from './core/TileTree.js';
 import mntLut from './lut/mnt.json';
 import mnsLut from './lut/mns.json';
 import { AircraftLayer, type AircraftModel } from './AircraftLayer.ts';
+import { TrajectoryLayer, type TrajectoryPoint } from './TrajectoryLayer.ts';
 import { OverlayLayer, type OverlayFeature, type OverlayStyle } from './OverlayLayer.ts';
 import type { ScanProgress, SplatLayer } from './SplatLayer.ts';
 
@@ -159,6 +160,8 @@ export class SceneEngine {
   #splats: SplatLayer | null = null;
   #disposed = false;
   #follow: FollowTarget | null = null;
+  /** Trajectoire du vol sélectionné ; créée à la première trace. */
+  #trajectory: TrajectoryLayer | null = null;
   /** Maquettes des avions ; créé au premier appareil à dessiner. */
   #aircraft: AircraftLayer | null = null;
   #raf = 0;
@@ -309,6 +312,13 @@ export class SceneEngine {
     this.#wake();
   }
 
+  /** Trajectoire d'un vol : chemin parcouru, estimation devant l'appareil, instant désigné. Listes vides pour la retirer. */
+  setTrajectory(past: readonly TrajectoryPoint[], future: readonly TrajectoryPoint[], cursor: TrajectoryPoint | null): void {
+    if (past.length + future.length > 0) this.#trajectory ??= new TrajectoryLayer(this.#renderer);
+    this.#trajectory?.set(past, future, cursor, this.#controls.target.y);
+    this.#wake();
+  }
+
   /** Avions à dessiner en volume, à leur altitude et dans leur assiette. */
   setAircraftModels(models: readonly AircraftModel[]): void {
     if (models.length > 0) this.#aircraft ??= new AircraftLayer(this.#renderer);
@@ -408,6 +418,7 @@ export class SceneEngine {
     this.#disposed = true;
     this.#splats?.dispose();
     this.#aircraft?.dispose();
+    this.#trajectory?.dispose();
     cancelAnimationFrame(this.#raf);
     this.#teardown.abort();
     this.#resizeObserver.disconnect();
@@ -609,6 +620,8 @@ export class SceneEngine {
     });
     this.#edl.render(this.#scene, this.#camera);
     this.#splats?.render(this.#camera);
+    // la trajectoire d'abord : la maquette de l'avion se lit par-dessus
+    this.#trajectory?.render(this.#camera);
     this.#aircraft?.render(this.#camera, this.#size.height, Date.now(),
       (worldX, worldZ) => this.#groundAt(worldX, worldZ) ?? this.#controls.target.y);
 

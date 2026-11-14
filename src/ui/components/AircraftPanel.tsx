@@ -1,9 +1,10 @@
 import { useSelector } from '@xstate/react';
-import { aircraftPhase, phaseLabel, type Aircraft } from '../../domain/aircraft.ts';
+import { aircraftPhase, militaryLabel, phaseLabel, type Aircraft } from '../../domain/aircraft.ts';
 import { aircraftFeed, listedAircraft, selectedAircraft } from '../../machines/aircraft.machine.ts';
 import { AIRCRAFT_SOURCE } from '../../services/aircraft.ts';
 import { useChild } from '../actors.ts';
-import { AirframePreview } from './AirframePreview.tsx';
+import { trajectoryCursor } from '../../machines/trajectory.machine.ts';
+import { AircraftPhoto } from './AircraftPhoto.tsx';
 import { Panel } from './Panel.tsx';
 
 const whole = new Intl.NumberFormat('fr-BE', { maximumFractionDigits: 0 });
@@ -31,6 +32,14 @@ function telemetry(aircraft: Aircraft): [string, string][] {
   return rows;
 }
 
+const minutes = (seconds: number) => (seconds < 60 ? `${Math.round(seconds)} s` : seconds < 3600 ? `${Math.round(seconds / 60)} min` : `${Math.floor(seconds / 3600)} h ${String(Math.round((seconds % 3600) / 60)).padStart(2, '0')}`);
+
+/** Ce que le curseur désigne : à quel moment, à quelle altitude, à quelle vitesse. */
+function timeLabel(offset: number, point: { altitude: number | null; speed: number }): string {
+  const when = offset < 0 ? `Il y a ${minutes(-offset)}` : `Dans ${minutes(offset)} (estimé)`;
+  return `${when} · ${point.altitude === null ? 'au sol' : `${whole.format(point.altitude)} m`} · ${whole.format(point.speed * 3.6)} km/h`;
+}
+
 /** Avions en direct : chercher un vol, lire sa télémétrie, prendre place au poste de pilotage. */
 export function AircraftPanel() {
   const actor = useChild('aircraft');
@@ -40,6 +49,9 @@ export function AircraftPanel() {
   const listed = useSelector(actor, listedAircraft, (a, b) => a.length === b.length && a.every((item, at) => item === b[at]));
   const aircraft = useSelector(actor, selectedAircraft);
   const inCockpit = useSelector(actor, (snapshot) => snapshot.context.inCockpit);
+  const trajectory = useChild('trajectory');
+  const cursor = useSelector(trajectory, trajectoryCursor, (a, b) =>
+    a.earliest === b.earliest && a.latest === b.latest && a.offset === b.offset && a.point?.altitude === b.point?.altitude);
   const enabled = feed !== 'off';
 
   return (
@@ -56,7 +68,6 @@ export function AircraftPanel() {
       {enabled && aircraft && (
         <section className="aircraft-card" aria-label={`Vol ${aircraft.callsign}`}>
           <header className="aircraft-card-header">
-            <AirframePreview type={aircraft.type} category={aircraft.category} />
             <div className="aircraft-card-title">
               <span className="aircraft-callsign">{aircraft.callsign}</span>
               <span className="aircraft-identity">
@@ -72,12 +83,35 @@ export function AircraftPanel() {
               ×
             </button>
           </header>
-          <p className="aircraft-phase">{phaseLabel(aircraftPhase(aircraft))}</p>
+          <AircraftPhoto type={aircraft.type} category={aircraft.category} />
+          <p className="aircraft-phase">
+            {phaseLabel(aircraftPhase(aircraft))}
+            {militaryLabel(aircraft) && <span className="aircraft-military" data-military={aircraft.military}>{militaryLabel(aircraft)}</span>}
+          </p>
           <dl className="aircraft-telemetry">
             {telemetry(aircraft).map(([label, value]) => (
               <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
             ))}
           </dl>
+          <label className="aircraft-time">
+            <span>Trajectoire</span>
+            <output>{cursor.point ? timeLabel(cursor.offset, cursor.point) : 'Maintenant'}</output>
+            <input
+              type="range"
+              // arrondi au pas du curseur : sans cela, « maintenant » tomberait entre deux crans
+              min={Math.floor(cursor.earliest / 10) * 10}
+              max={cursor.latest}
+              step={10}
+              value={cursor.offset}
+              disabled={cursor.earliest === 0 && cursor.latest === 0}
+              aria-label="Instant du vol : du premier relevé aux prochaines minutes"
+              onChange={(event) => trajectory.send({ type: 'trajectory.scrubbed', offset: Number(event.target.value) })}
+            />
+            <span className="aircraft-time-ends">
+              <span>{cursor.earliest < 0 ? `il y a ${minutes(-cursor.earliest)}` : 'vu à l’instant'}</span>
+              <span>{cursor.latest > 0 ? `estimation +${minutes(cursor.latest)}` : ''}</span>
+            </span>
+          </label>
           <div className="cctv-controls">
             <button
               type="button"

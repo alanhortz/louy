@@ -59,6 +59,8 @@ export interface Aircraft {
   turnRate: number | null;
   /** Catégorie d'émetteur ADS-B (« A3 ») : donne un gabarit quand le type est inconnu. */
   category: string | null;
+  /** Appareil militaire, d'après la base du réseau ; `'belgian'` si son transpondeur est immatriculé en Belgique. */
+  military: 'belgian' | 'foreign' | null;
   /** Vitesse verticale, en m/s (positive en montée). */
   verticalRate: number;
   squawk: string | null;
@@ -77,6 +79,19 @@ export interface Aircraft {
 
 const number = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
 const text = (value: unknown): string | null => (typeof value === 'string' && value.trim() ? value.trim() : null);
+
+/** Dans la base du réseau, premier bit des indicateurs d'un appareil : il est militaire. */
+const MILITARY_FLAG = 1;
+
+/**
+ * L'adresse d'un transpondeur dit le pays qui l'a immatriculé : l'OACI a attribué
+ * à la Belgique le bloc 448000 à 44FFFF.
+ */
+export const isBelgianAddress = (hex: string): boolean => { const value = parseInt(hex, 16); return value >= 0x448000 && value <= 0x44ffff; };
+
+/** Mention discrète d'un appareil militaire ; `null` pour un civil. */
+export const militaryLabel = (aircraft: Pick<Aircraft, 'military'>): string | null =>
+  (aircraft.military === 'belgian' ? 'Militaire belge' : aircraft.military === 'foreign' ? 'Militaire étranger' : null);
 
 /** Marge autour de l'emprise : un avion en approche se voit avant de franchir la frontière. */
 const MARGIN = 12_000;
@@ -116,6 +131,7 @@ export function parseAircraft(payload: unknown): Aircraft[] {
       roll: number(entry.roll),
       turnRate: number(entry.track_rate),
       category: text(entry.category),
+      military: (number(entry.dbFlags) ?? 0) & MILITARY_FLAG ? (isBelgianAddress(id) ? 'belgian' : 'foreign') : null,
       verticalRate: (number(entry.baro_rate) ?? number(entry.geom_rate) ?? 0) * FOOT_PER_MINUTE,
       squawk: text(entry.squawk),
       selectedAltitude: number(entry.nav_altitude_mcp) === null ? null : Math.round(number(entry.nav_altitude_mcp)! * FOOT),

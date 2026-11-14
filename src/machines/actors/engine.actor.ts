@@ -14,6 +14,7 @@ import { directTileUrl, edgeTileUrl } from '../../domain/tiles.ts';
 import type { Pose } from '../../domain/view.ts';
 import type { OverlayFeature } from '../../engine/OverlayLayer.ts';
 import type { AircraftModel } from '../../engine/AircraftLayer.ts';
+import type { TrajectoryPoint } from '../../engine/TrajectoryLayer.ts';
 import { aircraftMarkerStyle } from '../../engine/overlays/aircraftMarkers.ts';
 import { cameraMarkerStyle } from '../../engine/overlays/cameraMarkers.ts';
 import { placeLabelStyle } from '../../engine/overlays/placeLabels.ts';
@@ -42,7 +43,9 @@ export type EngineCommand =
   | { type: 'viewer.orbitStopped' }
   | { type: 'viewer.followChanged'; target: FollowTarget | null }
   | { type: 'viewer.poseCaptureRequested' }
-  | { type: 'viewer.captureRequested' };
+  | { type: 'viewer.captureRequested' }
+  /** Trajectoire du vol sélectionné : chemin parcouru, estimation, instant désigné. */
+  | { type: 'viewer.trajectoryChanged'; past: TrajectoryPoint[]; future: TrajectoryPoint[]; cursor: TrajectoryPoint | null };
 
 /** Ce que le moteur rapporte. */
 export type EngineReport =
@@ -138,6 +141,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
         case 'viewer.followChanged': return engine.follow(command.target);
         case 'viewer.poseCaptureRequested':
           return sendBack({ type: 'engine.poseCaptured', pose: engine.getPose() });
+        case 'viewer.trajectoryChanged': return engine.setTrajectory(command.past, command.future, command.cursor);
         case 'viewer.captureRequested':
           return void engine.capture().then((capture) => sendBack({ type: 'engine.captured', ...capture }));
       }
