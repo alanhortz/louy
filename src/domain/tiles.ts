@@ -43,6 +43,8 @@ export interface TileRequest extends TileAddress {
   service: string;
   px: number;
   format: TileFormat;
+  /** Demande au relais de préparer aussi cette tuile aux autres millésimes (film du temps). */
+  warm?: boolean;
 }
 
 export type TileUrlBuilder = (request: TileRequest) => string;
@@ -50,8 +52,25 @@ export type TileUrlBuilder = (request: TileRequest) => string;
 export const directTileUrl: TileUrlBuilder = (request) =>
   exportUrl(request.service, paddedExtent(request), request.px, request.format);
 
-export const edgeTileUrl = (prefix: string): TileUrlBuilder => ({ service, px, level, i, j, format }) =>
-  `${prefix}/tiles/${service}/${px}/${level}/${i}/${j}.${format}`;
+/** Marque, dans l'adresse, d'une tuile demandée par le film du temps. Le cache du relais l'ignore. */
+export const WARM_FLAG = 'film';
+
+export const edgeTileUrl = (prefix: string): TileUrlBuilder => ({ service, px, level, i, j, format, warm }) =>
+  `${prefix}/tiles/${service}/${px}/${level}/${i}/${j}.${format}${warm ? `?${WARM_FLAG}` : ''}`;
+
+const ORTHO = 'IMAGERIE/ORTHO_';
+
+/**
+ * Les mêmes photos aériennes aux autres millésimes : ce que le film du temps
+ * demandera juste après. Vide pour tout autre service que l'orthophoto.
+ */
+export function siblingVintages(service: string, suffixes: readonly string[]): string[] {
+  if (!service.startsWith(ORTHO)) return [];
+  const infrared = service.endsWith('_IR');
+  const own = service.slice(ORTHO.length, infrared ? -3 : undefined);
+  if (!suffixes.includes(own)) return [];
+  return suffixes.filter((suffix) => suffix !== own).map((suffix) => `${ORTHO}${suffix}${infrared ? '_IR' : ''}`);
+}
 
 /** Lecture inverse d'un chemin `edge` ; `null` si le chemin n'est pas une tuile valide. */
 export function parseTilePath(path: string): TileRequest | null {

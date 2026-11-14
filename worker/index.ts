@@ -15,6 +15,11 @@
  * Il relaie aussi `/edge/v1/aircraft.json`, les avions en vol : la réponse du
  * réseau adsb.lol est gardée quelques secondes, de sorte que le nombre de
  * requêtes vers ce réseau bénévole ne dépende pas du nombre de visiteurs.
+ * Préchauffage : une tuile de photo aérienne demandée par le film du temps
+ * (`?film`) et absente du cache annonce que la même tuile va être demandée à
+ * tous les autres millésimes. Le Worker va les chercher sans attendre, en
+ * arrière-plan : quand le navigateur y arrive, elles sont déjà là. Le SPW ne
+ * reçoit rien de plus que ce que le film lui aurait demandé — seulement plus tôt.
  *
  * Ce n'est pas un proxy ouvert : seuls les services, tailles et adresses de
  * tuiles que le viewer utilise réellement sont acceptés.
@@ -22,8 +27,9 @@
 
 import { FLIGHT_CELL, flightDatesUrl } from '../src/domain/acquisition.ts';
 import { AIRCRAFT_CACHE_SECONDS, AIRCRAFT_EDGE_PATH, aircraftFeedUrl } from '../src/domain/aircraft.ts';
+import { LATEST_VINTAGE, VINTAGES } from '../src/domain/catalog.ts';
 import {
-  SERVICE_PATTERN, TILE_SIZES, exportUrl, isImmutableService, parseTilePath,
+  SERVICE_PATTERN, TILE_SIZES, WARM_FLAG, edgeTileUrl, exportUrl, isImmutableService, parseTilePath, siblingVintages,
 } from '../src/domain/tiles.ts';
 import { WALLONIA_EXTENT, isValidAddress, paddedExtent } from '../src/domain/tiling.ts';
 
@@ -88,25 +94,12 @@ function aircraftUpstream(path: string): Upstream | null {
 const refusal = (status: number, message: string): Response =>
   new Response(message, { status, headers: { 'Cache-Control': 'no-store', 'Content-Type': 'text/plain; charset=utf-8' } });
 
-async function relay(request: Request, context: ExecutionContext): Promise<Response> {
-  const { origin, pathname } = new URL(request.url);
-  const route = pathname.slice(PREFIX.length);
-  const upstream = tileUpstream(route) ?? flightsUpstream(route) ?? aircraftUpstream(route);
-  if (!upstream) return refusal(404, 'Ressource inconnue');
-
-  // la clef ignore la chaîne de requête : impossible de fragmenter le cache par des paramètres
-  const cache = (caches as unknown as { default: Cache }).default;
-  const key = new Request(origin + pathname);
-  const cached = await cache.match(key);
-  if (cached) return cached;
-
+/** Demande une ressource à sa source ; `null` si la réponse n'est pas celle attendue. */
+async function fetchUpstream(upstream: Upstream): Promise<Response | null> {
   const answer = await fetch(upstream.url, { headers: { Accept: upstream.contentType } });
   const type = answer.headers.get('Content-Type') ?? '';
-  if (!answer.ok || !type.startsWith(upstream.contentType)) {
-    return refusal(502, 'La source n’a pas rendu cette ressource');
-  }
-
-  const response = new Response(answer.body, {
+  if (!answer.ok || !type.startsWith(upstream.contentType)) return null;
+  return new Response(answer.body, {
     headers: {
       'Content-Type': upstream.contentType,
       'Cache-Control': upstream.cacheControl,
@@ -115,7 +108,49 @@ async function relay(request: Request, context: ExecutionContext): Promise<Respo
       'X-Content-Type-Options': 'nosniff',
     },
   });
+}
+
+/** Millésimes datés : ceux que le film du temps parcourt. */
+const FILM_SUFFIXES = VINTAGES.filter((vintage) => vintage.id !== LATEST_VINTAGE).map((vintage) => vintage.suffix);
+const siblingPath = edgeTileUrl('');
+
+/**
+ * Va chercher la même tuile aux autres millésimes et la range dans le cache.
+ * L'une après l'autre : une tuile ne pèse jamais plus d'une requête à la fois
+ * sur le SPW, et l'ensemble reste sous le plafond de sous-requêtes d'un Worker.
+ */
+async function warmSiblings(cache: Cache, origin: string, route: string): Promise<void> {
+  const tile = parseTilePath(route);
+  if (!tile) return;
+  for (const service of siblingVintages(tile.service, FILM_SUFFIXES)) {
+    const path = siblingPath({ ...tile, service });
+    const upstream = tileUpstream(path);
+    if (!upstream) continue;
+    try {
+      const response = await fetchUpstream(upstream);
+      if (response) await cache.put(new Request(origin + PREFIX + path), response);
+    } catch { /* un millésime manqué sera simplement demandé plus tard, par le chemin ordinaire */ }
+  }
+}
+
+async function relay(request: Request, context: ExecutionContext): Promise<Response> {
+  const { origin, pathname, searchParams } = new URL(request.url);
+  const route = pathname.slice(PREFIX.length);
+  const upstream = tileUpstream(route) ?? flightsUpstream(route) ?? aircraftUpstream(route);
+  if (!upstream) return refusal(404, 'Ressource inconnue');
+
+  // la clef ignore la chaîne de requête : impossible de fragmenter le cache par des paramètres
+  const cache = (caches as unknown as { default: Cache }).default;
+  const key = new Request(origin + pathname);
+  const cached = await cache.match(key);
+  // déjà en cache : ses millésimes voisins ont été préparés avec elle
+  if (cached) return cached;
+
+  const response = await fetchUpstream(upstream);
+  if (!response) return refusal(502, 'La source n’a pas rendu cette ressource');
+
   context.waitUntil(cache.put(key, response.clone()));
+  if (searchParams.has(WARM_FLAG)) context.waitUntil(warmSiblings(cache, origin, route));
   return response;
 }
 

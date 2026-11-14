@@ -156,3 +156,7 @@
   .glass-select { padding: 9px 8px; font-size: 16px; }
   .style-btn { min-width: 70px; padding: 12px 10px 9px; }
 }
+
+/* bouton du film du temps : toute la largeur du bandeau, sous le choix de l'orthophoto */
+.dock-film { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.dock-film svg { width: 15px; height: 15px; stroke-width: 1.6; }

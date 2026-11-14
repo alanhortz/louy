@@ -32,6 +32,11 @@ export interface SceneSource {
   colorMode: 'service' | 'elevation' | 'slope';
   colorService: string | null;
   colorFormat: 'jpg';
+  /**
+   * La scène est une étape du film du temps : le relais est invité à préparer la
+   * même photo aux autres millésimes. Hors de la clef : le contenu est le même.
+   */
+  warm?: boolean;
 }
 
 /** Ramène une scène quelconque (lien partagé, saisie) à une scène valide. */

@@ -10,6 +10,7 @@
  *   places, cameras ──▶ viewer             sites ──▶ viewer
  *   (demande de partage) ──▶ viewer ──▶ share          viewer ──▶ activity
  *   layers (imagerie 3D) ──▶ viewer, object    aircraft ⇄ viewer
+ *   films ──▶ viewer, timeline             timeline ⇄ viewer
  */
 
 import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate';
@@ -17,6 +18,7 @@ import { PROJECT } from '../config/project.ts';
 import { QUALITY_PROFILES } from '../domain/quality.ts';
 import { isObjectScan, placeScans, scanFlyover, type Scan } from '../domain/scans.ts';
 import { resolveScene } from '../domain/scene.ts';
+import { timelineSteps, timelineTint, type FilmFraming } from '../domain/timeline.ts';
 import { DEFAULT_VIEW, encodeView, viewUrl, type View } from '../domain/view.ts';
 import type { SupportReport } from '../services/capabilities.ts';
 import { isAcknowledged } from '../services/preferences.ts';
@@ -32,15 +34,22 @@ import { placesMachine, type PlacesEmitted } from './places.machine.ts';
 import { createLayersMachine, type LayersEmitted } from './layers.machine.ts';
 import { SCANS_LAYER, drawnScans, scansLayer } from './scans.layer.ts';
 import type { OverlayName } from './actors/engine.actor.ts';
+import { filmsMachine, type FilmsEmitted } from './films.machine.ts';
 import { sceneMachine, type SceneEmitted } from './scene.machine.ts';
 import { shareMachine } from './share.machine.ts';
 import { sitesMachine, type SitesEmitted } from './sites.machine.ts';
 import { telemetryMachine } from './telemetry.machine.ts';
+import { timelineMachine, type TimelineEmitted } from './timeline.machine.ts';
+
+/** Cadrage du film tourné qui remplit le mieux l'écran : debout sur un téléphone tenu droit. */
+const filmFraming = (): FilmFraming =>
+  (typeof window !== 'undefined' && window.innerHeight > window.innerWidth ? 'portrait' : 'paysage');
 import { viewerMachine, type ViewerEmitted } from './viewer.machine.ts';
 
 export type AppEvent =
   | { type: 'app.shareRequested' }
   | { type: 'app.homeRequested' }
+  | { type: 'app.timelineRequested' }
   | SceneEmitted
   | ViewerEmitted
   | PlacesEmitted
@@ -48,7 +57,9 @@ export type AppEvent =
   | SitesEmitted
   | LayersEmitted<Scan>
   | ObjectEmitted
-  | AircraftEmitted;
+  | AircraftEmitted
+  | FilmsEmitted
+  | TimelineEmitted;
 
 export interface AppInput {
   /** Vue lue dans l'URL au chargement. */
@@ -93,6 +104,8 @@ export const appMachine = setup({
       layers: 'layers';
       object: 'object';
       aircraft: 'aircraft';
+      films: 'films';
+      timeline: 'timeline';
       acquisition: 'acquisition';
       activity: 'activity';
       share: 'share';
@@ -111,6 +124,8 @@ export const appMachine = setup({
     layers: createLayersMachine([scansLayer]),
     object: objectMachine,
     aircraft: aircraftMachine,
+    films: filmsMachine,
+    timeline: timelineMachine,
     acquisition: acquisitionMachine,
     activity: activityMachine,
     share: shareMachine,
@@ -212,6 +227,8 @@ export const appMachine = setup({
         },
         { id: 'object', src: 'object' },
         { id: 'aircraft', src: 'aircraft', input: ({ context }) => ({ visible: context.view.overlays.aircraft }) },
+        { id: 'films', src: 'films' },
+        { id: 'timeline', src: 'timeline' },
         {
           id: 'acquisition',
           src: 'acquisition',
@@ -253,8 +270,67 @@ export const appMachine = setup({
 
         /* ---- le relief se charge : la pastille l'annonce ---- */
         'viewer.activityChanged': {
-          actions: sendTo('activity', ({ event }) =>
-            ({ type: 'activity.changed', loading: event.loading, points: event.points })),
+          actions: [
+            sendTo('activity', ({ event }) =>
+              ({ type: 'activity.changed', loading: event.loading, points: event.points })),
+            // le film du temps attend la fin de chaque chargement pour photographier
+            sendTo('timeline', ({ event }) => ({ type: 'timeline.activityChanged', loading: event.loading })),
+          ],
+        },
+
+        /* ---- film du temps : la vue, millésime par millésime, photographiée puis rendue à sa scène ---- */
+        'app.timelineRequested': {
+          actions: [
+            sendTo('viewer', { type: 'viewer.orbitStopped' }),
+            sendTo('timeline', ({ context }) =>
+              ({ type: 'timeline.opened', steps: timelineSteps(context.view.scene.tint) })),
+          ],
+        },
+        // le millésime n'est changé que dans le viewer : ni la scène choisie ni le lien ne bougent
+        'timeline.vintageRequested': {
+          actions: sendTo('viewer', ({ context, event }) => ({
+            type: 'viewer.sceneChanged',
+            source: {
+              ...resolveScene({ ...context.view.scene, tint: timelineTint(context.view.scene.tint), vintage: event.vintage }),
+              // le relais Cloudflare prépare les millésimes suivants pendant que celui-ci s'affiche
+              warm: true,
+            },
+          })),
+        },
+        'timeline.captureRequested': { actions: sendTo('viewer', { type: 'viewer.captureRequested' }) },
+        'viewer.captured': {
+          actions: sendTo('timeline', ({ event }) => ({
+            type: 'timeline.frameCaptured',
+            url: event.blob ? URL.createObjectURL(event.blob) : null,
+            blank: event.blank,
+          })),
+        },
+        'timeline.restoreRequested': {
+          actions: sendTo('viewer', ({ context }) =>
+            ({ type: 'viewer.sceneChanged', source: resolveScene(context.view.scene) })),
+        },
+
+        /* ---- films signalés sur la carte : un marqueur par lieu ; le toucher cadre le lieu et lance son film ---- */
+        'films.markersChanged': {
+          actions: [
+            sendTo('viewer', ({ event }) =>
+              ({ type: 'viewer.overlayChanged', layer: 'films', features: event.features })),
+            sendTo('viewer', ({ event }) =>
+              ({ type: 'viewer.overlayActivated', layer: 'films', id: event.activeId })),
+          ],
+        },
+        'films.playRequested': {
+          actions: [
+            sendTo('viewer', { type: 'viewer.orbitStopped' }),
+            sendTo('viewer', ({ event }) => ({ type: 'viewer.poseApplied', pose: event.place.view })),
+            sendTo('timeline', ({ context, event }) => ({
+              type: 'timeline.opened',
+              steps: timelineSteps(context.view.scene.tint),
+              // le film de ce lieu est déjà tourné, en photo : il vient du CDN, cadré pour l'écran du visiteur
+              ...(event.place.prepared && timelineTint(context.view.scene.tint) === 'ortho'
+                ? { prepared: event.place.prepared, framing: filmFraming() } : {}),
+            })),
+          ],
         },
 
         /* ---- les calques publient leurs entités : le viewer les dessine ---- */
@@ -294,6 +370,10 @@ export const appMachine = setup({
           {
             guard: ({ event }) => event.layer === 'scans',
             actions: sendTo('layers', ({ event }) => ({ type: 'layers.picked', layer: SCANS_LAYER, id: event.id })),
+          },
+          {
+            guard: ({ event }) => event.layer === 'films',
+            actions: sendTo('films', ({ event }) => ({ type: 'films.picked', id: event.id })),
           },
         ],
         'cameras.selectionChanged': {

@@ -1,10 +1,12 @@
+import { FilmIcon } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import { CAMPAIGNS, SURFACES, TINTS, VINTAGES, tintById } from '../../domain/catalog.ts';
-import { useChild } from '../actors.ts';
+import { useApp, useChild } from '../actors.ts';
 import { Panel } from './Panel.tsx';
 
 /** Ce que l'on regarde : habillage du relief, modèle de surface, campagne LiDAR, millésime. */
 export function RenderDock() {
+  const app = useApp();
   const sceneActor = useChild('scene');
   const scene = useSelector(sceneActor, (snapshot) => snapshot.context.scene);
   const expanded = useSelector(useChild('chrome'), (snapshot) => snapshot.matches({ render: 'expanded' }));
@@ -81,6 +83,16 @@ export function RenderDock() {
               ))}
             </select>
           </label>
+
+          <button
+            type="button"
+            className="scene-btn dock-film"
+            title="Voir cette vue évoluer d’une photo aérienne à l’autre, en plein écran"
+            onClick={() => app.send({ type: 'app.timelineRequested' })}
+          >
+            <FilmIcon aria-hidden="true" />
+            FILM DU TEMPS
+          </button>
         </div>
       </Panel>
     </div>

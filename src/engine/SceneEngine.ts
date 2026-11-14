@@ -40,6 +40,10 @@ const SETTLE_DELAY_MS = 320;
 const IDLE_FRAMES = 4;
 /** Vitesse de l'orbite automatique : un tour en une minute environ. */
 const ORBIT_SPEED = (2 * Math.PI) / 64;
+/** Côté, en pixels, de la vignette qui sert à juger une capture. */
+const CAPTURE_PROBE = 32;
+/** Part de pixels blancs au-delà de laquelle une capture est tenue pour vide. */
+const BLANK_SHARE = 0.6;
 /** Inclinaison adoptée pour survoler un lieu. */
 const FLYOVER_TILT = 58;
 
@@ -295,6 +299,32 @@ export class SceneEngine {
     this.#wake();
   }
 
+  /**
+   * Photographie la vue telle qu'elle est rendue, sans les entités posées dessus.
+   * `blank` signale une image presque entièrement blanche : la photo aérienne du
+   * millésime demandé ne couvre pas cet endroit.
+   */
+  capture(): Promise<{ blob: Blob | null; blank: boolean }> {
+    // l'image du canvas n'est garantie qu'au sein de la tâche qui vient de la dessiner
+    this.#render();
+    let blank = false;
+    const probe = document.createElement('canvas');
+    probe.width = probe.height = CAPTURE_PROBE;
+    const context = probe.getContext('2d', { willReadFrequently: true });
+    if (context) {
+      context.drawImage(this.#canvas, 0, 0, CAPTURE_PROBE, CAPTURE_PROBE);
+      const { data } = context.getImageData(0, 0, CAPTURE_PROBE, CAPTURE_PROBE);
+      let white = 0;
+      for (let at = 0; at < data.length; at += 4) {
+        if (data[at]! > 232 && data[at + 1]! > 232 && data[at + 2]! > 232) white++;
+      }
+      blank = white / (data.length / 4) > BLANK_SHARE;
+    }
+    return new Promise((resolve) => {
+      this.#canvas.toBlob((blob) => resolve({ blob, blank }), 'image/jpeg', 0.92);
+    });
+  }
+
   /** Déclare un calque en superposition ; sans effet s'il existe déjà. */
   addOverlay<F extends OverlayFeature>(name: string, style: OverlayStyle<F>): void {
     if (this.#overlays.has(name)) return;
@@ -469,7 +499,9 @@ export class SceneEngine {
       elevUrl: this.#tileUrl({ ...address, service: source.elevationService, px: T.REQUEST_PX, format: 'png' }),
       // au niveau le plus fin la couleur est demandée à sa résolution native (25 cm)
       colorUrl: source.colorService
-        ? this.#tileUrl({ ...address, service: source.colorService, px: T.REQUEST_PX * sup, format: source.colorFormat })
+        ? this.#tileUrl({
+          ...address, service: source.colorService, px: T.REQUEST_PX * sup, format: source.colorFormat, warm: source.warm,
+        })
         : null,
       lutKey: source.lutKey,
       colorMode: source.colorMode,
