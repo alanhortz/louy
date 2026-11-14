@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createActor, createMachine, sendTo, type AnyEventObject } from 'xstate';
+import { createActor, createMachine, fromPromise, sendTo, waitFor, type AnyEventObject } from 'xstate';
 import { isBelgianAddress, militaryLabel, parseAircraft, type Aircraft } from '../src/domain/aircraft.ts';
 import { PHOTO_FAMILIES, PHOTO_HOSTS, isFreeLicence, parseAircraftPhotos, plainAuthor } from '../src/domain/aircraftPhotos.ts';
 import { AIRFRAMES } from '../src/domain/airframes.ts';
 import { AHEAD_SECONDS, pointAt, projectAhead, recordTracks, thin, type TrackPoint, type Tracks } from '../src/domain/trajectory.ts';
-import { trajectoryCursor, trajectoryMachine } from '../src/machines/trajectory.machine.ts';
+import { ROUTE_ROUTE, isPlausibleRoute, parseRoute, routeCallsign, routeEdgePath, routeUrl, type FlightRoute } from '../src/domain/flightRoute.ts';
+import { trajectoryCursor, trajectoryMachine, trajectoryRoute } from '../src/machines/trajectory.machine.ts';
 
 const NOW = 1_800_000_000_000;
 const flight = (over: Partial<Aircraft> = {}): Aircraft => ({
@@ -124,17 +125,20 @@ describe('machine de la trajectoire', () => {
     { at: NOW - 300_000, x: 590000, y: 620000, altitude: 8000, speed: 200 },
     { at: NOW, x: 650000, y: 620000, altitude: 6000, speed: 200 },
   ];
+  const sofia: FlightRoute = { airline: 'Ryanair', origin: { code: 'SOF', city: 'Sofia', name: 'Sofia Airport', country: 'BG', lat: 42.7, lon: 23.41 }, destination: { code: 'BHX', city: 'Birmingham', name: 'Birmingham International Airport', country: 'GB', lat: 52.45, lon: -1.75 } };
+  const almaty: FlightRoute = { airline: null, origin: { ...sofia.origin, code: 'ALA', lat: 43.35, lon: 77.04 }, destination: { ...sofia.destination, code: 'HKG', lat: 22.31, lon: 113.91 } };
   function tracker() {
     const announced: AnyEventObject[] = [];
+    const routes = vi.fn(async ({ input }: { input: string | null }): Promise<FlightRoute | null> => (input === 'JAF6LX' ? sofia : input === 'QTR8058' ? almaty : null));
     const parent = createActor(createMachine({
-      invoke: { id: 'trajectory', src: trajectoryMachine },
+      invoke: { id: 'trajectory', src: trajectoryMachine.provide({ actors: { loadRoute: fromPromise(routes) } }) },
       on: {
         'to.child': { actions: sendTo('trajectory', ({ event }) => (event as AnyEventObject).event) },
         '*': { actions: ({ event }) => { announced.push(event); } },
       },
     })).start();
     const actor = parent.getSnapshot().children.trajectory!;
-    return { announced, actor, send: (event: AnyEventObject) => parent.send({ type: 'to.child', event }) };
+    return { announced, actor, routes, send: (event: AnyEventObject) => parent.send({ type: 'to.child', event }) };
   }
 
   it('montre la trace relevée de l’appareil sélectionné, et l’estimation devant lui', () => {
@@ -190,6 +194,62 @@ describe('machine de la trajectoire', () => {
     send({ type: 'trajectory.aircraftChanged', aircraft: null, track: [] });
     expect(actor.getSnapshot().matches('idle')).toBe(true);
     expect(announced.at(-1)).toEqual({ type: 'trajectory.changed', past: [], future: [], cursor: null });
+  });
+
+  it('cherche une fois la liaison de l’appareil, et la refait pour un autre', async () => {
+    const { actor, send, routes } = tracker();
+    send({ type: 'trajectory.aircraftChanged', aircraft: flight(), track });
+    await waitFor(actor, (snapshot) => snapshot.matches({ tracking: 'routed' }));
+    expect(trajectoryRoute(actor.getSnapshot() as never)).toEqual(sofia);
+    send({ type: 'trajectory.aircraftChanged', aircraft: flight({ seenAt: NOW + 5000 }), track });
+    expect(routes).toHaveBeenCalledTimes(1);
+
+    // une liaison que la position de l'appareil dément : écartée
+    send({ type: 'trajectory.aircraftChanged', aircraft: flight({ id: '06a2e4', callsign: 'QTR8058' }), track });
+    await waitFor(actor, (snapshot) => snapshot.matches({ tracking: 'routed' }));
+    expect(routes).toHaveBeenCalledTimes(2);
+    expect(trajectoryRoute(actor.getSnapshot() as never)).toBeNull();
+
+    // un appareil sans indicatif de ligne : rien n'est demandé au réseau, rien n'est affiché
+    send({ type: 'trajectory.aircraftChanged', aircraft: flight({ id: 'ae07d9', callsign: 'OO-TMG' }), track });
+    expect(trajectoryRoute(actor.getSnapshot() as never)).toBeNull();
+    await waitFor(actor, (snapshot) => snapshot.matches({ tracking: 'routed' }));
+    expect(routes.mock.calls.at(-1)![0].input).toBeNull();
+    expect(trajectoryRoute(actor.getSnapshot() as never)).toBeNull();
+  });
+});
+
+describe('liaison d’un vol', () => {
+  const airportOf = (iata: string, city: string) => ({ latitude: 50, longitude: 4, iata_code: iata, icao_code: 'XXXX', municipality: city, name: `${city} Airport`, country_iso_name: 'BE' });
+
+  it('lit la liaison d’un indicatif, et rien d’une réponse incomplète', () => {
+    const route = parseRoute({ response: { flightroute: { airline: { name: 'Brussels Airlines' }, origin: airportOf('EVN', 'Yerevan'), destination: airportOf('BRU', 'Brussels') } } });
+    expect(route).toMatchObject({ airline: 'Brussels Airlines', origin: { code: 'EVN', city: 'Yerevan' }, destination: { code: 'BRU', city: 'Brussels', country: 'BE' } });
+    expect(parseRoute({ response: 'unknown callsign' })).toBeNull();
+    expect(parseRoute({ response: { flightroute: { origin: airportOf('EVN', 'Yerevan') } } })).toBeNull();
+    expect(parseRoute(null)).toBeNull();
+  });
+
+  it('écarte une liaison que la position de l’appareil dément', () => {
+    const liege = { lat: 50.64, lon: 5.44 };
+    const airport = (code: string, lat: number, lon: number) => ({ code, city: code, name: code, country: '', lat, lon });
+    const route = (from: ReturnType<typeof airport>, to: ReturnType<typeof airport>) => ({ airline: null, origin: from, destination: to });
+    // Sofia–Birmingham passe au-dessus de la Belgique ; Almaty–Hong Kong, non
+    expect(isPlausibleRoute(route(airport('SOF', 42.7, 23.41), airport('BHX', 52.45, -1.75)), liege)).toBe(true);
+    expect(isPlausibleRoute(route(airport('ALA', 43.35, 77.04), airport('HKG', 22.31, 113.91)), liege)).toBe(false);
+    // un vol court garde sa marge d'approche
+    expect(isPlausibleRoute(route(airport('BRU', 50.9, 4.48), airport('LGG', 50.64, 5.44)), { lat: 50.4, lon: 4.9 })).toBe(true);
+  });
+
+  it('ne demande que les indicatifs de ligne régulière', () => {
+    expect(['RYR70KU', ' bel7wc ', 'OO-TMG', 'OOTMG', '', null].map(routeCallsign)).toEqual(['RYR70KU', 'BEL7WC', null, null, null, null]);
+  });
+
+  it('n’accepte dans l’adresse du relais qu’un indicatif', () => {
+    expect(ROUTE_ROUTE.exec(routeEdgePath('RYR70KU'))?.[1]).toBe('RYR70KU');
+    expect(ROUTE_ROUTE.test('/aircraft/route/../../x.json')).toBe(false);
+    expect(ROUTE_ROUTE.test('/aircraft/route/ryr70ku.json')).toBe(false);
+    expect(routeUrl('RYR70KU')).toBe('https://api.adsbdb.com/v0/callsign/RYR70KU');
   });
 });
 
