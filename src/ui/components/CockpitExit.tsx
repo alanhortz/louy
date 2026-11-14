@@ -4,9 +4,9 @@ import { selectedAircraft } from '../../machines/aircraft.machine.ts';
 import { useChild } from '../actors.ts';
 
 /**
- * Sortie de la vue cockpit. Sur petit écran, le panneau des avions couvrirait la
- * vue : il s'efface (voir cockpit.css) et ce seul bouton reste, discret, avec
- * l'indicatif du vol dont on occupe le poste de pilotage.
+ * Sortie de la vue cockpit : un bouton discret au bas de l'écran, avec l'indicatif
+ * du vol dont on occupe le poste de pilotage. Le même sur grand et sur petit
+ * écran ; sur petit écran, le rail et les panneaux s'effacent en plus (cockpit.css).
  */
 export function CockpitExit() {
   const actor = useChild('aircraft');

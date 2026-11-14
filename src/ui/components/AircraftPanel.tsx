@@ -42,7 +42,7 @@ export function AircraftPanel() {
   const enabled = feed !== 'off';
 
   return (
-    <Panel id="aircraft" title="Avions" glyphs={['◀', '▶']} className="aircraft-panel">
+    <Panel id="aircraft" title="Avions" className="aircraft-panel">
       {!enabled && (
         <div className="aircraft-empty">
           <p>Les avions qui survolent la Wallonie, en direct, avec leur altitude et leur route.</p>
