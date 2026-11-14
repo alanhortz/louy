@@ -12,15 +12,20 @@
  *                                      └─ (frise, clavier : image précédente, suivante, choisie)
  *            preparing ──▶ empty        (aucune photo exploitable ici)
  *
+ *   idle ──▶ fetching ──▶ presenting    (film déjà tourné : ses images viennent du CDN)
+ *            fetching ──▶ preparing     (film introuvable : on le tourne sur place)
+ *
  * Elle ne connaît ni la carte ni le moteur : elle demande un millésime, attend
  * qu'on lui dise que la vue est chargée, demande une photo, et la reçoit.
  */
 
-import { assign, sendParent, setup, type SnapshotFrom } from 'xstate';
-import { TIMELINE_STEP_MS, type TimelineStep } from '../domain/timeline.ts';
+import { assign, fromPromise, sendParent, setup, type SnapshotFrom } from 'xstate';
+import { TIMELINE_STEP_MS, type FilmFraming, type TimelineStep } from '../domain/timeline.ts';
+import { loadPreparedFilm, type LoadedFilm } from '../services/films.ts';
 
 export type TimelineEvent =
-  | { type: 'timeline.opened'; steps: TimelineStep[] }
+  /** `prepared` : dossier d'un film déjà tourné pour cette vue, à préférer à la préparation sur place. */
+  | { type: 'timeline.opened'; steps: TimelineStep[]; prepared?: string; framing?: FilmFraming }
   | { type: 'timeline.closed'; by: 'button' | 'escape' | 'fullscreen' }
   | { type: 'timeline.activityChanged'; loading: boolean }
   | { type: 'timeline.frameCaptured'; url: string | null; blank: boolean }
@@ -45,6 +50,8 @@ interface TimelineContext {
   skipped: TimelineStep[];
   /** Rang, dans `frames`, de l'image à l'écran. */
   index: number;
+  /** Film déjà tourné en cours de téléchargement, le cas échéant. */
+  prepared: { base: string; framing: FilmFraming } | null;
   /**
    * La carte charge-t-elle en ce moment ? Tenu à jour en permanence : un film
    * demandé pendant un chargement ne verra jamais ce chargement « commencer ».
@@ -66,9 +73,15 @@ export const timelineMachine = setup({
     context: {} as TimelineContext,
     events: {} as TimelineEvent,
   },
+  actors: {
+    loadPrepared: fromPromise<LoadedFilm, { base: string; framing: FilmFraming }>(({ input, signal }) =>
+      loadPreparedFilm(input.base, input.framing, signal)),
+  },
   delays: { LOAD_START: LOAD_START_MS, LOAD_TIMEOUT: LOAD_TIMEOUT_MS, SETTLE: SETTLE_MS, ADVANCE: TIMELINE_STEP_MS },
   guards: {
     hasSteps: ({ event }) => event.type === 'timeline.opened' && event.steps.length > 0,
+    hasPrepared: ({ event }) => event.type === 'timeline.opened' && event.steps.length > 0 && event.prepared !== undefined,
+    loadedFrames: ({ event }) => (event as unknown as { output: LoadedFilm }).output.frames.length > 0,
     isLoading: ({ event }) => event.type === 'timeline.activityChanged' && event.loading,
     isLoaded: ({ event }) => event.type === 'timeline.activityChanged' && !event.loading,
     mapIsLoading: ({ context }) => context.mapLoading,
@@ -85,7 +98,14 @@ export const timelineMachine = setup({
     begin: assign(({ event }) => ({
       steps: event.type === 'timeline.opened' ? event.steps : [],
       cursor: 0, frames: [], skipped: [], index: 0,
+      prepared: event.type === 'timeline.opened' && event.prepared
+        ? { base: event.prepared, framing: event.framing ?? 'paysage' } : null,
     })),
+    /** Le film tourné est arrivé : ses images sont déjà dans le navigateur. */
+    keepPrepared: assign(({ event }) => {
+      const { frames, skipped } = (event as unknown as { output: LoadedFilm }).output;
+      return { frames, skipped, index: 0 };
+    }),
     requestVintage: sendParent(({ context }): TimelineEmitted =>
       ({ type: 'timeline.vintageRequested', vintage: context.steps[context.cursor]!.vintage })),
     requestCapture: sendParent((): TimelineEmitted => ({ type: 'timeline.captureRequested' })),
@@ -114,18 +134,39 @@ export const timelineMachine = setup({
     /** Les photos sont des fichiers en mémoire : on les libère en quittant. */
     release: assign(({ context }) => {
       for (const frame of context.frames) URL.revokeObjectURL(frame.url);
-      return { steps: [], cursor: 0, frames: [], skipped: [], index: 0 };
+      return { steps: [], cursor: 0, frames: [], skipped: [], index: 0, prepared: null };
     }),
   },
 }).createMachine({
   id: 'timeline',
-  context: { steps: [], cursor: 0, frames: [], skipped: [], index: 0, mapLoading: false },
+  context: { steps: [], cursor: 0, frames: [], skipped: [], index: 0, mapLoading: false, prepared: null },
   initial: 'idle',
   // hors préparation, l'état de la carte est seulement retenu
   on: { 'timeline.activityChanged': { actions: 'noteActivity' } },
   states: {
     idle: {
-      on: { 'timeline.opened': { guard: 'hasSteps', target: 'preparing', actions: 'begin' } },
+      on: {
+        'timeline.opened': [
+          { guard: 'hasPrepared', target: 'fetching', actions: 'begin' },
+          { guard: 'hasSteps', target: 'preparing', actions: 'begin' },
+        ],
+      },
+    },
+
+    /** Un film déjà tourné existe pour cette vue : on télécharge ses images, sans toucher à la carte. */
+    fetching: {
+      invoke: {
+        id: 'timeline.prepared',
+        src: 'loadPrepared',
+        input: ({ context }) => context.prepared!,
+        onDone: [
+          { guard: 'loadedFrames', target: 'presenting', actions: 'keepPrepared' },
+          // index vide ou images absentes : on tourne le film sur place, comme pour n'importe quelle vue
+          { target: 'preparing' },
+        ],
+        onError: 'preparing',
+      },
+      on: { 'timeline.closed': { target: 'idle', actions: 'release' } },
     },
 
     preparing: {
@@ -227,9 +268,10 @@ export const timelineMachine = setup({
 
 type TimelineSnapshot = SnapshotFrom<typeof timelineMachine>;
 
-export type TimelinePhase = 'idle' | 'preparing' | 'playing' | 'paused' | 'empty';
+export type TimelinePhase = 'idle' | 'fetching' | 'preparing' | 'playing' | 'paused' | 'empty';
 
 export function timelinePhase(snapshot: TimelineSnapshot): TimelinePhase {
+  if (snapshot.matches('fetching')) return 'fetching';
   if (snapshot.matches('preparing')) return 'preparing';
   if (snapshot.matches({ presenting: 'playing' })) return 'playing';
   if (snapshot.matches({ presenting: 'paused' })) return 'paused';

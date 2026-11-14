@@ -53,6 +53,43 @@ export interface FilmPlace {
   y: number;
   /** Cadrage du film. */
   view: Pose;
+  /**
+   * Dossier du film déjà tourné, s'il y en a un : ses images sont publiées avec
+   * le site et gardées par le CDN, le visiteur n'attend plus la préparation.
+   */
+  prepared?: string;
+}
+
+/**
+ * Film déjà tourné : la liste de ses images, telle que publiée dans
+ * `<dossier>/index.json`. Les images existent en deux cadrages, `paysage` et
+ * `portrait`, pour remplir l'écran sur ordinateur comme sur téléphone.
+ */
+export interface PreparedFilm {
+  frames: TimelineStep[];
+  /** Millésimes sans photo aérienne à cet endroit. */
+  skipped: TimelineStep[];
+}
+
+export type FilmFraming = 'paysage' | 'portrait';
+
+export const preparedIndexUrl = (base: string): string => `${base}/index.json`;
+export const preparedFrameUrl = (base: string, framing: FilmFraming, vintage: string): string =>
+  `${base}/${framing}/${vintage}.jpg`;
+
+const isStep = (value: unknown): value is TimelineStep => {
+  const step = value as Partial<TimelineStep> | null;
+  return typeof step?.vintage === 'string' && /^[0-9a-z-]{1,12}$/i.test(step.vintage)
+    && typeof step.label === 'string' && Number.isFinite(step.year);
+};
+
+/** Lecture tolérante de l'index d'un film tourné ; `null` s'il n'est pas exploitable. */
+export function parsePreparedFilm(payload: unknown): PreparedFilm | null {
+  const film = payload as { frames?: unknown; skipped?: unknown } | null;
+  if (!film || !Array.isArray(film.frames)) return null;
+  const frames = film.frames.filter(isStep);
+  if (frames.length === 0) return null;
+  return { frames, skipped: Array.isArray(film.skipped) ? film.skipped.filter(isStep) : [] };
 }
 
 export const FILM_PLACES: readonly FilmPlace[] = [
@@ -63,5 +100,6 @@ export const FILM_PLACES: readonly FilmPlace[] = [
     y: 627968,
     // le confluent de la Sambre et de la Meuse : parking à ciel ouvert, chantier, puis esplanade
     view: { x: 685487, y: 627968, distance: 256, azimuth: 204, tilt: 18 },
+    prepared: '/films/grognon',
   },
 ];

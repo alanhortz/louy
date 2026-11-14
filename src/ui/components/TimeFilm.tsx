@@ -83,6 +83,14 @@ export function TimeFilm() {
         </button>
       </header>
 
+      {phase === 'fetching' && (
+        <div className="film-center" role="status">
+          <p className="film-kicker">Chargement du film</p>
+          <div className="film-progress film-progress-busy" aria-hidden="true"><span /></div>
+          <p className="film-note">Ce lieu a son film déjà prêt</p>
+        </div>
+      )}
+
       {phase === 'preparing' && (
         <div className="film-center" role="status">
           <p className="film-kicker">Préparation du film</p>

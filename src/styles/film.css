@@ -116,3 +116,8 @@
   .film-hint { display: none; }
   .film-frise { padding: 12px 14px 10px; bottom: calc(14px + var(--safe-bottom)); }
 }
+
+/* film déjà tourné : son téléchargement est bref, la barre se contente de dire qu'il est en cours */
+.film-progress-busy span { width: 40%; animation: film-busy 1.1s ease-in-out infinite alternate; }
+@keyframes film-busy { from { transform: translateX(-20%); } to { transform: translateX(170%); } }
+@media (prefers-reduced-motion: reduce) { .film-progress-busy span { animation: none; width: 100%; opacity: 0.5; } }

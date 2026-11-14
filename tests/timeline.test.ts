@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createActor, createMachine, sendTo, type AnyEventObject } from 'xstate';
+import { createActor, createMachine, fromPromise, sendTo, waitFor, type AnyEventObject } from 'xstate';
 import { createTelemetryInspector } from '../src/app/inspector.ts';
 import { VINTAGES } from '../src/domain/catalog.ts';
-import { FILM_PLACES, timelinePosition, timelineSteps, timelineTint, TIMELINE_STEP_MS, type TimelineStep } from '../src/domain/timeline.ts';
+import { FILM_PLACES, parsePreparedFilm, preparedFrameUrl, timelinePosition, timelineSteps, timelineTint, TIMELINE_STEP_MS, type TimelineStep } from '../src/domain/timeline.ts';
 import { filmsFeed, filmsMachine } from '../src/machines/films.machine.ts';
 import { timelineMachine, timelinePhase, timelineProgress } from '../src/machines/timeline.machine.ts';
 import { TelemetryBuffer } from '../src/services/telemetry.ts';
@@ -229,6 +229,78 @@ describe('machine du film du temps', () => {
     }
     expect(journal).toContain('"by":"frise"');
     expect(journal).toContain('"by":"keyboard"');
+  });
+});
+
+describe('film déjà tourné', () => {
+  const loaded = {
+    frames: STEPS.slice(0, 2).map((step) => ({ ...step, url: `/films/lieu/paysage/${step.vintage}.jpg` })),
+    skipped: [STEPS[2]!],
+  };
+  /** Le film sous un parent factice, avec un téléchargement du film tourné au choix. */
+  function prepared(load: () => Promise<typeof loaded>) {
+    const announced: AnyEventObject[] = [];
+    const parent = createActor(createMachine({
+      invoke: { id: 'timeline', src: timelineMachine.provide({ actors: { loadPrepared: fromPromise(load) } }) },
+      on: {
+        'to.child': { actions: sendTo('timeline', ({ event }) => (event as AnyEventObject).event) },
+        '*': { actions: ({ event }) => { announced.push(event); } },
+      },
+    })).start();
+    const actor = parent.getSnapshot().children.timeline!;
+    return { announced, actor, send: (event: AnyEventObject) => parent.send({ type: 'to.child', event }) };
+  }
+  const open = { type: 'timeline.opened', steps: STEPS, prepared: '/films/lieu', framing: 'paysage' };
+
+  it('lit un index et en écarte ce qui n’est pas une étape', () => {
+    expect(parsePreparedFilm({ frames: [STEPS[0], { vintage: '../x', label: 'x', year: 1 }, null], skipped: [STEPS[1]] }))
+      .toEqual({ frames: [STEPS[0]], skipped: [STEPS[1]] });
+    expect(parsePreparedFilm({ frames: [] })).toBeNull();
+    expect(parsePreparedFilm('<html>')).toBeNull();
+    expect(preparedFrameUrl('/films/lieu', 'portrait', '1994')).toBe('/films/lieu/portrait/1994.jpg');
+  });
+
+  it('s’ouvre sur ses images sans rien demander à la carte', async () => {
+    const { actor, send, announced } = prepared(async () => loaded);
+    send(open);
+    expect(timelinePhase(actor.getSnapshot() as never)).toBe('fetching');
+    await waitFor(actor, (snapshot) => snapshot.matches('presenting'));
+    const { context } = actor.getSnapshot() as { context: { frames: { vintage: string }[]; skipped: { vintage: string }[] } };
+    expect(context.frames.map((frame) => frame.vintage)).toEqual(['1994', '2015']);
+    expect(context.skipped.map((step) => step.vintage)).toEqual(['2023']);
+    // ni millésime demandé, ni photo : la carte n'a pas été sollicitée
+    expect(announced.map((event) => event.type)).not.toContain('timeline.vintageRequested');
+    expect(announced.map((event) => event.type)).not.toContain('timeline.captureRequested');
+  });
+
+  it('se tourne sur place si le film publié est introuvable ou vide', async () => {
+    for (const load of [async () => { throw new Error('404'); }, async () => ({ frames: [], skipped: [] })]) {
+      const { actor, send, announced } = prepared(load as never);
+      send(open);
+      await waitFor(actor, (snapshot) => snapshot.matches('preparing'));
+      expect(announced.map((event) => event.type)).toContain('timeline.vintageRequested');
+    }
+  });
+
+  it('se laisse fermer pendant son téléchargement', () => {
+    const { actor, send } = prepared(() => new Promise(() => {}));
+    send(open);
+    send({ type: 'timeline.closed', by: 'escape' });
+    expect(timelinePhase(actor.getSnapshot() as never)).toBe('idle');
+  });
+
+  it('publie le film de chaque lieu qui en annonce un', async () => {
+    const { readFileSync, existsSync } = await import('node:fs');
+    for (const place of FILM_PLACES.filter((candidate) => candidate.prepared)) {
+      const root = new URL(`../public${place.prepared}/`, import.meta.url);
+      const film = parsePreparedFilm(JSON.parse(readFileSync(new URL('index.json', root), 'utf8')));
+      expect(film, place.id).not.toBeNull();
+      for (const frame of film!.frames) {
+        for (const framing of ['paysage', 'portrait']) {
+          expect(existsSync(new URL(`${framing}/${frame.vintage}.jpg`, root)), `${place.id} ${framing} ${frame.vintage}`).toBe(true);
+        }
+      }
+    }
   });
 });
 

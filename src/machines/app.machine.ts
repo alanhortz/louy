@@ -17,7 +17,7 @@ import { PROJECT } from '../config/project.ts';
 import { QUALITY_PROFILES } from '../domain/quality.ts';
 import { scanFlyover } from '../domain/scans.ts';
 import { resolveScene } from '../domain/scene.ts';
-import { timelineSteps, timelineTint } from '../domain/timeline.ts';
+import { timelineSteps, timelineTint, type FilmFraming } from '../domain/timeline.ts';
 import { DEFAULT_VIEW, encodeView, viewUrl, type View } from '../domain/view.ts';
 import type { SupportReport } from '../services/capabilities.ts';
 import { isAcknowledged } from '../services/preferences.ts';
@@ -35,6 +35,10 @@ import { shareMachine } from './share.machine.ts';
 import { sitesMachine, type SitesEmitted } from './sites.machine.ts';
 import { telemetryMachine } from './telemetry.machine.ts';
 import { timelineMachine, type TimelineEmitted } from './timeline.machine.ts';
+
+/** Cadrage du film tourné qui remplit le mieux l'écran : debout sur un téléphone tenu droit. */
+const filmFraming = (): FilmFraming =>
+  (typeof window !== 'undefined' && window.innerHeight > window.innerWidth ? 'portrait' : 'paysage');
 import { viewerMachine, type ViewerEmitted } from './viewer.machine.ts';
 
 export type AppEvent =
@@ -300,8 +304,13 @@ export const appMachine = setup({
           actions: [
             sendTo('viewer', { type: 'viewer.orbitStopped' }),
             sendTo('viewer', ({ event }) => ({ type: 'viewer.poseApplied', pose: event.place.view })),
-            sendTo('timeline', ({ context }) =>
-              ({ type: 'timeline.opened', steps: timelineSteps(context.view.scene.tint) })),
+            sendTo('timeline', ({ context, event }) => ({
+              type: 'timeline.opened',
+              steps: timelineSteps(context.view.scene.tint),
+              // le film de ce lieu est déjà tourné, en photo : il vient du CDN, cadré pour l'écran du visiteur
+              ...(event.place.prepared && timelineTint(context.view.scene.tint) === 'ortho'
+                ? { prepared: event.place.prepared, framing: filmFraming() } : {}),
+            })),
           ],
         },
 
