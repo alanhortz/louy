@@ -1,8 +1,8 @@
 /**
  * Marqueurs des caméras routières.
  *
- * Même gabarit que les marqueurs de l'imagerie 3D : cible de 44 px, icône de
- * 28 px au halo cyan (or quand elle est sélectionnée), et sous elle une légende
+ * Même gabarit que les marqueurs de l'imagerie 3D : cible de 44 px, icône au
+ * halo cyan — de 14 px, moitié moins grande : les caméras sont nombreuses — (or quand elle est sélectionnée), et sous elle une légende
  * à deux lignes — le genre, puis le nom. De loin l'icône est seule ; de près la
  * légende apparaît, avec au-dessus la dernière image de la caméra.
  *
@@ -35,13 +35,13 @@ export const cameraMarkerStyle: OverlayStyle<CameraFeature> = {
   className: 'overlay-cameras',
   maxVisible: 64,
   detailDistance: 6000,
-  footprint: () => ({ width: 30, height: 30 }),
+  footprint: () => ({ width: 18, height: 18 }),
   create() {
     const element = document.createElement('button');
     element.type = 'button';
     element.className = 'scan-marker camera-marker';
     element.innerHTML =
-      '<img class="scan-marker-icon" alt="" width="28" height="28" />'
+      '<img class="scan-marker-icon" alt="" width="14" height="14" />'
       + '<span class="camera-card"><img alt="" width="96" height="54" /></span>'
       + '<span class="scan-caption"><b>Caméra</b><span></span></span>';
     return element;
