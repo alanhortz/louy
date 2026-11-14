@@ -13,7 +13,8 @@
  */
 
 import {
-  BufferGeometry, DirectionalLight, Euler, Float32BufferAttribute, HemisphereLight, Line, LineBasicMaterial, LineLoop, Mesh, MeshLambertMaterial, Quaternion, Scene as ThreeScene, type PerspectiveCamera, type WebGLRenderer,
+  BufferGeometry, DirectionalLight, Euler, HemisphereLight, Mesh, MeshLambertMaterial, Quaternion,
+  Scene as ThreeScene, type PerspectiveCamera, type WebGLRenderer,
 } from 'three';
 import { AIRFRAMES, type Attitude } from '../domain/airframes.ts';
 import * as T from '../domain/tiling.ts';
@@ -36,10 +37,6 @@ export interface AircraftModel {
 const DEG = Math.PI / 180;
 /** Longueur minimale d'une maquette à l'écran, en pixels. */
 const MIN_SCREEN_LENGTH = 30;
-/** Cercle au sol, à l'aplomb de l'appareil sélectionné : rayon réel, rayon minimal à l'écran, finesse du tracé. */
-const FOOTPRINT_RADIUS = 120;
-const FOOTPRINT_SCREEN_RADIUS = 9;
-const FOOTPRINT_SEGMENTS = 48;
 /** Une maquette plus proche que cela de la caméra est celle où l'on est assis : on ne la dessine pas. */
 const COCKPIT_RADIUS = 60;
 /** Vitesse à laquelle l'assiette affichée rejoint l'assiette connue (par seconde). */
@@ -53,6 +50,9 @@ export function airframeOrientation(heading: number, pitch: number, roll: number
   return out.setFromEuler(new Euler(pitch * DEG, -heading * DEG, -roll * DEG, 'YXZ'));
 }
 
+/** Position d'un appareil dans le repère du viewer, et altitude du sol à son aplomb. */
+export interface AircraftAnchor { x: number; y: number; z: number; ground: number }
+
 interface Entry { mesh: Mesh<BufferGeometry, MeshLambertMaterial>; model: AircraftModel; length: number }
 
 export class AircraftLayer {
@@ -64,14 +64,8 @@ export class AircraftLayer {
   /** Appareil sélectionné : la même maquette, réchauffée d'or comme les autres marqueurs. */
   readonly #active = new MeshLambertMaterial({ vertexColors: true, flatShading: true, color: 0xffe2a0, emissive: 0x6a4a00 });
   readonly #target = new Quaternion();
-  /**
-   * Aplomb de l'appareil sélectionné : un fil jusqu'au sol et un cercle posé dessus,
-   * pour lire au-dessus de quel lieu il se trouve.
-   */
-  readonly #plumbMaterial = new LineBasicMaterial({ color: 0xffd97a, transparent: true, opacity: 0.8, depthTest: false });
-  readonly #plumb = new Line(new BufferGeometry(), this.#plumbMaterial);
-  readonly #footprint = new LineLoop(new BufferGeometry(), this.#plumbMaterial);
   #activeId: string | null = null;
+  #anchor: AircraftAnchor | null = null;
   #last = 0;
 
   constructor(renderer: WebGLRenderer) {
@@ -79,25 +73,12 @@ export class AircraftLayer {
     const sun = new DirectionalLight(0xffffff, 1.7);
     sun.position.set(0.35, 1, 0.25);
     this.#scene.add(new HemisphereLight(0xffffff, 0x4a5560, 1.25), sun);
-
-    // le fil : un segment vertical d'un mètre, étiré à la hauteur de l'appareil
-    this.#plumb.geometry.setAttribute('position', new Float32BufferAttribute([0, 0, 0, 0, 1, 0], 3));
-    // le cercle : un mètre de rayon, à plat, agrandi pour rester lisible
-    const ring = Array.from({ length: FOOTPRINT_SEGMENTS }, (_, k) => {
-      const angle = (k / FOOTPRINT_SEGMENTS) * Math.PI * 2;
-      return [Math.cos(angle), 0, Math.sin(angle)];
-    }).flat();
-    this.#footprint.geometry.setAttribute('position', new Float32BufferAttribute(ring, 3));
-    for (const object of [this.#plumb, this.#footprint]) {
-      object.frustumCulled = false;
-      object.visible = false;
-      // dessinés avant les maquettes : l'avion se lit par-dessus son fil
-      object.renderOrder = -1;
-    }
-    this.#scene.add(this.#plumb, this.#footprint);
   }
 
   get count(): number { return this.#entries.size; }
+
+  /** Où se trouve, à la dernière image dessinée, l'appareil sélectionné ; `null` s'il est posé, absent, ou qu'on est assis dedans. */
+  get anchor(): AircraftAnchor | null { return this.#anchor; }
 
   setModels(models: readonly AircraftModel[]): void {
     const wanted = new Set(models.map((model) => model.id));
@@ -153,7 +134,7 @@ export class AircraftLayer {
     // taille, en pixels, d'un mètre vu à un mètre : sert à garder les maquettes lisibles de loin
     const pixelsAtUnit = viewportHeight / (2 * Math.tan((camera.fov * DEG) / 2));
 
-    this.#plumb.visible = this.#footprint.visible = false;
+    this.#anchor = null;
     for (const [id, { mesh, model, length }] of this.#entries) {
       const dt = Math.min(model.motion.horizon, Math.max(0, (now - model.motion.at) / 1000));
       const worldX = model.x + model.motion.vx * dt - T.ORIGIN.x;
@@ -169,18 +150,8 @@ export class AircraftLayer {
       mesh.scale.setScalar(scale);
       // posé, l'appareil agrandi reste sur ses roues : il grandit vers le haut, pas dans le sol
       if (grounded) mesh.position.y += scale * length * 0.06;
-
-      // l'aplomb de l'appareil sélectionné, tant qu'il vole et qu'on n'est pas assis dedans
       if (id === this.#activeId && !grounded && mesh.visible) {
-        const ground = groundAt(worldX, worldZ);
-        if (altitude > ground) {
-          this.#plumb.position.set(worldX, ground, worldZ);
-          this.#plumb.scale.set(1, altitude - ground, 1);
-          this.#footprint.position.set(worldX, ground, worldZ);
-          const reach = Math.hypot(camera.position.x - worldX, camera.position.y - ground, camera.position.z - worldZ);
-          this.#footprint.scale.setScalar(Math.max(FOOTPRINT_RADIUS, (FOOTPRINT_SCREEN_RADIUS * reach) / pixelsAtUnit));
-          this.#plumb.visible = this.#footprint.visible = true;
-        }
+        this.#anchor = { x: worldX, y: altitude, z: worldZ, ground: groundAt(worldX, worldZ) };
       }
     }
 
@@ -198,9 +169,6 @@ export class AircraftLayer {
     this.#entries.clear();
     for (const geometry of this.#geometries.values()) geometry.dispose();
     this.#geometries.clear();
-    this.#plumb.geometry.dispose();
-    this.#footprint.geometry.dispose();
-    this.#plumbMaterial.dispose();
     this.#idle.dispose();
     this.#active.dispose();
   }
