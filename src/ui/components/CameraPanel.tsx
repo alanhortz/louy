@@ -62,7 +62,7 @@ export function CameraPanel() {
       : 'Activez les caméras pour charger le réseau routier';
 
   return (
-    <Panel id="camera" title="Caméras" glyphs={['◀', '▶']} className="camera-panel">
+    <Panel id="camera" title="Caméras" className="camera-panel">
       <div className={`cctv-frame-wrap ${state === 'loading' ? 'loading' : ''} ${frame ? 'has-frame' : ''}`}>
         <img
           className={`cctv-frame ${frame ? 'active' : ''}`}
