@@ -3,6 +3,7 @@ import { aircraftPhase, phaseLabel, type Aircraft } from '../../domain/aircraft.
 import { aircraftFeed, listedAircraft, selectedAircraft } from '../../machines/aircraft.machine.ts';
 import { AIRCRAFT_SOURCE } from '../../services/aircraft.ts';
 import { useChild } from '../actors.ts';
+import { AirframePreview } from './AirframePreview.tsx';
 import { Panel } from './Panel.tsx';
 
 const whole = new Intl.NumberFormat('fr-BE', { maximumFractionDigits: 0 });
@@ -55,7 +56,8 @@ export function AircraftPanel() {
       {enabled && aircraft && (
         <section className="aircraft-card" aria-label={`Vol ${aircraft.callsign}`}>
           <header className="aircraft-card-header">
-            <div>
+            <AirframePreview type={aircraft.type} category={aircraft.category} />
+            <div className="aircraft-card-title">
               <span className="aircraft-callsign">{aircraft.callsign}</span>
               <span className="aircraft-identity">
                 {[aircraft.type, aircraft.registration].filter(Boolean).join(' · ') || 'appareil non identifié'}
