@@ -15,7 +15,7 @@
 import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate';
 import { PROJECT } from '../config/project.ts';
 import { QUALITY_PROFILES } from '../domain/quality.ts';
-import { isObjectScan, placeScans, scanFlyover, type Scan } from '../domain/scans.ts';
+import { groupFlyover, isObjectScan, placeScans, scanFlyover, type Scan } from '../domain/scans.ts';
 import { resolveScene } from '../domain/scene.ts';
 import { DEFAULT_VIEW, encodeView, viewUrl, type View } from '../domain/view.ts';
 import type { SupportReport } from '../services/capabilities.ts';
@@ -347,6 +347,10 @@ export const appMachine = setup({
             // le lieu sélectionné est dessiné dans la carte ; il s'en retire avec la sélection
             sendTo('viewer', ({ event }) => ({ type: 'viewer.scansChanged', scans: drawnScans(event.item) })),
           ],
+        },
+        // le marqueur touché rassemble des lieux et des objets : la caméra s'en approche, et chacun retrouve le sien
+        'layers.expandRequested': {
+          actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.flyoverRequested', flyover: groupFlyover(event.items) })),
         },
         // l'élément vient d'être désigné : un objet s'ouvre dans sa visionneuse, la caméra se rend sur un lieu
         'layers.activated': [
