@@ -338,3 +338,17 @@ button.chip { pointer-events: auto; cursor: pointer; }
 @keyframes chip-pulse {
   50% { border-color: rgba(0, 212, 255, 0.6); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.34), 0 0 18px rgba(0, 212, 255, 0.28); }
 }
+
+/* pastille à jauge : un filet d'accent court sous le texte, à proportion de l'avancement */
+.chip-progress { position: relative; overflow: hidden; font-variant-numeric: tabular-nums; }
+.chip-progress::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: calc(var(--progress, 0) * 100%);
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  transition: width var(--transition-smooth);
+}

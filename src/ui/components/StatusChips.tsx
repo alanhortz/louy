@@ -1,4 +1,5 @@
 import { useSelector } from '@xstate/react';
+import { SCANS_LABEL } from '../../domain/scans.ts';
 import { isOrbiting } from '../../machines/viewer.machine.ts';
 import { useChild } from '../actors.ts';
 import { count } from '../format.ts';
@@ -17,6 +18,7 @@ export function StatusChips() {
   const orbiting = useSelector(viewer, isOrbiting);
   const suspended = useSelector(viewer, (snapshot) => snapshot.matches({ attached: 'suspended' }));
   const failure = useSelector(viewer, (snapshot) => snapshot.context.failure);
+  const scanBuild = useSelector(viewer, (snapshot) => snapshot.context.scanBuild);
   const outcome = useSelector(share, (snapshot) => (snapshot.matches('confirmed') ? snapshot.context.outcome : null));
 
   return (
@@ -31,6 +33,11 @@ export function StatusChips() {
       {phase !== 'quiet' && !orbiting && (
         <span className="chip" data-phase={phase}>
           <FlapText text={phase === 'loading' ? 'Chargement du relief' : `Relief chargé · ${count(points)} points`} />
+        </span>
+      )}
+      {scanBuild && (
+        <span className="chip chip-progress" data-phase="loading" style={{ '--progress': scanBuild.fraction } as React.CSSProperties}>
+          {SCANS_LABEL} · {scanBuild.phase === 'loading' ? 'téléchargement' : 'construction'} {Math.round(scanBuild.fraction * 100)} %
         </span>
       )}
       {outcome && <span className="chip">{outcome === 'copied' ? 'Lien de la vue copié' : 'Vue partagée'}</span>}
