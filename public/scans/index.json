@@ -35,9 +35,22 @@
   {
     "id": "detail-facade-namur",
     "name": "Détail de façade, Namur",
+    "x": 685355,
+    "y": 628074,
+    "mesh": "/scans/detail-facade-namur.glb",
+    "credit": {
+      "author": "Alan Hortz",
+      "title": "Relevé Polycam du 13 novembre 2026",
+      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
+      "licence": "© 2026"
+    }
+  },
+  {
+    "id": "mur-peint-namur",
+    "name": "Fragment de mur peint, Namur",
     "x": 685188,
     "y": 628493,
-    "mesh": "/scans/detail-facade-namur.glb",
+    "mesh": "/scans/mur-peint-namur.glb",
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam du 13 novembre 2026",
