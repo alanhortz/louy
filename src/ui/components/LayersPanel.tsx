@@ -1,7 +1,7 @@
 import { CubeTransparentIcon, TagIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import type { ReactNode } from 'react';
-import { SCANS_LABEL } from '../../domain/scans.ts';
+import { SCANS_LABEL, isObjectScan, type Scan } from '../../domain/scans.ts';
 import { camerasFeed } from '../../machines/cameras.machine.ts';
 import { placesStatus, type LayerFeed } from '../../machines/places.machine.ts';
 import { hasScans, scansFeed } from '../../machines/scans.machine.ts';
@@ -96,6 +96,16 @@ function CamerasRow() {
   );
 }
 
+/** Ce que le calque contient, en quelques mots : les crédits détaillés sont dans « À propos ». */
+function summary(scans: readonly Scan[]): string {
+  const objects = scans.filter(isObjectScan).length;
+  const places = scans.length - objects;
+  return [
+    places > 0 && `${places} ${places > 1 ? 'lieux' : 'lieu'}`,
+    objects > 0 && `${objects} ${objects > 1 ? 'objets' : 'objet'}`,
+  ].filter(Boolean).join(' · ');
+}
+
 /** Imagerie 3D (les scans) : la ligne n'existe que si le site en publie. */
 function ScansRow() {
   const scans = useChild('scans');
@@ -110,7 +120,7 @@ function ScansRow() {
       name={SCANS_LABEL}
       count={list.length}
       feed={feed}
-      meta={list.map((scan) => `${scan.name} · images ${scan.credit.author}, ${scan.credit.licence}`).join(' — ')}
+      meta={summary(list)}
       onToggle={() => scans.send({ type: 'scans.toggled' })}
     />
   );
