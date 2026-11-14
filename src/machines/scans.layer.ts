@@ -1,16 +1,24 @@
 /**
- * Le calque « Imagerie 3D », décrit pour l'état générique des calques à
- * sélection : sa liste vient du manifeste des scans, chaque lieu a son marqueur,
- * et les objets trop proches pour être distingués à l'écran en partagent un,
- * qui porte leur nombre.
+ * Les deux calques tirés du manifeste des scans, décrits pour l'état générique
+ * des calques à sélection.
+ *
+ *   - « Imagerie aérienne » : les lieux filmés au drone et reconstruits en volume.
+ *     En sélectionner un le dessine dans la carte et ouvre son panneau ; on peut
+ *     l'y garder affiché pendant que l'on en regarde un autre.
+ *   - « Objets scannés » : les objets relevés de près. En toucher un l'ouvre dans
+ *     sa visionneuse ; ceux d'un même marqueur s'y feuillettent.
+ *
+ * Chaque scan a son marqueur. Quand plusieurs se recouvrent à l'écran, c'est la
+ * carte qui les rassemble sous un seul, avec leur nombre.
  */
 
-import { groupScans, isObjectScan, scanGroupRadius, type Scan } from '../domain/scans.ts';
+import { isObjectScan, placeScans, type Scan } from '../domain/scans.ts';
 import type { ScanFeature } from '../engine/overlays/scanMarkers.ts';
 import { loadScans } from '../services/scans.ts';
-import type { LayerView, SelectionLayerSpec } from './selectionLayer.machine.ts';
+import type { SelectionLayerSpec } from './selectionLayer.machine.ts';
 
-export const SCANS_LAYER = 'scans';
+export const AERIAL_LAYER = 'scans';
+export const OBJECTS_LAYER = 'objects';
 
 /**
  * Éloignement sous lequel le marqueur d'un lieu dessiné s'efface : on a alors
@@ -18,41 +26,27 @@ export const SCANS_LAYER = 'scans';
  */
 const MARKER_CLEARANCE = 1200;
 
-const groups = (scans: readonly Scan[], { distance }: LayerView): Scan[][] => groupScans(scans, scanGroupRadius(distance));
+const toFeature = (scan: Scan): ScanFeature => ({ id: scan.id, x: scan.x, y: scan.y, label: scan.name, rank: 1 });
 
-/** Un groupe qui mêle un lieu à d'autres scans ne s'ouvre pas : on s'en approche, et il se défait. */
-const isMixed = (group: readonly Scan[]): boolean => group.length > 1 && group.some((scan) => !isObjectScan(scan));
-
-/**
- * Marqueur d'un groupe de scans voisins : posé au milieu d'eux, il porte leur
- * nombre et l'identifiant du premier. Seul, un scan garde son nom.
- */
-const toFeature = (group: readonly Scan[], view: LayerView): ScanFeature => {
-  const [first] = group as [Scan];
-  if (group.length === 1) {
-    return {
-      id: first.id, x: first.x, y: first.y, label: first.name, rank: 1,
-      // seul un lieu dessiné dans la carte — le lieu sélectionné — peut masquer son propre marqueur
-      ...(!isObjectScan(first) && first.id === view.selectedId ? { minDistance: MARKER_CLEARANCE } : {}),
-    };
-  }
-  return {
-    id: first.id,
-    x: Math.round(group.reduce((sum, scan) => sum + scan.x, 0) / group.length),
-    y: Math.round(group.reduce((sum, scan) => sum + scan.y, 0) / group.length),
-    label: isMixed(group) ? `${group.length} lieux et objets en 3D` : `${group.length} objets en 3D`,
-    rank: 1,
-    count: group.length,
-  };
+export const aerialLayer: SelectionLayerSpec<Scan> = {
+  name: AERIAL_LAYER,
+  load: async (signal) => placeScans(await loadScans(signal)),
+  markers: (scans, { selectedId, keptIds }) => scans.map((scan): ScanFeature => ({
+    ...toFeature(scan),
+    // seul un lieu dessiné dans la carte — sélectionné ou gardé affiché — peut masquer son propre marqueur
+    ...(scan.id === selectedId || keptIds.includes(scan.id) ? { minDistance: MARKER_CLEARANCE } : {}),
+  })),
+  // plusieurs lieux sous un même marqueur ne s'ouvrent pas ensemble : on s'en approche, et chacun retrouve le sien
+  opensTogether: (members) => members.length === 1,
 };
 
-export const scansLayer: SelectionLayerSpec<Scan> = {
-  name: SCANS_LAYER,
-  load: loadScans,
-  markers: (scans, view) => groups(scans, view).map((group) => toFeature(group, view)),
-  members: (scans, markerId, view) => groups(scans, view).find((group) => group[0]!.id === markerId) ?? [],
-  expands: (scans, markerId, view) => isMixed(groups(scans, view).find((group) => group[0]!.id === markerId) ?? []),
+export const objectsLayer: SelectionLayerSpec<Scan> = {
+  name: OBJECTS_LAYER,
+  load: async (signal) => (await loadScans(signal)).filter(isObjectScan),
+  markers: (scans) => scans.map(toFeature),
 };
 
-/** Lieux à dessiner dans la carte pour une sélection donnée : le lieu sélectionné, s'il y en a un. */
-export const drawnScans = (selection: Scan | null): Scan[] => (selection && !isObjectScan(selection) ? [selection] : []);
+/** Lieux à dessiner dans la carte : celui qui est sélectionné, et ceux que le visiteur garde affichés. */
+export function drawnScans(selection: Scan | null, kept: readonly Scan[]): Scan[] {
+  return selection && !kept.includes(selection) ? [...kept, selection] : [...kept];
+}

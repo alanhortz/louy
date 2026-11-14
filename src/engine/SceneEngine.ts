@@ -59,7 +59,8 @@ export interface EngineListeners {
   onOrbitEnded(): void;
   /** Un scan 3D arrive : téléchargement, puis construction à l'écran. */
   onScanProgress(progress: ScanProgress): void;
-  onOverlayPicked(layer: string, id: string): void;
+  /** `members` : toutes les entités que le marqueur touché rassemble, celle-ci comprise. */
+  onOverlayPicked(layer: string, id: string, members: string[]): void;
   /** Le visiteur a repris la main : la caméra ne suit plus rien. */
   onFollowEnded(): void;
   onContextLost(): void;
@@ -353,7 +354,7 @@ export class SceneEngine {
   addOverlay<F extends OverlayFeature>(name: string, style: OverlayStyle<F>): void {
     if (this.#overlays.has(name)) return;
     this.#overlays.set(name, new OverlayLayer(this.#overlayRoot, style,
-      (id) => this.#listeners.onOverlayPicked(name, id)));
+      (id, members) => this.#listeners.onOverlayPicked(name, id, members)));
   }
 
   setOverlayFeatures(name: string, features: readonly OverlayFeature[]): void {

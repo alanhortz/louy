@@ -60,10 +60,13 @@ export interface ScanView {
 export const SCAN_MANIFEST = '/scans/index.json';
 
 /**
- * Nom donné au visiteur. Le code dit « scan » ; à l'écran on parle d'imagerie,
- * terme qui se comprend sans connaître la technique.
+ * Noms donnés au visiteur. Le code dit « scan » ; à l'écran on distingue deux
+ * choses, chacune avec son calque : l'imagerie aérienne — un lieu filmé au drone
+ * et reconstruit en volume dans la carte — et les objets scannés, relevés de près
+ * et examinés dans leur visionneuse.
  */
-export const SCANS_LABEL = 'Imagerie 3D';
+export const AERIAL_LABEL = 'Imagerie aérienne';
+export const OBJECTS_LABEL = 'Objets scannés';
 
 /** Hauteur de survol à l'ouverture d'un scan sans cadrage propre. */
 export const SCAN_HEIGHT = 110;
@@ -108,51 +111,18 @@ export const placeScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan
 /** Le scan est un objet, à examiner dans la visionneuse. */
 export const isObjectScan = (scan: Scan): boolean => scan.mesh !== undefined;
 
-/**
- * Distance au sol, en mètres, sous laquelle deux scans partagent le même
- * marqueur : plus proches, leurs marqueurs se recouvriraient à l'écran et un
- * seul resterait accessible. Elle suit l'éloignement de la caméra et couvre la
- * largeur d'un marqueur avec sa légende (132 px) sur un écran de 700 px de haut
- * et plus : deux marqueurs ne peuvent donc pas se recouvrir sans être réunis, et
- * aucun n'est masqué en silence. De loin les scans voisins se rassemblent, et
- * dès que l'on s'approche assez chacun retrouve sa place.
- */
-export const scanGroupRadius = (distance: number): number => distance * 0.22;
+/** Étendue d'un ensemble de scans : la plus grande distance entre deux d'entre eux, en mètres. */
+export const scansSpread = (scans: readonly Scan[]): number =>
+  Math.max(0, ...scans.flatMap((a) => scans.map((b) => Math.hypot(a.x - b.x, a.y - b.y))));
 
 /**
- * Regroupe les scans voisins, lieux et objets confondus. Deux scans sont du même
- * groupe s'ils sont à portée l'un de l'autre, directement ou par un voisin
- * commun ; l'ordre du manifeste est conservé, dans les groupes comme entre eux.
+ * Survol qui défait un groupe de marqueurs : au-dessus de leur milieu, à une
+ * hauteur où l'étendue du groupe occupe une bonne part de l'écran.
  */
-export function groupScans(scans: readonly Scan[], radius: number): Scan[][] {
-  const groups: Scan[][] = [];
-  for (const scan of scans) {
-    const near = groups.filter((group) =>
-      group.some((other) => Math.hypot(other.x - scan.x, other.y - scan.y) <= radius));
-    if (near.length === 0) { groups.push([scan]); continue; }
-    // le scan relie peut-être plusieurs groupes jusque-là distincts : ils n'en font plus qu'un
-    const [first, ...others] = near as [Scan[], ...Scan[][]];
-    first.push(...others.flat(), scan);
-    for (const merged of others) groups.splice(groups.indexOf(merged), 1);
-  }
-  return groups;
-}
-
-/** Étendue d'un groupe : la plus grande distance entre deux de ses scans, en mètres. */
-export const groupSpread = (group: readonly Scan[]): number =>
-  Math.max(0, ...group.flatMap((a) => group.map((b) => Math.hypot(a.x - b.x, a.y - b.y))));
-
-/**
- * Survol qui ouvre un groupe : au-dessus de son milieu, assez près pour que ses
- * scans les plus éloignés aient chacun leur marqueur.
- */
-export function groupFlyover(group: readonly Scan[]) {
-  const x = group.reduce((sum, scan) => sum + scan.x, 0) / group.length;
-  const y = group.reduce((sum, scan) => sum + scan.y, 0) / group.length;
-  // à cette distance de visée, le rayon de regroupement vaut la moitié de l'étendue du groupe
-  const distance = (groupSpread(group) * 0.5) / scanGroupRadius(1);
-  // le survol se règle en hauteur, sous l'inclinaison de 58° adoptée pour survoler un lieu
-  return { x, y, height: Math.max(150, distance * Math.cos((58 * Math.PI) / 180)), orbit: false };
+export function fitFlyover(scans: readonly Scan[]) {
+  const x = scans.reduce((sum, scan) => sum + scan.x, 0) / scans.length;
+  const y = scans.reduce((sum, scan) => sum + scan.y, 0) / scans.length;
+  return { x, y, height: Math.max(150, scansSpread(scans) * 1.1), orbit: false };
 }
 
 /** Lecture tolérante du manifeste : toute entrée incomplète est écartée. */

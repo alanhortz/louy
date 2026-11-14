@@ -9,14 +9,14 @@
  *   scene ──▶ viewer, acquisition          viewer ──▶ places, cameras, acquisition
  *   places, cameras ──▶ viewer             sites ──▶ viewer
  *   (demande de partage) ──▶ viewer ──▶ share          viewer ──▶ activity
- *   layers (imagerie 3D) ──▶ viewer, object    aircraft ⇄ viewer
+ *   layers (imagerie aérienne, objets scannés) ──▶ viewer, object, chrome    aircraft ⇄ viewer
  *   films ──▶ viewer, timeline             timeline ⇄ viewer
  */
 
 import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate';
 import { PROJECT } from '../config/project.ts';
 import { QUALITY_PROFILES } from '../domain/quality.ts';
-import { groupFlyover, isObjectScan, placeScans, scanFlyover, type Scan } from '../domain/scans.ts';
+import { fitFlyover, scanFlyover, type Scan } from '../domain/scans.ts';
 import { resolveScene } from '../domain/scene.ts';
 import { timelineSteps, timelineTint, type FilmFraming } from '../domain/timeline.ts';
 import { DEFAULT_VIEW, encodeView, viewUrl, type View } from '../domain/view.ts';
@@ -32,7 +32,7 @@ import { compatibilityMachine } from './compatibility.machine.ts';
 import { objectMachine, type ObjectEmitted } from './object.machine.ts';
 import { placesMachine, type PlacesEmitted } from './places.machine.ts';
 import { createLayersMachine, type LayersEmitted } from './layers.machine.ts';
-import { SCANS_LAYER, drawnScans, scansLayer } from './scans.layer.ts';
+import { AERIAL_LAYER, OBJECTS_LAYER, aerialLayer, drawnScans, objectsLayer } from './scans.layer.ts';
 import type { OverlayName } from './actors/engine.actor.ts';
 import { filmsMachine, type FilmsEmitted } from './films.machine.ts';
 import { sceneMachine, type SceneEmitted } from './scene.machine.ts';
@@ -71,6 +71,8 @@ export interface AppInput {
 
 interface AppContext extends AppInput {
   support: SupportReport | null;
+  /** Imagerie aérienne à dessiner dans la carte : celle qui est sélectionnée, et celles que le visiteur garde affichées. */
+  imagery: { selected: Scan | null; kept: Scan[] };
 }
 
 /** Hauteur de survol d'un site touristique, et d'une caméra routière. */
@@ -121,7 +123,7 @@ export const appMachine = setup({
     cameras: camerasMachine,
     sites: sitesMachine,
     // les calques à sélection naissent tous du même état générique, sous un orchestrateur
-    layers: createLayersMachine([scansLayer]),
+    layers: createLayersMachine([aerialLayer, objectsLayer]),
     object: objectMachine,
     aircraft: aircraftMachine,
     films: filmsMachine,
@@ -153,10 +155,13 @@ export const appMachine = setup({
       if (context.startsAtHome) return;
       history.replaceState(null, '', `#${encodeView(context.view)}`);
     },
+    /** Dessine dans la carte l'imagerie sélectionnée et celles que le visiteur garde affichées. */
+    drawImagery: sendTo('viewer', ({ context }) =>
+      ({ type: 'viewer.scansChanged', scans: drawnScans(context.imagery.selected, context.imagery.kept) })),
   },
 }).createMachine({
   id: 'app',
-  context: ({ input }) => ({ ...input, support: null }),
+  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] } }),
   initial: 'checking',
   states: {
     checking: {
@@ -223,7 +228,10 @@ export const appMachine = setup({
         {
           id: 'layers',
           src: 'layers',
-          input: ({ context }) => ({ visible: { [SCANS_LAYER]: context.view.overlays.scans }, distance: context.view.pose.distance }),
+          input: ({ context }) => ({
+            visible: { [AERIAL_LAYER]: context.view.overlays.scans, [OBJECTS_LAYER]: context.view.overlays.objects },
+            distance: context.view.pose.distance,
+          }),
         },
         { id: 'object', src: 'object' },
         { id: 'aircraft', src: 'aircraft', input: ({ context }) => ({ visible: context.view.overlays.aircraft }) },
@@ -368,8 +376,10 @@ export const appMachine = setup({
             actions: sendTo('aircraft', ({ event }) => ({ type: 'aircraft.picked', id: event.id })),
           },
           {
-            guard: ({ event }) => event.layer === 'scans',
-            actions: sendTo('layers', ({ event }) => ({ type: 'layers.picked', layer: SCANS_LAYER, id: event.id })),
+            // imagerie aérienne ou objets scannés : le calque reçoit ce que le marqueur touché rassemble
+            guard: ({ event }) => event.layer === AERIAL_LAYER || event.layer === OBJECTS_LAYER,
+            actions: sendTo('layers', ({ event }) =>
+              ({ type: 'layers.picked', layer: event.layer, id: event.id, members: event.members })),
           },
           {
             guard: ({ event }) => event.layer === 'films',
@@ -403,11 +413,11 @@ export const appMachine = setup({
         },
 
         /* ---- calques à sélection (imagerie 3D) : leurs marqueurs, puis l'élément que l'on sélectionne ---- */
-        // la liste des scans est connue : les lieux sont préparés d'avance, pour s'afficher sans attente
+        // la liste de l'imagerie aérienne est connue : les lieux sont préparés d'avance, pour s'afficher sans attente
         'layers.listed': {
           // calque éteint, rien n'est préparé : ce serait télécharger ce que le visiteur a choisi de ne pas voir
-          guard: ({ context, event }) => event.layer === SCANS_LAYER && context.view.overlays.scans,
-          actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.scansPreloaded', scans: placeScans(event.items) })),
+          guard: ({ context, event }) => event.layer === AERIAL_LAYER && context.view.overlays.scans,
+          actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.scansPreloaded', scans: event.items })),
         },
         'layers.changed': {
           actions: [
@@ -420,22 +430,38 @@ export const appMachine = setup({
             'syncUrl',
           ],
         },
-        'layers.selectionChanged': {
-          actions: [
-            sendTo('viewer', ({ event }) =>
+        'layers.selectionChanged': [
+          {
+            // une imagerie aérienne sélectionnée est dessinée dans la carte, et son panneau s'ouvre
+            guard: ({ event }) => event.layer === AERIAL_LAYER,
+            actions: [
+              assign({ imagery: ({ context, event }) => ({ ...context.imagery, selected: event.item }) }),
+              sendTo('viewer', ({ event }) =>
+                ({ type: 'viewer.overlayActivated', layer: event.layer as OverlayName, id: event.markerId })),
+              'drawImagery',
+              sendTo('chrome', ({ event }) => (event.item
+                ? { type: 'chrome.revealed', panel: 'imagery' }
+                : { type: 'chrome.dismissed', panel: 'imagery' })),
+            ],
+          },
+          {
+            actions: sendTo('viewer', ({ event }) =>
               ({ type: 'viewer.overlayActivated', layer: event.layer as OverlayName, id: event.markerId })),
-            // le lieu sélectionné est dessiné dans la carte ; il s'en retire avec la sélection
-            sendTo('viewer', ({ event }) => ({ type: 'viewer.scansChanged', scans: drawnScans(event.item) })),
-          ],
+          },
+        ],
+        // les imageries que le visiteur garde affichées restent dessinées, quelle que soit la sélection
+        'layers.keptChanged': {
+          guard: ({ event }) => event.layer === AERIAL_LAYER,
+          actions: [assign({ imagery: ({ context, event }) => ({ ...context.imagery, kept: event.items }) }), 'drawImagery'],
         },
-        // le marqueur touché rassemble des lieux et des objets : la caméra s'en approche, et chacun retrouve le sien
+        // le marqueur touché rassemble plusieurs lieux : la caméra s'en approche, et chacun retrouve le sien
         'layers.expandRequested': {
-          actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.flyoverRequested', flyover: groupFlyover(event.items) })),
+          actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.flyoverRequested', flyover: fitFlyover(event.items) })),
         },
         // l'élément vient d'être désigné : un objet s'ouvre dans sa visionneuse, la caméra se rend sur un lieu
         'layers.activated': [
           {
-            guard: ({ event }) => isObjectScan(event.item),
+            guard: ({ event }) => event.layer === OBJECTS_LAYER,
             actions: sendTo('object', ({ event }) => ({ type: 'object.opened', scan: event.item, group: event.siblings })),
           },
           {
@@ -444,44 +470,7 @@ export const appMachine = setup({
           },
         ],
         // la visionneuse refermée, son objet n'est plus sélectionné
-        'object.left': { actions: sendTo('layers', { type: 'layers.dismissed', layer: SCANS_LAYER }) },
-
-        /* ---- avions en direct : marqueurs, sélection, poste de pilotage ---- */
-        'aircraft.changed': {
-          actions: [
-            assign({
-              view: ({ context, event }) =>
-                ({ ...context.view, overlays: { ...context.view.overlays, aircraft: event.visible } }),
-            }),
-            sendTo('viewer', ({ event }) =>
-              ({ type: 'viewer.overlayChanged', layer: 'aircraft', features: event.features })),
-            'syncUrl',
-          ],
-        },
-        'aircraft.selectionChanged': {
-          actions: [
-            sendTo('viewer', ({ event }) =>
-              ({ type: 'viewer.overlayActivated', layer: 'aircraft', id: event.aircraft?.id ?? null })),
-            sendTo('chrome', ({ event }) => (event.aircraft
-              ? { type: 'chrome.revealed', panel: 'aircraft' }
-              : { type: 'chrome.dismissed', panel: 'aircraft' })),
-          ],
-        },
-        'aircraft.followChanged': {
-          actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.followChanged', target: event.target })),
-        },
-        // le visiteur a repris la main sur la carte : il n'est plus au poste de pilotage
-        'viewer.followEnded': { actions: sendTo('aircraft', { type: 'aircraft.cockpitLeft' }) },
-        'aircraft.flyRequested': {
-          actions: sendTo('viewer', ({ event }) => ({
-            type: 'viewer.flyoverRequested',
-            flyover: {
-              x: event.x, y: event.y, height: event.height, orbit: false,
-              // l'avion est en l'air : c'est lui, et non le sol sous lui, qui doit être au centre de la vue
-              ...(event.altitude === null ? {} : { aimAltitude: event.altitude }),
-            },
-          })),
-        },
+        'object.left': { actions: sendTo('layers', { type: 'layers.dismissed', layer: OBJECTS_LAYER }) },
 
         /* ---- partage : on capture d'abord la pose exacte, orbite comprise ---- */
         'app.shareRequested': {

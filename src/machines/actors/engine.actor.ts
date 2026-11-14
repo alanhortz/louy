@@ -18,10 +18,10 @@ import { aircraftMarkerStyle } from '../../engine/overlays/aircraftMarkers.ts';
 import { cameraMarkerStyle } from '../../engine/overlays/cameraMarkers.ts';
 import { placeLabelStyle } from '../../engine/overlays/placeLabels.ts';
 import { filmMarkerStyle } from '../../engine/overlays/filmMarkers.ts';
-import { scanMarkerStyle } from '../../engine/overlays/scanMarkers.ts';
+import { aerialMarkerStyle, objectMarkerStyle } from '../../engine/overlays/scanMarkers.ts';
 import { SceneEngine, type Altimeter, type Flyover, type FollowTarget } from '../../engine/SceneEngine.ts';
 
-export type OverlayName = 'places' | 'cameras' | 'scans' | 'aircraft' | 'films';
+export type OverlayName = 'places' | 'cameras' | 'scans' | 'objects' | 'aircraft' | 'films';
 
 export interface ViewerMount {
   canvas: HTMLCanvasElement;
@@ -55,7 +55,7 @@ export type EngineReport =
   | { type: 'engine.orbitEnded' }
   | { type: 'engine.scanProgressed'; id: string; phase: ScanProgress['phase']; fraction: number }
   | { type: 'engine.followEnded' }
-  | { type: 'engine.overlayPicked'; layer: OverlayName; id: string }
+  | { type: 'engine.overlayPicked'; layer: OverlayName; id: string; members: string[] }
   | { type: 'engine.contextLost' }
   | { type: 'engine.contextRestored' };
 
@@ -72,7 +72,7 @@ export interface EngineInput {
   preload: Scan[];
 }
 
-const OVERLAYS: readonly OverlayName[] = ['places', 'cameras', 'scans', 'aircraft', 'films'];
+const OVERLAYS: readonly OverlayName[] = ['places', 'cameras', 'scans', 'objects', 'aircraft', 'films'];
 
 export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport>(
   ({ input, sendBack, receive }) => {
@@ -93,8 +93,8 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
           onOrbitEnded: () => sendBack({ type: 'engine.orbitEnded' }),
           onScanProgress: (progress) => sendBack({ type: 'engine.scanProgressed', ...progress }),
           onFollowEnded: () => sendBack({ type: 'engine.followEnded' }),
-          onOverlayPicked: (layer, id) =>
-            sendBack({ type: 'engine.overlayPicked', layer: layer as OverlayName, id }),
+          onOverlayPicked: (layer, id, members) =>
+            sendBack({ type: 'engine.overlayPicked', layer: layer as OverlayName, id, members }),
           onContextLost: () => sendBack({ type: 'engine.contextLost' }),
           onContextRestored: () => sendBack({ type: 'engine.contextRestored' }),
         },
@@ -106,7 +106,8 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
 
     engine.addOverlay('places', placeLabelStyle);
     engine.addOverlay('cameras', cameraMarkerStyle);
-    engine.addOverlay('scans', scanMarkerStyle);
+    engine.addOverlay('scans', aerialMarkerStyle);
+    engine.addOverlay('objects', objectMarkerStyle);
     engine.addOverlay('aircraft', aircraftMarkerStyle);
     engine.addOverlay('films', filmMarkerStyle);
     for (const layer of OVERLAYS) {

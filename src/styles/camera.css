@@ -126,3 +126,11 @@
 /* vignette de la fiche : la maquette du type d'appareil, qui tourne sur elle-même */
 .airframe-preview { width: 76px; height: 56px; flex-shrink: 0; border-radius: 8px; background: radial-gradient(ellipse at center, rgba(0, 212, 255, 0.12), rgba(4, 12, 16, 0.5)); border: 1px solid rgba(0, 212, 255, 0.2); }
 .aircraft-card-title { flex: 1; min-width: 0; }
+
+/* panneau de l'imagerie aérienne : la fiche du lieu, sur le gabarit de celle d'un vol */
+.imagery-panel .panel-body { display: flex; flex-direction: column; gap: 10px; }
+.imagery-kicker { display: block; font-family: var(--font-mono); font-size: 9px; letter-spacing: 2.4px; text-transform: uppercase; color: var(--accent); }
+.imagery-name { display: block; margin-top: 4px; font-size: 16px; font-weight: 600; line-height: 1.25; color: var(--text-primary); }
+.imagery-details .imagery-source { grid-column: 1 / -1; }
+.imagery-details a { color: var(--text-primary); text-decoration: underline; text-decoration-color: rgba(0, 212, 255, 0.5); text-underline-offset: 2px; }
+.imagery-note { font-size: 12px; line-height: 1.45; color: var(--text-secondary); }

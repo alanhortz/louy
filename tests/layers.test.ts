@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { createActor, createMachine, sendTo, waitFor, type AnyActorLogic, type AnyEventObject } from 'xstate';
+import { createMachine, createActor, sendTo, waitFor, type AnyActorLogic, type AnyEventObject } from 'xstate';
 import { createTelemetryInspector } from '../src/app/inspector.ts';
-import { groupFlyover, groupScans, groupSpread, scanGroupRadius, type Scan } from '../src/domain/scans.ts';
+import { fitFlyover, scansSpread, type Scan } from '../src/domain/scans.ts';
 import { createLayersMachine, layerRef } from '../src/machines/layers.machine.ts';
 import { objectMachine, objectPage } from '../src/machines/object.machine.ts';
-import { drawnScans, scansLayer } from '../src/machines/scans.layer.ts';
+import { aerialLayer, drawnScans, objectsLayer } from '../src/machines/scans.layer.ts';
 import {
-  createSelectionLayer, layerAvailable, layerFeed, layerSelection, type SelectionLayerSpec,
+  createSelectionLayer, layerAvailable, layerFeed, layerKept, layerSelection, type SelectionLayerSpec,
 } from '../src/machines/selectionLayer.machine.ts';
 import { TelemetryBuffer } from '../src/services/telemetry.ts';
 
@@ -24,21 +24,18 @@ function underParent(logic: AnyActorLogic, input?: unknown, options?: Parameters
   return { actor, announced, send: (event: AnyEventObject) => parent.send({ type: 'to.child', event }) };
 }
 
-/* ---- un calque quelconque : trois bornes, dont deux partagent un marqueur ---- */
-interface Post { id: string; x: number; y: number; pair?: string }
-const posts: Post[] = [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 10, y: 0, pair: 'bc' }, { id: 'c', x: 12, y: 0, pair: 'bc' }];
+/* ---- un calque quelconque : trois bornes ---- */
+interface Post { id: string; x: number; y: number; fragile?: boolean }
+const posts: Post[] = [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 10, y: 0 }, { id: 'c', x: 12, y: 0 }];
 const postsLayer = (list: Post[] = posts): SelectionLayerSpec<Post> => ({
   name: 'posts',
   load: async () => list,
-  // de loin, les bornes appariées partagent le marqueur de la première ; de près, chacune a le sien
-  markers: (items, { distance }) => items
-    .filter((item) => distance < 100 || !item.pair || item === items.find((other) => other.pair === item.pair))
-    .map((item) => ({ id: item.id, x: item.x, y: item.y, label: item.id, rank: 1 })),
-  members: (items, markerId, { distance }) => {
-    const item = items.find((candidate) => candidate.id === markerId);
-    if (!item) return [];
-    return distance >= 100 && item.pair ? items.filter((other) => other.pair === item.pair) : [item];
-  },
+  markers: (items, { selectedId, keptIds }) => items.map((item) => ({
+    id: item.id, x: item.x, y: item.y, rank: 1,
+    label: `${item.id}${item.id === selectedId ? '*' : ''}${keptIds.includes(item.id) ? '+' : ''}`,
+  })),
+  // un marqueur qui rassemble une borne fragile ne s'ouvre pas : on s'en approche
+  opensTogether: (members) => !members.some((member) => member.fragile),
 });
 
 describe('état générique d’un calque à sélection', () => {
@@ -47,6 +44,7 @@ describe('état générique d’un calque à sélection', () => {
     await waitFor(harness.actor, (snapshot) => !snapshot.matches('probing'));
     return harness;
   };
+  const types = (announced: AnyEventObject[]) => announced.map((event) => event.type);
 
   it('n’est pas proposé quand il n’a rien à montrer', async () => {
     const { actor, send, announced } = await start({}, []);
@@ -56,39 +54,38 @@ describe('état générique d’un calque à sélection', () => {
     expect(announced).toEqual([]);
   });
 
-  it('allumé, pose ses marqueurs et rien d’autre ; éteint, les retire', async () => {
-    const { actor, send, announced } = await start({ distance: 500 });
+  it('allumé, annonce sa liste puis pose un marqueur par élément ; éteint, les retire', async () => {
+    const { actor, send, announced } = await start();
     expect(layerFeed(actor.getSnapshot())).toBe('nominal');
-    // la liste est annoncée dès son arrivée, puis les marqueurs sont posés
-    expect(announced).toMatchObject([
-      { type: 'layer.listed', layer: 'posts', items: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] },
-      { type: 'layer.changed', layer: 'posts', visible: true },
-    ]);
-    expect(announced[1]!.features.map((feature: { id: string }) => feature.id)).toEqual(['a', 'b']);
+    expect(types(announced)).toEqual(['layer.listed', 'layer.changed', 'layer.keptChanged']);
+    expect(announced[1]).toMatchObject({ layer: 'posts', visible: true });
+    expect(announced[1]!.features.map((feature: { id: string }) => feature.id)).toEqual(['a', 'b', 'c']);
 
     send({ type: 'layer.toggled' });
     expect(layerFeed(actor.getSnapshot())).toBe('off');
-    expect(announced.slice(-2)).toMatchObject([
+    expect(announced.slice(-3)).toMatchObject([
       { type: 'layer.changed', visible: false, features: [] },
       { type: 'layer.selectionChanged', item: null, markerId: null },
+      { type: 'layer.keptChanged', items: [] },
     ]);
   });
 
-  it('peut naître éteint : aucun marqueur, et rien ne se laisse toucher', async () => {
+  it('peut naître éteint : sa liste est connue, mais rien ne se laisse toucher', async () => {
     const { send, announced } = await start({ visible: false });
     send({ type: 'layer.picked', id: 'a' });
-    // sa liste est connue — de quoi préparer ce qu'il montrera — mais rien n'est sur la carte
-    expect(announced.map((event) => event.type)).toEqual(['layer.listed']);
+    expect(types(announced)).toEqual(['layer.listed']);
   });
 
-  it('sélectionne et active l’élément du marqueur touché', async () => {
-    const { actor, send, announced } = await start({ distance: 500 });
+  it('sélectionne et active l’élément touché', async () => {
+    const { actor, send, announced } = await start();
     send({ type: 'layer.picked', id: 'a' });
     expect(layerSelection(actor.getSnapshot())).toMatchObject({ id: 'a' });
     expect(announced.slice(-2)).toMatchObject([
       { type: 'layer.selectionChanged', layer: 'posts', item: { id: 'a' }, markerId: 'a' },
       { type: 'layer.activated', layer: 'posts', item: { id: 'a' }, siblings: [{ id: 'a' }] },
     ]);
+    // ses marqueurs sont reposés : celui de l'élément sélectionné peut changer d'aspect
+    expect(announced.at(-3)!.features[0].label).toBe('a*');
     // toucher de nouveau l'élément sélectionné le réactive
     send({ type: 'layer.picked', id: 'a' });
     expect(announced.at(-1)).toMatchObject({ type: 'layer.activated', item: { id: 'a' } });
@@ -98,16 +95,17 @@ describe('état générique d’un calque à sélection', () => {
     expect(announced).toHaveLength(before);
   });
 
-  it('feuillette les éléments d’un même marqueur et s’arrête aux deux bouts', async () => {
-    const { actor, send, announced } = await start({ distance: 500 });
-    send({ type: 'layer.picked', id: 'b' });
+  it('ouvre ensemble les éléments qu’un marqueur rassemble à l’écran, et les feuillette', async () => {
+    const { actor, send, announced } = await start();
+    // la carte dit ce que le marqueur touché rassemble
+    send({ type: 'layer.picked', id: 'b', members: ['b', 'c', 'inconnu'] });
     expect(announced.at(-1)).toMatchObject({ type: 'layer.activated', item: { id: 'b' }, siblings: [{ id: 'b' }, { id: 'c' }] });
     send({ type: 'layer.stepped', delta: 1 });
-    // le voisin est sélectionné, sous le même marqueur
     expect(announced.slice(-2)).toMatchObject([
-      { type: 'layer.selectionChanged', item: { id: 'c' }, markerId: 'b' },
+      { type: 'layer.selectionChanged', item: { id: 'c' }, markerId: 'c', siblings: [{ id: 'b' }, { id: 'c' }] },
       { type: 'layer.activated', item: { id: 'c' } },
     ]);
+    // le feuilletage s'arrête aux deux bouts
     const before = announced.length;
     send({ type: 'layer.stepped', delta: 1 });
     expect(announced).toHaveLength(before);
@@ -115,30 +113,51 @@ describe('état générique d’un calque à sélection', () => {
     expect(layerSelection(actor.getSnapshot())).toMatchObject({ id: 'b' });
   });
 
+  it('demande à s’approcher quand le marqueur rassemble ce qui ne s’ouvre pas ensemble', async () => {
+    const { actor, send, announced } = await start({}, [...posts, { id: 'd', x: 11, y: 0, fragile: true }]);
+    send({ type: 'layer.picked', id: 'b', members: ['b', 'd'] });
+    expect(announced.at(-1)).toMatchObject({ type: 'layer.expandRequested', layer: 'posts', items: [{ id: 'b' }, { id: 'd' }] });
+    expect(layerSelection(actor.getSnapshot())).toBeNull();
+    // seule, la borne fragile se sélectionne comme les autres
+    send({ type: 'layer.picked', id: 'd', members: ['d'] });
+    expect(layerSelection(actor.getSnapshot())).toMatchObject({ id: 'd' });
+  });
+
   it('désélectionne à la demande', async () => {
-    const { actor, send, announced } = await start({ distance: 500 });
+    const { actor, send, announced } = await start();
+    const before = announced.length;
     send({ type: 'layer.dismissed' });
-    expect(announced).toHaveLength(2);
+    expect(announced).toHaveLength(before);
     send({ type: 'layer.picked', id: 'a' });
     send({ type: 'layer.dismissed' });
     expect(layerSelection(actor.getSnapshot())).toBeNull();
     expect(announced.at(-1)).toMatchObject({ type: 'layer.selectionChanged', item: null, markerId: null });
   });
 
-  it('ne repose ses marqueurs que si leur disposition change avec l’éloignement', async () => {
-    const { send, announced } = await start({ distance: 500 });
-    send({ type: 'layer.picked', id: 'b' });
-    send({ type: 'layer.stepped', delta: 1 });
-    const before = announced.length;
-    send({ type: 'layer.viewChanged', distance: 300 });
-    expect(announced).toHaveLength(before);
-    // de près, chacun retrouve son marqueur : la sélection suit le sien
-    send({ type: 'layer.viewChanged', distance: 50 });
+  it('garde un élément à l’écran à la demande, et s’en souvient quand le calque se rallume', async () => {
+    const { actor, send, announced } = await start();
+    send({ type: 'layer.keepToggled', id: 'b' });
+    expect(layerKept(actor.getSnapshot())).toEqual(['b']);
     expect(announced.slice(-2)).toMatchObject([
       { type: 'layer.changed', visible: true },
-      { type: 'layer.selectionChanged', item: { id: 'c' }, markerId: 'c' },
+      { type: 'layer.keptChanged', layer: 'posts', items: [{ id: 'b' }] },
     ]);
-    expect(announced.at(-2)!.features).toHaveLength(3);
+    expect(announced.at(-2)!.features[1].label).toBe('b+');
+    // sélectionner autre chose, puis le désélectionner, n'y change rien
+    send({ type: 'layer.picked', id: 'a' });
+    send({ type: 'layer.dismissed' });
+    expect(layerKept(actor.getSnapshot())).toEqual(['b']);
+
+    send({ type: 'layer.toggled' });
+    expect(announced.at(-1)).toMatchObject({ type: 'layer.keptChanged', items: [] });
+    send({ type: 'layer.toggled' });
+    expect(announced.at(-1)).toMatchObject({ type: 'layer.keptChanged', items: [{ id: 'b' }] });
+
+    send({ type: 'layer.keepToggled', id: 'b' });
+    expect(layerKept(actor.getSnapshot())).toEqual([]);
+    const before = announced.length;
+    send({ type: 'layer.keepToggled', id: 'inconnu' });
+    expect(announced).toHaveLength(before);
   });
 });
 
@@ -153,7 +172,7 @@ describe('orchestrateur des calques', () => {
   };
 
   it('fait naître une machine par calque, chacune avec son réglage d’ouverture', async () => {
-    const { layer, announced } = await start({ visible: { bornes: false }, distance: 500 });
+    const { layer, announced } = await start({ visible: { bornes: false } });
     expect(layerFeed(layer('posts').getSnapshot())).toBe('nominal');
     expect(layerFeed(layer('bornes').getSnapshot())).toBe('off');
     // seul le calque allumé a posé ses marqueurs, relayés sous le nom de l'orchestrateur
@@ -162,14 +181,17 @@ describe('orchestrateur des calques', () => {
   });
 
   it('remet chaque geste au calque nommé, et relaie ce que les calques annoncent', async () => {
-    const { send, layer, announced } = await start({ distance: 500 });
-    send({ type: 'layers.picked', layer: 'bornes', id: 'z' });
+    const { send, layer, announced } = await start();
+    send({ type: 'layers.picked', layer: 'bornes', id: 'z', members: ['z'] });
     expect(layerSelection(layer('bornes').getSnapshot())).toMatchObject({ id: 'z' });
     expect(layerSelection(layer('posts').getSnapshot())).toBeNull();
     expect(announced.slice(-2)).toMatchObject([
       { type: 'layers.selectionChanged', layer: 'bornes', item: { id: 'z' } },
       { type: 'layers.activated', layer: 'bornes', item: { id: 'z' } },
     ]);
+
+    send({ type: 'layers.keepToggled', layer: 'posts', id: 'a' });
+    expect(announced.at(-1)).toMatchObject({ type: 'layers.keptChanged', layer: 'posts', items: [{ id: 'a' }] });
 
     send({ type: 'layers.toggled', layer: 'posts' });
     expect(layerFeed(layer('posts').getSnapshot())).toBe('off');
@@ -181,7 +203,7 @@ describe('orchestrateur des calques', () => {
   });
 
   it('diffuse la vue à tous les calques', async () => {
-    const { send, layer } = await start({ distance: 500 });
+    const { send, layer } = await start();
     send({ type: 'layers.viewChanged', distance: 42 });
     expect(layer('posts').getSnapshot().context.distance).toBe(42);
     expect(layer('bornes').getSnapshot().context.distance).toBe(42);
@@ -189,116 +211,76 @@ describe('orchestrateur des calques', () => {
 
   it('laisse au journal la trace de chaque geste, calque par calque', async () => {
     const buffer = new TelemetryBuffer();
-    const { send } = await start({ distance: 500 }, { inspect: createTelemetryInspector(buffer) });
+    const { send } = await start({}, { inspect: createTelemetryInspector(buffer) });
     send({ type: 'layers.picked', layer: 'posts', id: 'a' });
+    send({ type: 'layers.keepToggled', layer: 'posts', id: 'a' });
     send({ type: 'layers.dismissed', layer: 'posts' });
     const journal = JSON.stringify(buffer.drain());
-    for (const type of ['layers.picked', 'layer.picked', 'layer.dismissed']) expect(journal).toContain(type);
+    for (const type of ['layers.picked', 'layer.picked', 'layer.keepToggled', 'layer.dismissed']) expect(journal).toContain(type);
   });
 });
 
-/* ---- le calque de l'imagerie 3D, décrit pour l'état générique ---- */
+/* ---- les deux calques tirés des scans ---- */
 const credit = { author: 'A', title: 'T', url: 'https://exemple.be', licence: '©' };
 const object = (id: string, x: number, y: number): Scan => ({ id, name: `Objet ${id}`, x, y, mesh: `/scans/${id}.glb`, credit });
 const citadelle: Scan = { id: 'citadelle', name: 'Citadelle de Namur', x: 685265, y: 627878, splats: '/scans/namur.spz', credit };
+const veves: Scan = { ...citadelle, id: 'veves', name: 'Château de Vêves', x: 693807, y: 601258 };
 const facade = object('facade', 685186, 628504);
 const mur = object('mur', 685188, 628493);
 const lettres = object('lettres', 685567, 627965);
-const all = [citadelle, lettres, facade, mur];
+const view = { selectedId: null, distance: 900, keptIds: [] as string[] };
 
-describe('groupes d’objets voisins', () => {
-  it('réunit les objets à portée l’un de l’autre, et laisse les autres seuls', () => {
-    expect(groupScans(all, 60).map((group) => group.map((scan) => scan.id))).toEqual([['citadelle'], ['lettres'], ['facade', 'mur']]);
-  });
-
-  it('réunit deux groupes qu’un objet vient relier', () => {
-    const chain = [object('a', 0, 0), object('c', 100, 0), object('b', 50, 0)];
-    expect(groupScans(chain, 60)).toHaveLength(1);
-    expect(groupScans(chain.slice(0, 2), 60)).toHaveLength(2);
-  });
-
-  it('sépare les objets voisins dès que la caméra est assez près', () => {
-    // façade et mur peint sont à 11 m l'un de l'autre
-    expect(groupScans([facade, mur], scanGroupRadius(900))).toHaveLength(1);
-    expect(groupScans([facade, mur], scanGroupRadius(40))).toHaveLength(2);
-  });
-});
-
-describe('groupes vus de loin', () => {
-  it('rassemblent aussi les lieux : plus on recule, plus le marqueur en compte', () => {
-    const count = (distance: number) => scansLayer.markers(all, { selectedId: null, distance }).map((marker) => (marker as { count?: number }).count ?? 1);
-    expect(count(900)).toEqual([1, 1, 2]);
-    // la citadelle et les lettres sont à 310 m l'une de l'autre, le groupe du nord à 625 m
-    expect(count(2000)).toEqual([2, 2]);
-    expect(count(12000)).toEqual([4]);
-    expect(scansLayer.markers(all, { selectedId: null, distance: 12000 })[0]).toMatchObject({ id: 'citadelle', label: '4 lieux et objets en 3D' });
-  });
-
-  it('ne s’ouvrent pas quand ils mêlent un lieu à des objets : on s’en approche', async () => {
-    const { actor, send, announced } = underParent(
-      createSelectionLayer({ ...scansLayer, load: async () => all }), { distance: 12000 });
-    await waitFor(actor, (snapshot) => snapshot.matches('visible'));
-    send({ type: 'layer.picked', id: 'citadelle' });
-    const request = announced.at(-1)!;
-    expect(request).toMatchObject({ type: 'layer.expandRequested', layer: 'scans' });
-    expect(request.items).toHaveLength(4);
-    // rien n'est sélectionné, donc rien n'est dessiné ni ouvert
-    expect(layerSelection(actor.getSnapshot())).toBeNull();
-    expect(announced.some((event) => event.type === 'layer.activated')).toBe(false);
-  });
-
-  it('se survolent d’assez près pour que leurs scans se séparent', () => {
-    const flyover = groupFlyover(all);
-    expect(groupSpread(all)).toBeGreaterThan(600);
-    expect(flyover.x).toBeGreaterThan(685186);
-    expect(flyover.x).toBeLessThan(685567);
-    // à cette hauteur, le rayon de regroupement est la moitié de l'étendue : les extrêmes ont chacun leur marqueur
-    const distance = flyover.height / Math.cos((58 * Math.PI) / 180);
-    expect(groupScans(all, scanGroupRadius(distance)).length).toBeGreaterThan(1);
-    expect(groupFlyover([facade]).height).toBe(150);
-  });
-});
-
-describe('calque de l’imagerie 3D', () => {
-  const far = { selectedId: null, distance: 900 };
-
-  it('pose un marqueur par lieu et un par groupe d’objets, qui porte leur nombre', () => {
-    const markers = scansLayer.markers(all, far);
-    expect(markers.map((marker) => marker.id)).toEqual(['citadelle', 'lettres', 'facade']);
-    expect(markers[2]).toMatchObject({ count: 2, label: '2 objets en 3D', x: 685187 });
-    expect((markers[1] as { count?: number }).count).toBeUndefined();
-    // de très près, chaque objet est à sa place
-    expect(scansLayer.markers(all, { selectedId: null, distance: 40 }).map((marker) => marker.id))
-      .toEqual(['citadelle', 'lettres', 'facade', 'mur']);
-  });
-
-  it('dit quels scans un marqueur représente', () => {
-    expect(scansLayer.members(all, 'facade', far).map((scan) => scan.id)).toEqual(['facade', 'mur']);
-    expect(scansLayer.members(all, 'citadelle', far)).toEqual([citadelle]);
-    // de loin, le mur peint n'a pas de marqueur à lui
-    expect(scansLayer.members(all, 'mur', far)).toEqual([]);
-    expect(scansLayer.members(all, 'mur', { selectedId: null, distance: 40 })).toEqual([mur]);
-  });
-
-  it('efface de près le marqueur du lieu sélectionné, et seulement le sien', () => {
-    const [place, other] = scansLayer.markers(all, { selectedId: 'citadelle', distance: 900 });
-    expect(place!.minDistance).toBeGreaterThan(0);
+describe('calque de l’imagerie aérienne', () => {
+  it('pose un marqueur par lieu, et efface de près celui d’un lieu dessiné', () => {
+    expect(aerialLayer.markers([citadelle, veves], view).map((marker) => marker.id)).toEqual(['citadelle', 'veves']);
+    const [selected, other] = aerialLayer.markers([citadelle, veves], { ...view, selectedId: 'citadelle' });
+    expect(selected!.minDistance).toBeGreaterThan(0);
     expect(other!.minDistance).toBeUndefined();
+    // un lieu gardé affiché est dessiné lui aussi
+    expect(aerialLayer.markers([citadelle, veves], { ...view, keptIds: ['veves'] })[1]!.minDistance).toBeGreaterThan(0);
   });
 
-  it('ne dessine dans la carte que le lieu sélectionné', () => {
-    expect(drawnScans(citadelle)).toEqual([citadelle]);
-    expect(drawnScans(facade)).toEqual([]);
-    expect(drawnScans(null)).toEqual([]);
-  });
-
-  it('branché sur l’état générique : le groupe touché s’ouvre avec tous ses objets', async () => {
-    const { actor, send, announced } = underParent(
-      createSelectionLayer({ ...scansLayer, load: async () => all }), { distance: 900 });
+  it('ne s’ouvre que lieu par lieu : un marqueur qui en rassemble plusieurs demande à s’approcher', async () => {
+    const { actor, send, announced } = underParent(createSelectionLayer({ ...aerialLayer, load: async () => [citadelle, veves] }));
     await waitFor(actor, (snapshot) => snapshot.matches('visible'));
-    send({ type: 'layer.picked', id: 'facade' });
+    send({ type: 'layer.picked', id: 'citadelle', members: ['citadelle', 'veves'] });
+    expect(announced.at(-1)).toMatchObject({ type: 'layer.expandRequested', layer: 'scans' });
+    send({ type: 'layer.picked', id: 'veves', members: ['veves'] });
+    expect(announced.at(-1)).toMatchObject({ type: 'layer.activated', layer: 'scans', item: { id: 'veves' } });
+  });
+
+  it('dessine dans la carte le lieu sélectionné et ceux que l’on garde affichés', () => {
+    expect(drawnScans(null, [])).toEqual([]);
+    expect(drawnScans(citadelle, [])).toEqual([citadelle]);
+    expect(drawnScans(veves, [citadelle])).toEqual([citadelle, veves]);
+    expect(drawnScans(citadelle, [citadelle])).toEqual([citadelle]);
+    expect(drawnScans(null, [citadelle])).toEqual([citadelle]);
+  });
+
+  it('se survole d’assez haut pour montrer tout un groupe, sans descendre trop bas pour un seul lieu', () => {
+    expect(scansSpread([citadelle, veves])).toBeGreaterThan(20_000);
+    const flyover = fitFlyover([citadelle, veves]);
+    expect(flyover.x).toBeGreaterThan(685265);
+    expect(flyover.x).toBeLessThan(693807);
+    expect(flyover.height).toBeGreaterThan(20_000);
+    expect(fitFlyover([citadelle]).height).toBe(150);
+  });
+});
+
+describe('calque des objets scannés', () => {
+  it('pose un marqueur par objet, chacun à sa place', () => {
+    const markers = objectsLayer.markers([lettres, facade, mur], view);
+    expect(markers.map((marker) => [marker.id, marker.x, marker.y])).toEqual([
+      ['lettres', 685567, 627965], ['facade', 685186, 628504], ['mur', 685188, 628493],
+    ]);
+  });
+
+  it('ouvre ensemble les objets qu’un marqueur rassemble', async () => {
+    const { actor, send, announced } = underParent(createSelectionLayer({ ...objectsLayer, load: async () => [lettres, facade, mur] }));
+    await waitFor(actor, (snapshot) => snapshot.matches('visible'));
+    send({ type: 'layer.picked', id: 'facade', members: ['facade', 'mur'] });
     const activated = announced.at(-1)!;
-    expect(activated).toMatchObject({ type: 'layer.activated', layer: 'scans', item: { id: 'facade' } });
+    expect(activated).toMatchObject({ type: 'layer.activated', layer: 'objects', item: { id: 'facade' } });
     expect(activated.siblings.map((scan: Scan) => scan.id)).toEqual(['facade', 'mur']);
   });
 });

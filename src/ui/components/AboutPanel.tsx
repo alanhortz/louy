@@ -1,7 +1,7 @@
 import { useSelector } from '@xstate/react';
 import { PROJECT } from '../../config/project.ts';
-import { SCANS_LABEL, type Scan } from '../../domain/scans.ts';
-import { SCANS_LAYER } from '../../machines/scans.layer.ts';
+import { AERIAL_LABEL, OBJECTS_LABEL, type Scan } from '../../domain/scans.ts';
+import { AERIAL_LAYER, OBJECTS_LAYER } from '../../machines/scans.layer.ts';
 import sponsorMark from '../assets/sorcery-systems.svg';
 import { RETENTION_MS } from '../../services/telemetry.ts';
 import { useChild, useLayer } from '../actors.ts';
@@ -12,7 +12,8 @@ const RETENTION_DAYS = RETENTION_MS / 86_400_000;
 
 /** Sources des données, crédits, et la télémétrie locale que le visiteur peut lire ou effacer. */
 export function AboutPanel() {
-  const scans = useSelector(useLayer<Scan>(SCANS_LAYER), (snapshot) => snapshot.context.items);
+  const scans = useSelector(useLayer<Scan>(AERIAL_LAYER), (snapshot) => snapshot.context.items);
+  const objects = useSelector(useLayer<Scan>(OBJECTS_LAYER), (snapshot) => snapshot.context.items);
   const telemetry = useChild('telemetry');
   const summary = useSelector(telemetry, (snapshot) => snapshot.context.summary);
   const busy = useSelector(telemetry, (snapshot) => !snapshot.matches({ recording: { ledger: 'idle' } }));
@@ -40,11 +41,17 @@ export function AboutPanel() {
         <li>Caméras : SPW Trafiroutes, placées au point kilométrique lu sur leur image ; à défaut, sur la localité nommée.</li>
         {scans.map((scan) => (
           <li key={scan.id}>
-            {SCANS_LABEL} « {scan.name} » : reconstruite et calée sur le LiDAR à partir de la vidéo{' '}
+            {AERIAL_LABEL} « {scan.name} » : reconstruite et calée sur le LiDAR à partir de la vidéo{' '}
             <a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.title}</a> de {scan.credit.author},
             licence Creative Commons {scan.credit.licence}.
           </li>
         ))}
+        {objects.length > 0 && (
+          <li>
+            {OBJECTS_LABEL} ({objects.map((object) => object.name).join(' ; ')}) : relevés sur place au téléphone
+            par {[...new Set(objects.map((object) => object.credit.author))].join(', ')}.
+          </li>
+        )}
       </ul>
       <p>
         Les altitudes sont reconstruites depuis des images rendues par le SPW : la précision verticale est
