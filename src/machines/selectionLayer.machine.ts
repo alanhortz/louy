@@ -6,6 +6,7 @@
  *            └─▶ hidden ⇄ visible          (éteint : rien sur la carte ; allumé : ses marqueurs)
  *                         visible : un élément au plus est sélectionné
  *                           picked    → sélectionne et active l'élément du marqueur touché
+ *                                       (ou demande à s'approcher, si le marqueur rassemble trop)
  *                           stepped   → passe au voisin, parmi ceux du même marqueur
  *                           dismissed → désélectionne
  *
@@ -33,6 +34,11 @@ export interface SelectionLayerSpec<T extends LayerItem = LayerItem> {
   markers(items: readonly T[], view: LayerView): OverlayFeature[];
   /** Éléments que représente le marqueur `markerId` ; vide s'il n'existe pas. Le premier est celui qu'il sélectionne. */
   members(items: readonly T[], markerId: string, view: LayerView): T[];
+  /**
+   * Le marqueur rassemble-t-il des éléments qu'on ne peut pas ouvrir ensemble ? Le toucher ne sélectionne
+   * alors rien : la machine demande seulement à s'en approcher, pour qu'il se défasse. Par défaut, jamais.
+   */
+  expands?(items: readonly T[], markerId: string, view: LayerView): boolean;
 }
 
 export type LayerEvent =
@@ -48,6 +54,8 @@ export type LayerEmitted<T extends LayerItem = LayerItem> =
   | { type: 'layer.changed'; layer: string; visible: boolean; features: OverlayFeature[] }
   /** `markerId` : le marqueur à mettre en valeur — celui du groupe, pour un élément groupé. */
   | { type: 'layer.selectionChanged'; layer: string; item: T | null; siblings: T[]; markerId: string | null }
+  /** Le marqueur touché rassemble trop : il faut s'approcher de ces éléments pour les distinguer. */
+  | { type: 'layer.expandRequested'; layer: string; items: T[] }
   /** Le visiteur vient de désigner cet élément : c'est le moment de l'ouvrir. */
   | { type: 'layer.activated'; layer: string; item: T; siblings: T[] };
 
@@ -96,6 +104,8 @@ export function createSelectionLayer<T extends LayerItem>(spec: SelectionLayerSp
       startsVisible: ({ context }) => context.startsVisible,
       picksMarker: ({ context, event }) =>
         event.type === 'layer.picked' && spec.members(context.items, event.id, view(context)).length > 0,
+      picksCluster: ({ context, event }) =>
+        event.type === 'layer.picked' && (spec.expands?.(context.items, event.id, view(context)) ?? false),
       hasSelection: ({ context }) => selected(context) !== null,
       /** Le voisin demandé existe-t-il ? On ne boucle pas : le feuilletage s'arrête aux deux bouts. */
       canStep: ({ context, event }) => {
@@ -132,6 +142,11 @@ export function createSelectionLayer<T extends LayerItem>(spec: SelectionLayerSp
       withdraw: sendParent((): LayerEmitted<T> => ({ type: 'layer.changed', layer: spec.name, visible: false, features: [] })),
       announceSelection: sendParent(({ context }): LayerEmitted<T> =>
         ({ type: 'layer.selectionChanged', layer: spec.name, item: selected(context), ...home(context) })),
+      requestExpand: sendParent(({ context, event }): LayerEmitted<T> => ({
+        type: 'layer.expandRequested',
+        layer: spec.name,
+        items: spec.members(context.items, event.type === 'layer.picked' ? event.id : '', view(context)),
+      })),
       activate: sendParent(({ context }): LayerEmitted<T> =>
         ({ type: 'layer.activated', layer: spec.name, item: selected(context)!, siblings: home(context).siblings })),
     },
@@ -173,7 +188,10 @@ export function createSelectionLayer<T extends LayerItem>(spec: SelectionLayerSp
         on: {
           'layer.toggled': 'hidden',
           // toucher de nouveau l'élément sélectionné le réactive : son panneau se rouvre, la caméra y retourne
-          'layer.picked': { guard: 'picksMarker', actions: ['selectPicked', 'publish', 'announceSelection', 'activate'] },
+          'layer.picked': [
+            { guard: 'picksCluster', actions: 'requestExpand' },
+            { guard: 'picksMarker', actions: ['selectPicked', 'publish', 'announceSelection', 'activate'] },
+          ],
           'layer.stepped': { guard: 'canStep', actions: ['selectNeighbour', 'publish', 'announceSelection', 'activate'] },
           'layer.dismissed': { guard: 'hasSelection', actions: ['deselect', 'publish', 'announceSelection'] },
           // les marqueurs ne sont reposés que si leur disposition change, pas à chaque mouvement
