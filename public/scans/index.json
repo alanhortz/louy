@@ -70,5 +70,18 @@
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     }
+  },
+  {
+    "id": "cluster-eco-construction",
+    "name": "Cluster Eco-construction asbl",
+    "x": 680463,
+    "y": 630760,
+    "mesh": "/scans/cluster-eco-construction.glb",
+    "credit": {
+      "author": "Alan Hortz",
+      "title": "Relevé Polycam du 14 novembre 2026",
+      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
+      "licence": "© 2026"
+    }
   }
 ]
