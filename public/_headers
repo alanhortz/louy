@@ -12,6 +12,11 @@
 /scans/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 
+# Leur liste, elle, change à chaque ajout : elle est revalidée à chaque visite.
+/scans/index.json
+  ! Cache-Control
+  Cache-Control: no-cache
+
 /favicon.svg
   Cache-Control: public, max-age=604800
 
