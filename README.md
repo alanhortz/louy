@@ -175,7 +175,13 @@ un fichier `.spz` dans `public/scans/`, décrit dans
 son cadrage d’ouverture et le **crédit de l’auteur des images**, obligatoire et
 affiché dans le calque, la ligne d’attribution et le panneau « À propos ».
 
-Le fichier est exprimé dans le repère du viewer (x = est, y = altitude, z = −nord,
+Un scan est soit un **lieu** (`splats` : gaussian splats dessinés dans la carte), soit
+un **objet** (`mesh` : maillage glTF `.glb`, tel qu'en exporte une application de scan).
+Le marqueur d'un objet ouvre une visionneuse dédiée, pilotée par la machine `object` :
+chargement, première image, gestes, boutons et fermeture y passent tous sous forme
+d'événements, et entrent ainsi dans le journal local comme le reste de l'application.
+
+Le fichier de splats est exprimé dans le repère du viewer (x = est, y = altitude, z = −nord,
 en mètres autour de l’ancrage). Le moteur de splats ([Spark](https://sparkjs.dev))
 n’est téléchargé qu’à la première activation du calque. Les splats sont dessinés
 par-dessus le relief, sans être masqués par lui.

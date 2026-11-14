@@ -1,9 +1,10 @@
 import { useSelector } from '@xstate/react';
 import { PROJECT } from '../../config/project.ts';
-import { SCANS_LABEL } from '../../domain/scans.ts';
+import { SCANS_LABEL, type Scan } from '../../domain/scans.ts';
+import { SCANS_LAYER } from '../../machines/scans.layer.ts';
 import sponsorMark from '../assets/sorcery-systems.svg';
 import { RETENTION_MS } from '../../services/telemetry.ts';
-import { useChild } from '../actors.ts';
+import { useChild, useLayer } from '../actors.ts';
 import { bytes, date } from '../format.ts';
 import { Panel } from './Panel.tsx';
 
@@ -11,7 +12,7 @@ const RETENTION_DAYS = RETENTION_MS / 86_400_000;
 
 /** Sources des données, crédits, et la télémétrie locale que le visiteur peut lire ou effacer. */
 export function AboutPanel() {
-  const scans = useSelector(useChild('scans'), (snapshot) => snapshot.context.scans);
+  const scans = useSelector(useLayer<Scan>(SCANS_LAYER), (snapshot) => snapshot.context.items);
   const telemetry = useChild('telemetry');
   const summary = useSelector(telemetry, (snapshot) => snapshot.context.summary);
   const busy = useSelector(telemetry, (snapshot) => !snapshot.matches({ recording: { ledger: 'idle' } }));

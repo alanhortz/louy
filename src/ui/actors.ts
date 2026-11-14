@@ -3,6 +3,8 @@
 import { useSelector } from '@xstate/react';
 import { createContext, use } from 'react';
 import type { AppActor, AppSnapshot } from '../machines/app.machine.ts';
+import { layerRef } from '../machines/layers.machine.ts';
+import type { LayerItem, SelectionLayerRef } from '../machines/selectionLayer.machine.ts';
 
 export const AppActorContext = createContext<AppActor | null>(null);
 
@@ -19,4 +21,9 @@ export function useChild<K extends keyof Children>(id: K): NonNullable<Children[
   const child = useSelector(useApp(), (snapshot) => snapshot.children[id]);
   if (!child) throw new Error(`La machine « ${String(id)} » n'est pas démarrée`);
   return child;
+}
+
+/** Calque à sélection, né sous l'orchestrateur `layers`. */
+export function useLayer<T extends LayerItem>(name: string): SelectionLayerRef<T> {
+  return useSelector(useChild('layers'), (snapshot) => layerRef<T>(snapshot, name));
 }

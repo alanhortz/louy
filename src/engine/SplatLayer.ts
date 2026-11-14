@@ -37,6 +37,7 @@ export class SplatLayer {
     }
     for (const scan of scans) {
       if (this.#meshes.has(scan.id)) continue;
+      if (!scan.splats) continue;
       const mesh = new SplatMesh({ url: scan.splats, onLoad: () => this.#onDirty() });
       // le fichier est déjà dans le repère du viewer : il ne reste qu'à le poser sur son ancrage
       mesh.position.set(scan.x - T.ORIGIN.x, 0, -(scan.y - T.ORIGIN.y));
