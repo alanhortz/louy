@@ -4,9 +4,10 @@ import type { ReactNode } from 'react';
 import { SCANS_LABEL, isObjectScan, type Scan } from '../../domain/scans.ts';
 import { camerasFeed } from '../../machines/cameras.machine.ts';
 import { placesStatus, type LayerFeed } from '../../machines/places.machine.ts';
-import { hasScans, scansFeed } from '../../machines/scans.machine.ts';
+import { SCANS_LAYER } from '../../machines/scans.layer.ts';
+import { layerAvailable, layerFeed } from '../../machines/selectionLayer.machine.ts';
 import { CAMERA_SOURCE } from '../../services/cameras.ts';
-import { useChild } from '../actors.ts';
+import { useChild, useLayer } from '../actors.ts';
 import { ago, count } from '../format.ts';
 import { Panel } from './Panel.tsx';
 
@@ -108,10 +109,11 @@ function summary(scans: readonly Scan[]): string {
 
 /** Imagerie 3D (les scans) : la ligne n'existe que si le site en publie. */
 function ScansRow() {
-  const scans = useChild('scans');
-  const available = useSelector(scans, hasScans);
-  const feed = useSelector(scans, scansFeed);
-  const list = useSelector(scans, (snapshot) => snapshot.context.scans);
+  const layers = useChild('layers');
+  const scans = useLayer<Scan>(SCANS_LAYER);
+  const available = useSelector(scans, layerAvailable);
+  const feed = useSelector(scans, layerFeed);
+  const list = useSelector(scans, (snapshot) => snapshot.context.items);
   if (!available) return null;
 
   return (
@@ -121,7 +123,7 @@ function ScansRow() {
       count={list.length}
       feed={feed}
       meta={summary(list)}
-      onToggle={() => scans.send({ type: 'scans.toggled' })}
+      onToggle={() => layers.send({ type: 'layers.toggled', layer: SCANS_LAYER })}
     />
   );
 }
