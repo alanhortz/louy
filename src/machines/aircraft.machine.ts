@@ -13,7 +13,7 @@
 import { airframeType, attitude } from '../domain/airframes.ts';
 import { assign, fromPromise, sendParent, setup, type SnapshotFrom } from 'xstate';
 import {
-  AIRCRAFT_POLL_MS, MAX_EXTRAPOLATION_S, aircraftVelocity, searchAircraft, type Aircraft,
+  AIRCRAFT_POLL_MS, MAX_EXTRAPOLATION_S, aircraftVelocity, searchAircraft, type Aircraft, aircraftAt,
 } from '../domain/aircraft.ts';
 import type { FollowTarget } from '../engine/SceneEngine.ts';
 import type { AircraftFeature } from '../engine/overlays/aircraftMarkers.ts';
@@ -33,7 +33,8 @@ export type AircraftEmitted =
   | { type: 'aircraft.changed'; visible: boolean; features: AircraftFeature[] }
   | { type: 'aircraft.selectionChanged'; aircraft: Aircraft | null }
   | { type: 'aircraft.followChanged'; target: FollowTarget | null }
-  | { type: 'aircraft.flyRequested'; x: number; y: number; height: number };
+  /** `altitude` : celle de l'appareil, que la vue doit placer en son centre ; `null` au sol. */
+  | { type: 'aircraft.flyRequested'; x: number; y: number; height: number; altitude: number | null };
 
 interface AircraftContext {
   visible: boolean;
@@ -115,7 +116,9 @@ export const aircraftMachine = setup({
     }),
     requestFly: sendParent(({ context }): AircraftEmitted => {
       const aircraft = selected(context)!;
-      return { type: 'aircraft.flyRequested', x: aircraft.x, y: aircraft.y, height: (aircraft.altitude ?? 0) + LOCATE_HEIGHT };
+      // là où l'appareil est maintenant, pas à son dernier relevé : à 800 km/h, quelques secondes font un kilomètre
+      const { x, y, altitude } = aircraftAt(aircraft, Date.now());
+      return { type: 'aircraft.flyRequested', x, y, height: (altitude ?? 0) + LOCATE_HEIGHT, altitude };
     }),
     /** Un relevé vient d'arriver : il remplace la liste. */
     keepList: assign({
