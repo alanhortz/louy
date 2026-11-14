@@ -99,6 +99,11 @@ export interface Flyover {
   azimuth?: number;
   /** Nombre de tours de l'orbite, négatif pour l'autre sens ; à défaut, elle dure jusqu'au premier geste. */
   turns?: number;
+  /**
+   * Altitude, en mètres au-dessus de la mer, de ce que la vue doit centrer quand ce n'est pas le sol
+   * (un avion en vol) : la caméra vise alors le sol plus loin, de sorte que son regard passe par ce point.
+   */
+  aimAltitude?: number;
 }
 
 /**
@@ -256,11 +261,21 @@ export class SceneEngine {
   }
 
   /** Amène la caméra à `height` mètres au-dessus d'un lieu, en orbite si demandé. */
-  flyOver({ x, y, height, orbit, azimuth, turns }: Flyover): void {
+  flyOver({ x, y, height, orbit, azimuth, turns, aimAltitude }: Flyover): void {
+    const heading = azimuth ?? this.getPose().azimuth;
+    let aimX = x, aimY = y;
+    if (aimAltitude !== undefined) {
+      // Le regard descend vers le sol sous l'inclinaison du survol : un point en l'air est
+      // sur sa route si le sol visé est plus loin, de sa hauteur fois la tangente de cette inclinaison.
+      const ground = this.#groundAt(x - T.ORIGIN.x, -(y - T.ORIGIN.y)) ?? this.#controls.target.y;
+      const reach = Math.max(0, aimAltitude - ground) * Math.tan(FLYOVER_TILT * DEG);
+      aimX += reach * Math.sin(heading * DEG);
+      aimY += reach * Math.cos(heading * DEG);
+    }
     this.setPose({
-      x, y,
+      x: aimX, y: aimY,
       distance: height / Math.cos(FLYOVER_TILT * DEG),
-      azimuth: azimuth ?? this.getPose().azimuth,
+      azimuth: heading,
       tilt: FLYOVER_TILT,
     });
     if (orbit) this.#orbit(turns ?? Infinity);

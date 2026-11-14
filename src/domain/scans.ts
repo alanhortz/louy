@@ -111,13 +111,13 @@ export const isObjectScan = (scan: Scan): boolean => scan.mesh !== undefined;
 /**
  * Distance au sol, en mètres, sous laquelle deux scans partagent le même
  * marqueur : plus proches, leurs marqueurs se recouvriraient à l'écran et un
- * seul resterait accessible. Elle suit l'éloignement de la caméra et vaut la
- * largeur d'un marqueur avec sa légende, environ cent trente pixels d'écran :
- * deux marqueurs ne peuvent donc jamais se recouvrir sans être réunis, et aucun
- * n'est masqué en silence. De loin les scans voisins se rassemblent, et dès
- * que l'on s'approche assez chacun retrouve sa place.
+ * seul resterait accessible. Elle suit l'éloignement de la caméra et couvre la
+ * largeur d'un marqueur avec sa légende (132 px) sur un écran de 700 px de haut
+ * et plus : deux marqueurs ne peuvent donc pas se recouvrir sans être réunis, et
+ * aucun n'est masqué en silence. De loin les scans voisins se rassemblent, et
+ * dès que l'on s'approche assez chacun retrouve sa place.
  */
-export const scanGroupRadius = (distance: number): number => distance * 0.13;
+export const scanGroupRadius = (distance: number): number => distance * 0.22;
 
 /**
  * Regroupe les scans voisins, lieux et objets confondus. Deux scans sont du même

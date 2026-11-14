@@ -395,7 +395,11 @@ export const appMachine = setup({
         'aircraft.flyRequested': {
           actions: sendTo('viewer', ({ event }) => ({
             type: 'viewer.flyoverRequested',
-            flyover: { x: event.x, y: event.y, height: event.height, orbit: false },
+            flyover: {
+              x: event.x, y: event.y, height: event.height, orbit: false,
+              // l'avion est en l'air : c'est lui, et non le sol sous lui, qui doit être au centre de la vue
+              ...(event.altitude === null ? {} : { aimAltitude: event.altitude }),
+            },
           })),
         },
 
