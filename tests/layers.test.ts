@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createActor, createMachine, sendTo, waitFor, type AnyActorLogic, type AnyEventObject } from 'xstate';
 import { createTelemetryInspector } from '../src/app/inspector.ts';
-import { groupObjects, scanGroupRadius, type Scan } from '../src/domain/scans.ts';
+import { groupFlyover, groupScans, groupSpread, scanGroupRadius, type Scan } from '../src/domain/scans.ts';
 import { createLayersMachine, layerRef } from '../src/machines/layers.machine.ts';
 import { objectMachine, objectPage } from '../src/machines/object.machine.ts';
 import { drawnScans, scansLayer } from '../src/machines/scans.layer.ts';
@@ -208,19 +208,54 @@ const all = [citadelle, lettres, facade, mur];
 
 describe('groupes d’objets voisins', () => {
   it('réunit les objets à portée l’un de l’autre, et laisse les autres seuls', () => {
-    expect(groupObjects(all, 60).map((group) => group.map((scan) => scan.id))).toEqual([['lettres'], ['facade', 'mur']]);
+    expect(groupScans(all, 60).map((group) => group.map((scan) => scan.id))).toEqual([['citadelle'], ['lettres'], ['facade', 'mur']]);
   });
 
   it('réunit deux groupes qu’un objet vient relier', () => {
     const chain = [object('a', 0, 0), object('c', 100, 0), object('b', 50, 0)];
-    expect(groupObjects(chain, 60)).toHaveLength(1);
-    expect(groupObjects(chain.slice(0, 2), 60)).toHaveLength(2);
+    expect(groupScans(chain, 60)).toHaveLength(1);
+    expect(groupScans(chain.slice(0, 2), 60)).toHaveLength(2);
   });
 
   it('sépare les objets voisins dès que la caméra est assez près', () => {
     // façade et mur peint sont à 11 m l'un de l'autre
-    expect(groupObjects([facade, mur], scanGroupRadius(900))).toHaveLength(1);
-    expect(groupObjects([facade, mur], scanGroupRadius(120))).toHaveLength(2);
+    expect(groupScans([facade, mur], scanGroupRadius(900))).toHaveLength(1);
+    expect(groupScans([facade, mur], scanGroupRadius(40))).toHaveLength(2);
+  });
+});
+
+describe('groupes vus de loin', () => {
+  it('rassemblent aussi les lieux : plus on recule, plus le marqueur en compte', () => {
+    const count = (distance: number) => scansLayer.markers(all, { selectedId: null, distance }).map((marker) => (marker as { count?: number }).count ?? 1);
+    expect(count(900)).toEqual([1, 1, 2]);
+    // la citadelle et les lettres sont à 310 m l'une de l'autre, le groupe du nord à 625 m
+    expect(count(2000)).toEqual([2, 2]);
+    expect(count(12000)).toEqual([4]);
+    expect(scansLayer.markers(all, { selectedId: null, distance: 12000 })[0]).toMatchObject({ id: 'citadelle', label: '4 lieux et objets en 3D' });
+  });
+
+  it('ne s’ouvrent pas quand ils mêlent un lieu à des objets : on s’en approche', async () => {
+    const { actor, send, announced } = underParent(
+      createSelectionLayer({ ...scansLayer, load: async () => all }), { distance: 12000 });
+    await waitFor(actor, (snapshot) => snapshot.matches('visible'));
+    send({ type: 'layer.picked', id: 'citadelle' });
+    const request = announced.at(-1)!;
+    expect(request).toMatchObject({ type: 'layer.expandRequested', layer: 'scans' });
+    expect(request.items).toHaveLength(4);
+    // rien n'est sélectionné, donc rien n'est dessiné ni ouvert
+    expect(layerSelection(actor.getSnapshot())).toBeNull();
+    expect(announced.some((event) => event.type === 'layer.activated')).toBe(false);
+  });
+
+  it('se survolent d’assez près pour que leurs scans se séparent', () => {
+    const flyover = groupFlyover(all);
+    expect(groupSpread(all)).toBeGreaterThan(600);
+    expect(flyover.x).toBeGreaterThan(685186);
+    expect(flyover.x).toBeLessThan(685567);
+    // à cette hauteur, le rayon de regroupement est la moitié de l'étendue : les extrêmes ont chacun leur marqueur
+    const distance = flyover.height / Math.cos((58 * Math.PI) / 180);
+    expect(groupScans(all, scanGroupRadius(distance)).length).toBeGreaterThan(1);
+    expect(groupFlyover([facade]).height).toBe(150);
   });
 });
 
@@ -233,7 +268,7 @@ describe('calque de l’imagerie 3D', () => {
     expect(markers[2]).toMatchObject({ count: 2, label: '2 objets en 3D', x: 685187 });
     expect((markers[1] as { count?: number }).count).toBeUndefined();
     // de très près, chaque objet est à sa place
-    expect(scansLayer.markers(all, { selectedId: null, distance: 90 }).map((marker) => marker.id))
+    expect(scansLayer.markers(all, { selectedId: null, distance: 40 }).map((marker) => marker.id))
       .toEqual(['citadelle', 'lettres', 'facade', 'mur']);
   });
 
@@ -242,7 +277,7 @@ describe('calque de l’imagerie 3D', () => {
     expect(scansLayer.members(all, 'citadelle', far)).toEqual([citadelle]);
     // de loin, le mur peint n'a pas de marqueur à lui
     expect(scansLayer.members(all, 'mur', far)).toEqual([]);
-    expect(scansLayer.members(all, 'mur', { selectedId: null, distance: 90 })).toEqual([mur]);
+    expect(scansLayer.members(all, 'mur', { selectedId: null, distance: 40 })).toEqual([mur]);
   });
 
   it('efface de près le marqueur du lieu sélectionné, et seulement le sien', () => {

@@ -126,6 +126,14 @@ describe('vue partageable', () => {
     expect(encodeView(view)).toBe('c=688879,605554,426,137,58&s=2013-2014.mnt.infrared.2019&o=cai&cam=519');
   });
 
+  it('garde l’imagerie 3D allumée pour un lien d’avant son existence, et éteinte si le lien le dit', () => {
+    expect(decodeView('c=685300,628200,1500&s=2021-2022.mnt.ortho.last&o=p').overlays.scans).toBe(true);
+    expect(decodeView('c=685300,628200,1500&s=2021-2022.mnt.ortho.last&o=pi').overlays.scans).toBe(true);
+    const off = encodeView({ ...view, overlays: { ...view.overlays, scans: false } });
+    expect(off).toContain('o=cax');
+    expect(decodeView(off).overlays.scans).toBe(false);
+  });
+
   it('retombe sur la vue d’accueil pour un lien vide ou abîmé', () => {
     expect(decodeView('')).toEqual(DEFAULT_VIEW);
     expect(decodeView('#c=abc&s=x.y.z&cam=<script>')).toMatchObject({

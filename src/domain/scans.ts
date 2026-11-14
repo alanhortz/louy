@@ -109,31 +109,50 @@ export const placeScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan
 export const isObjectScan = (scan: Scan): boolean => scan.mesh !== undefined;
 
 /**
- * Distance au sol, en mètres, sous laquelle deux objets partagent le même
+ * Distance au sol, en mètres, sous laquelle deux scans partagent le même
  * marqueur : plus proches, leurs marqueurs se recouvriraient à l'écran et un
- * seul resterait accessible. Elle suit l'éloignement de la caméra — environ
- * soixante-dix pixels d'écran — : de loin les objets voisins se rassemblent, et
+ * seul resterait accessible. Elle suit l'éloignement de la caméra et couvre la
+ * largeur d'un marqueur avec sa légende (132 px) sur un écran de 700 px de haut
+ * et plus : deux marqueurs ne peuvent donc pas se recouvrir sans être réunis, et
+ * aucun n'est masqué en silence. De loin les scans voisins se rassemblent, et
  * dès que l'on s'approche assez chacun retrouve sa place.
  */
-export const scanGroupRadius = (distance: number): number => distance * 0.07;
+export const scanGroupRadius = (distance: number): number => distance * 0.22;
 
 /**
- * Regroupe les objets voisins. Deux objets sont du même groupe s'ils sont à
- * portée l'un de l'autre, directement ou par un voisin commun ; l'ordre du
- * manifeste est conservé, dans les groupes comme entre eux.
+ * Regroupe les scans voisins, lieux et objets confondus. Deux scans sont du même
+ * groupe s'ils sont à portée l'un de l'autre, directement ou par un voisin
+ * commun ; l'ordre du manifeste est conservé, dans les groupes comme entre eux.
  */
-export function groupObjects(scans: readonly Scan[], radius: number): Scan[][] {
+export function groupScans(scans: readonly Scan[], radius: number): Scan[][] {
   const groups: Scan[][] = [];
-  for (const scan of scans.filter(isObjectScan)) {
+  for (const scan of scans) {
     const near = groups.filter((group) =>
       group.some((other) => Math.hypot(other.x - scan.x, other.y - scan.y) <= radius));
     if (near.length === 0) { groups.push([scan]); continue; }
-    // l'objet relie peut-être plusieurs groupes jusque-là distincts : ils n'en font plus qu'un
+    // le scan relie peut-être plusieurs groupes jusque-là distincts : ils n'en font plus qu'un
     const [first, ...others] = near as [Scan[], ...Scan[][]];
     first.push(...others.flat(), scan);
     for (const merged of others) groups.splice(groups.indexOf(merged), 1);
   }
   return groups;
+}
+
+/** Étendue d'un groupe : la plus grande distance entre deux de ses scans, en mètres. */
+export const groupSpread = (group: readonly Scan[]): number =>
+  Math.max(0, ...group.flatMap((a) => group.map((b) => Math.hypot(a.x - b.x, a.y - b.y))));
+
+/**
+ * Survol qui ouvre un groupe : au-dessus de son milieu, assez près pour que ses
+ * scans les plus éloignés aient chacun leur marqueur.
+ */
+export function groupFlyover(group: readonly Scan[]) {
+  const x = group.reduce((sum, scan) => sum + scan.x, 0) / group.length;
+  const y = group.reduce((sum, scan) => sum + scan.y, 0) / group.length;
+  // à cette distance de visée, le rayon de regroupement vaut la moitié de l'étendue du groupe
+  const distance = (groupSpread(group) * 0.5) / scanGroupRadius(1);
+  // le survol se règle en hauteur, sous l'inclinaison de 58° adoptée pour survoler un lieu
+  return { x, y, height: Math.max(150, distance * Math.cos((58 * Math.PI) / 180)), orbit: false };
 }
 
 /** Lecture tolérante du manifeste : toute entrée incomplète est écartée. */

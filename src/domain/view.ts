@@ -50,6 +50,12 @@ export const DEFAULT_VIEW: View = {
 };
 
 const OVERLAY_CODES: Record<OverlayId, string> = { places: 'p', cameras: 'c', aircraft: 'a', scans: 'i' };
+/**
+ * L'imagerie 3D est née après les premiers liens partagés : un lien qui ne la
+ * mentionne pas ne l'a pas éteinte, il l'ignore. Elle n'est donc tenue pour
+ * éteinte que si le lien le dit expressément, par cette lettre.
+ */
+const SCANS_OFF = 'x';
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -77,7 +83,7 @@ export function encodeView(view: View): string {
     .filter((id) => overlays[id])
     .map((id) => OVERLAY_CODES[id])
     .join('');
-  params.set('o', visible);
+  params.set('o', overlays.scans ? visible : `${visible}${SCANS_OFF}`);
   if (cameraId) params.set('cam', cameraId);
   // les virgules et les points sont sûrs dans un fragment : on garde le lien lisible
   return params.toString().replaceAll('%2C', ',');
@@ -105,7 +111,7 @@ export function decodeView(fragment: string, fallback: View = DEFAULT_VIEW): Vie
         places: codes.includes(OVERLAY_CODES.places),
         cameras: codes.includes(OVERLAY_CODES.cameras),
         aircraft: codes.includes(OVERLAY_CODES.aircraft),
-        scans: codes.includes(OVERLAY_CODES.scans),
+        scans: !codes.includes(SCANS_OFF),
       },
     cameraId: cameraId && /^\d{1,6}$/.test(cameraId) ? cameraId : null,
   };
