@@ -220,7 +220,7 @@ describe('groupes d’objets voisins', () => {
   it('sépare les objets voisins dès que la caméra est assez près', () => {
     // façade et mur peint sont à 11 m l'un de l'autre
     expect(groupScans([facade, mur], scanGroupRadius(900))).toHaveLength(1);
-    expect(groupScans([facade, mur], scanGroupRadius(120))).toHaveLength(2);
+    expect(groupScans([facade, mur], scanGroupRadius(60))).toHaveLength(2);
   });
 });
 
@@ -229,7 +229,7 @@ describe('groupes vus de loin', () => {
     const count = (distance: number) => scansLayer.markers(all, { selectedId: null, distance }).map((marker) => (marker as { count?: number }).count ?? 1);
     expect(count(900)).toEqual([1, 1, 2]);
     // la citadelle et les lettres sont à 310 m l'une de l'autre, le groupe du nord à 625 m
-    expect(count(5000)).toEqual([2, 2]);
+    expect(count(3000)).toEqual([2, 2]);
     expect(count(12000)).toEqual([4]);
     expect(scansLayer.markers(all, { selectedId: null, distance: 12000 })[0]).toMatchObject({ id: 'citadelle', label: '4 lieux et objets en 3D' });
   });
@@ -268,7 +268,7 @@ describe('calque de l’imagerie 3D', () => {
     expect(markers[2]).toMatchObject({ count: 2, label: '2 objets en 3D', x: 685187 });
     expect((markers[1] as { count?: number }).count).toBeUndefined();
     // de très près, chaque objet est à sa place
-    expect(scansLayer.markers(all, { selectedId: null, distance: 90 }).map((marker) => marker.id))
+    expect(scansLayer.markers(all, { selectedId: null, distance: 60 }).map((marker) => marker.id))
       .toEqual(['citadelle', 'lettres', 'facade', 'mur']);
   });
 
@@ -277,7 +277,7 @@ describe('calque de l’imagerie 3D', () => {
     expect(scansLayer.members(all, 'citadelle', far)).toEqual([citadelle]);
     // de loin, le mur peint n'a pas de marqueur à lui
     expect(scansLayer.members(all, 'mur', far)).toEqual([]);
-    expect(scansLayer.members(all, 'mur', { selectedId: null, distance: 90 })).toEqual([mur]);
+    expect(scansLayer.members(all, 'mur', { selectedId: null, distance: 60 })).toEqual([mur]);
   });
 
   it('efface de près le marqueur du lieu sélectionné, et seulement le sien', () => {
