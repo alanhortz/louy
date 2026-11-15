@@ -188,7 +188,8 @@
 }
 .street-label {
   position: absolute;
-  transform: translate(-50%, -50%);
+  /* couché le long de la rue : l'angle vient du moteur, image par image */
+  transform: translate(-50%, -50%) rotate(var(--street-angle, 0deg));
   font-family: var(--font-sans);
   font-size: 10px;
   font-weight: 500;

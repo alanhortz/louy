@@ -108,17 +108,20 @@ export function streetCellsAround(x: number, y: number): StreetCell[] {
   return cells;
 }
 
-/** Une étiquette de rue, posée sur la carte. `rank` : 3 = grand axe, 0 = desserte. */
-export interface StreetLabel { id: string; label: string; x: number; y: number; rank: number; maxDistance: number }
+/**
+ * Une étiquette de rue, posée sur la carte. `rank` : 3 = grand axe, 0 = desserte.
+ * `bearing` : direction de la rue à cet endroit, en degrés depuis l'est, dans le sens trigonométrique.
+ */
+export interface StreetLabel { id: string; label: string; x: number; y: number; rank: number; bearing: number; maxDistance: number }
 
-/** Lit une dalle telle que le relais la sert : une ligne par rue — nom, position, importance. */
+/** Lit une dalle telle que le relais la sert : une ligne par rue — nom, position, importance, direction. */
 export function parseStreetCell(tsv: string, cell: StreetCell): StreetLabel[] {
   const labels: StreetLabel[] = [];
   for (const line of tsv.split('\n')) {
-    const [name, x, y, rank] = line.split('\t');
+    const [name, x, y, rank, bearing] = line.split('\t');
     if (!name) continue;
     const label = {
-      id: `${streetCellKey(cell)}:${name}`, label: name, x: Number(x), y: Number(y), rank: Number(rank) || 0,
+      id: `${streetCellKey(cell)}:${name}`, label: name, x: Number(x), y: Number(y), rank: Number(rank) || 0, bearing: Number(bearing) || 0,
       maxDistance: STREET_MAX_DISTANCE,
     };
     if (Number.isFinite(label.x) && Number.isFinite(label.y)) labels.push(label);
@@ -160,12 +163,12 @@ const RANK_LENGTHS = [250, 600, 1200];
 /** Pas de découpe d'un tracé, en mètres. */
 const TRACE_STEP = 100;
 
-interface Trace { length: number; points: { x: number; y: number }[] }
+interface Trace { length: number; points: { x: number; y: number; bearing: number }[] }
 
 /**
  * Réduit la réponse d'ICAR à la dalle telle que le calque la lit : une ligne par
- * rue — nom, position, importance. L'étiquette se pose sur le tracé, au plus
- * près du milieu de ce que la dalle en contient ; l'importance se déduit de la
+ * rue — nom, position, importance, direction. L'étiquette se pose sur le tracé,
+ * au plus près du milieu de ce que la dalle en contient, et s'y couche dans le sens de la rue ; l'importance se déduit de la
  * longueur de ce tracé, ICAR ne classant pas ses rues. `null` si la réponse
  * n'est pas celle attendue.
  */
@@ -188,12 +191,13 @@ export function buildStreetCell(payload: unknown, cell: StreetCell): string | nu
         // découpé en pas courts : seule la part du tracé qui est dans la dalle compte,
         // même pour un long segment dont les deux bouts sont dehors
         const steps = Math.max(1, Math.ceil(length / TRACE_STEP));
+        const bearing = (Math.atan2(by! - ay!, bx! - ax!) * 180) / Math.PI;
         for (let step = 0; step < steps; step++) {
           const t = (step + 0.5) / steps;
           const x = ax! + (bx! - ax!) * t, y = ay! + (by! - ay!) * t;
           if (!inside(x, y)) continue;
           trace.length += length / steps;
-          trace.points.push({ x, y });
+          trace.points.push({ x, y, bearing });
         }
       }
     }
@@ -204,7 +208,8 @@ export function buildStreetCell(payload: unknown, cell: StreetCell): string | nu
     const mx = points.reduce((sum, p) => sum + p.x, 0) / points.length;
     const my = points.reduce((sum, p) => sum + p.y, 0) / points.length;
     const at = points.reduce((best, p) => ((p.x - mx) ** 2 + (p.y - my) ** 2 < (best.x - mx) ** 2 + (best.y - my) ** 2 ? p : best));
-    return `${name}\t${Math.round(at.x)}\t${Math.round(at.y)}\t${RANK_LENGTHS.filter((limit) => length >= limit).length}`;
+    const rank = RANK_LENGTHS.filter((limit) => length >= limit).length;
+    return `${name}\t${Math.round(at.x)}\t${Math.round(at.y)}\t${rank}\t${Math.round(at.bearing)}`;
   }).sort((a, b) => a.localeCompare(b, 'fr'));
   return rows.length === 0 ? '' : `${rows.join('\n')}\n`;
 }
