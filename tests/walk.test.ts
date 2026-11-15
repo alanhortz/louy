@@ -90,7 +90,7 @@ describe('machine de la balade', () => {
     walk.send({ type: 'walk.placed', scan, x: 11, y: 21 });
     expect(phase()).toBe('arriving');
     expect(heard).toContainEqual({ type: 'walk.aimChanged', armed: false });
-    expect(heard.at(-1)).toEqual({ type: 'walk.started', scan, x: 11, y: 21 });
+    expect(heard.at(-1)).toEqual({ type: 'walk.started', scan, x: 11, y: 21, azimuth: undefined });
 
     walk.send({ type: 'walk.entered' });
     expect(phase()).toBe('walking');

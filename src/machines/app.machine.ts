@@ -626,7 +626,7 @@ export const appMachine = setup({
           actions: [
             assign({ walk: ({ event }) => event.scan }),
             'drawImagery',
-            sendTo('viewer', ({ event }) => ({ type: 'viewer.walkRequested', scanId: event.scan.id, x: event.x, y: event.y })),
+            sendTo('viewer', ({ event }) => ({ type: 'viewer.walkRequested', scanId: event.scan.id, x: event.x, y: event.y, azimuth: event.azimuth })),
           ],
         },
         'walk.ended': {

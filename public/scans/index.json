@@ -30,6 +30,11 @@
       "title": "Prises de vue au drone du 14 novembre 2026",
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
+    },
+    "walk": {
+      "x": 684802.3,
+      "y": 627543.2,
+      "azimuth": 180
     }
   },
   {

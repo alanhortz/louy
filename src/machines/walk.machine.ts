@@ -14,7 +14,8 @@ import type { Scan } from '../domain/scans.ts';
 export type WalkEvent =
   /** L'outil : armé, il attend qu'un point soit désigné ; touché de nouveau, il se désarme. */
   | { type: 'walk.toggled' }
-  | { type: 'walk.placed'; scan: Scan; x: number; y: number }
+  /** `azimuth` : cap du regard à l'arrivée ; à défaut, celui de la carte. */
+  | { type: 'walk.placed'; scan: Scan; x: number; y: number; azimuth?: number }
   /** Le point désigné n'est dans aucun lieu filmé ; `nearest` nomme le plus proche. */
   | { type: 'walk.missed'; nearest: { name: string; distance: number } | null }
   | { type: 'walk.entered' }
@@ -23,7 +24,7 @@ export type WalkEvent =
 
 export type WalkEmitted =
   | { type: 'walk.aimChanged'; armed: boolean }
-  | { type: 'walk.started'; scan: Scan; x: number; y: number }
+  | { type: 'walk.started'; scan: Scan; x: number; y: number; azimuth?: number }
   | { type: 'walk.ended' };
 
 interface WalkContext {
@@ -47,7 +48,7 @@ export const walkMachine = setup({
     announceDisarmed: sendParent((): WalkEmitted => ({ type: 'walk.aimChanged', armed: false })),
     start: sendParent(({ event }): WalkEmitted => {
       if (event.type !== 'walk.placed') throw new Error('balade sans lieu');
-      return { type: 'walk.started', scan: event.scan, x: event.x, y: event.y };
+      return { type: 'walk.started', scan: event.scan, x: event.x, y: event.y, azimuth: event.azimuth };
     }),
     end: sendParent((): WalkEmitted => ({ type: 'walk.ended' })),
     keepScan: assign({ scan: ({ context, event }) => (event.type === 'walk.placed' ? event.scan : context.scan), notice: null }),
