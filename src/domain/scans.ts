@@ -31,6 +31,8 @@ export interface Scan {
   survival?: SurvivalKind;
   /** L'objet est là pour s'amuser (borne d'arcade…) : il a lui aussi son calque. */
   fun?: FunKind;
+  /** L'objet est une œuvre d'art de rue (fresque, lettrage, détail peint…) : elle aussi sur son calque. */
+  art?: ArtKind;
   /** Auteur et licence des images d'origine. */
   credit: ScanCredit;
   /** Cadrage d'ouverture ; à défaut, la caméra se place au-dessus de l'ancrage. */
@@ -76,6 +78,7 @@ export const AERIAL_LABEL = 'Imagerie aérienne';
 export const OBJECTS_LABEL = 'Objets scannés';
 export const SURVIVAL_LABEL = 'Équipements de survie';
 export const FUN_LABEL = 'Fun';
+export const ART_LABEL = 'Street art';
 
 /** Équipements de survie reconnus, et le nom de chacun à l'écran. */
 export const SURVIVAL_KINDS = { defibrillator: 'Défibrillateur' } as const;
@@ -84,6 +87,10 @@ export type SurvivalKind = keyof typeof SURVIVAL_KINDS;
 /** Objets de loisir reconnus, et le nom de chacun à l'écran. */
 export const FUN_KINDS = { arcade: 'Borne d’arcade' } as const;
 export type FunKind = keyof typeof FUN_KINDS;
+
+/** Genres d'art reconnus, et le nom de chacun à l'écran. */
+export const ART_KINDS = { street: 'Art de rue' } as const;
+export type ArtKind = keyof typeof ART_KINDS;
 
 /** Hauteur de survol à l'ouverture d'un scan sans cadrage propre. */
 export const SCAN_HEIGHT = 110;
@@ -99,7 +106,9 @@ const isScan = (value: unknown): value is Scan => {
     // un équipement de survie est toujours un objet, d'un genre connu
     && (scan.survival === undefined || (typeof scan.mesh === 'string' && scan.survival in SURVIVAL_KINDS))
     // de même un objet de loisir ; et un objet n'appartient qu'à une catégorie
-    && (scan.fun === undefined || (typeof scan.mesh === 'string' && scan.fun in FUN_KINDS && scan.survival === undefined));
+    && (scan.fun === undefined || (typeof scan.mesh === 'string' && scan.fun in FUN_KINDS && scan.survival === undefined))
+    && (scan.art === undefined || (typeof scan.mesh === 'string' && scan.art in ART_KINDS
+      && scan.survival === undefined && scan.fun === undefined));
 };
 
 const isCredit = (value: unknown): value is ScanCredit => {
@@ -135,9 +144,12 @@ export const isSurvivalScan = (scan: Scan): boolean => scan.survival !== undefin
 /** L'objet est là pour s'amuser, signalé sur son propre calque. */
 export const isFunScan = (scan: Scan): boolean => scan.fun !== undefined;
 
+/** L'objet est une œuvre d'art de rue, signalée sur son propre calque. */
+export const isArtScan = (scan: Scan): boolean => scan.art !== undefined;
+
 /** Nom du calque auquel un objet appartient : c'est ce que sa visionneuse annonce. */
 export const objectLabel = (scan: Scan): string =>
-  (isSurvivalScan(scan) ? SURVIVAL_LABEL : isFunScan(scan) ? FUN_LABEL : OBJECTS_LABEL);
+  (isSurvivalScan(scan) ? SURVIVAL_LABEL : isFunScan(scan) ? FUN_LABEL : isArtScan(scan) ? ART_LABEL : OBJECTS_LABEL);
 
 /** Le scan est un objet, à examiner dans la visionneuse. */
 export const isObjectScan = (scan: Scan): boolean => scan.mesh !== undefined;
