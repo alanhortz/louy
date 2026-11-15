@@ -186,9 +186,9 @@ export class SceneEngine {
   /** Écoute du prochain point désigné, tant que l'outil de balade est armé. */
   #pick: AbortController | null = null;
   /** Regard du dernier point désigné : il retrouve ce point sur le sol du lieu, plus juste que le relief. */
-  #pickRay: { origin: Vector3; direction: Vector3 } | null = null;
+  #pickRay: { origin: Vector3; direction: Vector3; x: number; y: number } | null = null;
   /** Balade demandée, en attente du lieu : ses splats doivent être là pour en déduire le sol. */
-  #walkRequest: { scanId: string; x: number; y: number } | null = null;
+  #walkRequest: { scanId: string; x: number; y: number; azimuth?: number } | null = null;
   #walk: WalkControls | null = null;
   #raf = 0;
   #last = performance.now();
@@ -372,8 +372,10 @@ export class SceneEngine {
       if (direction.y > -1e-3) return;
       const origin = this.#camera.position.clone();
       const reach = (this.#controls.target.y - origin.y) / direction.y;
-      this.#pickRay = { origin, direction };
-      this.#listeners.onGroundPicked(origin.x + direction.x * reach + T.ORIGIN.x, -(origin.z + direction.z * reach) + T.ORIGIN.y);
+      const x = origin.x + direction.x * reach + T.ORIGIN.x;
+      const y = -(origin.z + direction.z * reach) + T.ORIGIN.y;
+      this.#pickRay = { origin, direction, x, y };
+      this.#listeners.onGroundPicked(x, y);
     }, { signal });
   }
 
@@ -381,9 +383,9 @@ export class SceneEngine {
    * Pose le visiteur au sol dans un lieu filmé, au point désigné. Le lieu doit
    * être parmi les scans dessinés ; la balade commence dès qu'il est reçu.
    */
-  startWalk(scanId: string, x: number, y: number): void {
+  startWalk(scanId: string, x: number, y: number, azimuth?: number): void {
     this.#leaveWalk();
-    this.#walkRequest = { scanId, x, y };
+    this.#walkRequest = { scanId, x, y, azimuth };
     this.#wake();
   }
 
@@ -411,7 +413,8 @@ export class SceneEngine {
     const ground = this.#splats?.ground(request.scanId);
     if (ground === undefined) return;
     this.#walkRequest = null;
-    const ray = this.#pickRay;
+    // le regard ne vaut que pour le point qu'il a désigné : une balade ouverte autrement part de son point annoncé
+    const ray = this.#pickRay?.x === request.x && this.#pickRay.y === request.y ? this.#pickRay : null;
     this.#pickRay = null;
     const worldX = request.x - T.ORIGIN.x, worldZ = -(request.y - T.ORIGIN.y);
     // le regard du clic rencontre le sol du lieu lui-même ; à défaut, on se pose au plus près du point annoncé
@@ -421,7 +424,9 @@ export class SceneEngine {
     this.#endFollow();
     this.#controls.enabled = false;
     this.#camera.fov = WALK_FOV;
-    this.#walk = new WalkControls(this.#camera, this.#canvas, ground, start, this.#controls.azimuth);
+    // sans cap imposé, on arrive en regardant dans le sens de la carte
+    const yaw = request.azimuth === undefined ? this.#controls.azimuth : -request.azimuth * DEG;
+    this.#walk = new WalkControls(this.#camera, this.#canvas, ground, start, yaw);
     this.#listeners.onWalkEntered();
   }
 

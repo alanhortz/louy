@@ -1,5 +1,5 @@
 import { useSelector } from '@xstate/react';
-import { AERIAL_LABEL, type Scan } from '../../domain/scans.ts';
+import { AERIAL_LABEL, walkStart, type Scan } from '../../domain/scans.ts';
 import { AERIAL_LAYER } from '../../machines/scans.layer.ts';
 import { layerFeed, layerKept, layerSelection } from '../../machines/selectionLayer.machine.ts';
 import { useChild, useLayer } from '../actors.ts';
@@ -75,7 +75,7 @@ export function ImageryPanel() {
               type="button"
               className="scene-btn"
               title="Se poser au sol dans ce lieu et s'y promener"
-              onClick={() => walk.send({ type: 'walk.placed', scan, x: scan.x, y: scan.y })}
+              onClick={() => walk.send({ type: 'walk.placed', scan, ...walkStart(scan) })}
             >
               S’Y PROMENER
             </button>

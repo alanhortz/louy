@@ -33,6 +33,11 @@ export interface Scan {
   fun?: FunKind;
   /** L'objet est une œuvre d'art de rue (fresque, lettrage, détail peint…) : elle aussi sur son calque. */
   art?: ArtKind;
+  /**
+   * Où la balade au sol commence dans ce lieu, en Lambert 2008, et vers où l'on regarde en
+   * arrivant (cap en degrés) ; à défaut, à son ancrage, dans le cap de la carte.
+   */
+  walk?: { x: number; y: number; azimuth?: number };
   /** Photos de l'objet tel qu'on le trouve sur place, consultées dans sa visionneuse. */
   photos?: ScanPhoto[];
   /** Auteur et licence des images d'origine. */
@@ -114,6 +119,9 @@ const isScan = (value: unknown): value is Scan => {
     // l'un ou l'autre, jamais les deux : un scan est soit un lieu, soit un objet
     && (typeof scan.splats === 'string') !== (typeof scan.mesh === 'string') && isCredit(scan.credit)
     && (scan.view === undefined || isView(scan.view))
+    // on ne se promène que dans un lieu
+    && (scan.walk === undefined || (typeof scan.splats === 'string' && Number.isFinite(scan.walk?.x) && Number.isFinite(scan.walk?.y)
+      && (scan.walk?.azimuth === undefined || Number.isFinite(scan.walk.azimuth))))
     // des photos n'accompagnent qu'un objet : c'est sa visionneuse qui les montre
     && (scan.photos === undefined || (typeof scan.mesh === 'string' && Array.isArray(scan.photos) && scan.photos.every(isPhoto)))
     // un équipement de survie est toujours un objet, d'un genre connu
@@ -159,6 +167,9 @@ export const scanFlyover = (scan: Scan) => ({
   orbit: true,
   turns: scan.view?.sweep === undefined ? undefined : scan.view.sweep / 360,
 });
+
+/** Point où la balade au sol commence dans un lieu, quand le visiteur n'en désigne pas un lui-même. */
+export const walkStart = (scan: Scan): { x: number; y: number; azimuth?: number } => scan.walk ?? { x: scan.x, y: scan.y };
 
 /** Scans dessinés dans la carte. */
 export const placeScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined);

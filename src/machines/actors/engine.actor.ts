@@ -50,7 +50,7 @@ export type EngineCommand =
   | { type: 'viewer.captureRequested' }
   /** Balade au sol : armer la désignation d'un point, se poser dans un lieu filmé, revenir à la carte. */
   | { type: 'viewer.pickArmed'; armed: boolean }
-  | { type: 'viewer.walkRequested'; scanId: string; x: number; y: number }
+  | { type: 'viewer.walkRequested'; scanId: string; x: number; y: number; azimuth?: number }
   | { type: 'viewer.walkStopped' }
   /** Trajectoire du vol sélectionné : chemin parcouru, estimation, instant désigné. */
   | { type: 'viewer.trajectoryChanged'; past: TrajectoryPoint[]; future: TrajectoryPoint[]; cursor: TrajectoryPoint | null };
@@ -165,7 +165,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
         case 'viewer.orbitStopped': return engine.stopOrbit();
         case 'viewer.followChanged': return engine.follow(command.target);
         case 'viewer.pickArmed': return engine.armPick(command.armed);
-        case 'viewer.walkRequested': return engine.startWalk(command.scanId, command.x, command.y);
+        case 'viewer.walkRequested': return engine.startWalk(command.scanId, command.x, command.y, command.azimuth);
         case 'viewer.walkStopped': return engine.stopWalk();
         case 'viewer.poseCaptureRequested':
           return sendBack({ type: 'engine.poseCaptured', pose: engine.getPose() });
