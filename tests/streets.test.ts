@@ -14,6 +14,8 @@ import worker from '../worker/index.ts';
 /** La dalle de 2 km du centre de Namur. */
 const CELL = { cx: 342, cy: 314 };
 const X0 = CELL.cx * STREET_CELL, Y0 = CELL.cy * STREET_CELL;
+/** Tracé d'une rue droite, d'ouest en est. */
+const FLAT = '-250,0 -200,0 -150,0 -100,0 -50,0 0,0 50,0 100,0 150,0 200,0 250,0';
 const feature = (name: string, ...paths: number[][][]) => ({ attributes: { RUE_NM: name }, geometry: { paths } });
 
 describe('saisie d’une recherche de rue', () => {
@@ -88,21 +90,34 @@ describe('dalles de noms de rues', () => {
       feature('', [[X0 + 10, Y0 + 10], [X0 + 20, Y0 + 10]]),
     ] }, CELL)!;
     expect(tsv.trim().split('\n')).toEqual([
-      `Chaussée de Louvain\t${X0 + 950}\t${Y0 + 1000}\t3\t0`,
-      `Rue de Fer\t${X0 + 150}\t${Y0 + 100}\t0\t0`,
+      `Chaussée de Louvain\t${X0 + 950}\t${Y0 + 1000}\t3\t${FLAT}`,
+      `Rue de Fer\t${X0 + 150}\t${Y0 + 100}\t0\t${FLAT}`,
     ]);
-    // une rue qui monte vers le nord-est : sa direction est gardée
-    expect(buildStreetCell({ features: [feature('Rue en Biais', [[X0 + 100, Y0 + 100], [X0 + 160, Y0 + 160]])] }, CELL)).toBe(`Rue en Biais\t${X0 + 130}\t${Y0 + 130}\t0\t45\n`);
+  });
+
+  it('garde, autour de l’étiquette, le tracé que le nom devra suivre', () => {
+    // une rue en équerre : 300 m vers l'est, puis 300 m vers le nord
+    const tsv = buildStreetCell({ features: [feature('Rue du Coude', [[X0 + 400, Y0 + 400], [X0 + 700, Y0 + 400], [X0 + 700, Y0 + 700]])] }, CELL)!;
+    const [name, x, y, rank, curve] = tsv.trim().split('\t');
+    expect([name, x, y, rank]).toEqual(['Rue du Coude', String(X0 + 650), String(Y0 + 400), '2']);
+    const points = curve!.split(' ').map((pair) => pair.split(',').map(Number));
+    expect(points).toHaveLength(11);
+    // le tracé passe par l'étiquette, tourne au coin, et se prolonge tout droit au-delà de ses deux bouts
+    expect(points[5]).toEqual([0, 0]);
+    expect(points[6]).toEqual([50, 0]);
+    expect(points[7]).toEqual([50, 50]);
+    expect(points[10]).toEqual([50, 200]);
+    expect(points[0]).toEqual([-250, 0]);
     expect(buildStreetCell({ features: [] }, CELL)).toBe('');
     // ArcGIS signale ses erreurs avec un statut 200 : ce n'est pas une dalle
     expect(buildStreetCell({ error: { code: 400 } }, CELL)).toBeNull();
   });
 
   it('relit la dalle servie en étiquettes', () => {
-    const labels = parseStreetCell(`Rue de Fer\t684150\t628100\t0\t-30\nChaussée de Louvain\t685000\t629000\t2\n\nabîmée\tx\ty\n`, CELL);
+    const labels = parseStreetCell(`Rue de Fer\t684150\t628100\t0\t-50,0 0,0 50,10\nChaussée de Louvain\t685000\t629000\t2\n\nabîmée\tx\ty\n`, CELL);
     expect(labels).toEqual([
-      { id: '342_314:Rue de Fer', label: 'Rue de Fer', x: 684150, y: 628100, rank: 0, bearing: -30, maxDistance: STREET_MAX_DISTANCE },
-      { id: '342_314:Chaussée de Louvain', label: 'Chaussée de Louvain', x: 685000, y: 629000, rank: 2, bearing: 0, maxDistance: STREET_MAX_DISTANCE },
+      { id: '342_314:Rue de Fer', label: 'Rue de Fer', x: 684150, y: 628100, rank: 0, curve: [-50, 0, 0, 0, 50, 10], maxDistance: STREET_MAX_DISTANCE },
+      { id: '342_314:Chaussée de Louvain', label: 'Chaussée de Louvain', x: 685000, y: 629000, rank: 2, curve: [-250, 0, 250, 0], maxDistance: STREET_MAX_DISTANCE },
     ]);
   });
 });
@@ -186,7 +201,7 @@ describe('machine de recherche de rues', () => {
 });
 
 describe('machine du calque des noms de rues', () => {
-  const label = (key: string): StreetLabel => ({ id: `${key}:Rue`, label: 'Rue', x: 0, y: 0, rank: 0, bearing: 0, maxDistance: STREET_MAX_DISTANCE });
+  const label = (key: string): StreetLabel => ({ id: `${key}:Rue`, label: 'Rue', x: 0, y: 0, rank: 0, curve: [-250, 0, 250, 0], maxDistance: STREET_MAX_DISTANCE });
   function layer(visible: boolean, distance = 900) {
     const load = vi.fn(async ({ input }: { input: { cx: number; cy: number }[] }) =>
       input.map((cell) => [`${cell.cx}_${cell.cy}`, [label(`${cell.cx}_${cell.cy}`)]] as [string, StreetLabel[]]));
@@ -252,7 +267,7 @@ describe('relais des rues', () => {
     expect(new URL(fetchMock.mock.calls[0]![0]).pathname).toContain('/ICAR_ADR_PT/MapServer/4/query');
     expect(response.headers.get('Content-Type')).toBe('text/tab-separated-values; charset=utf-8');
     expect(response.headers.get('Cache-Control')).toContain('s-maxage=2592000');
-    expect(await response.text()).toBe(`Rue de Fer\t${X0 + 150}\t${Y0 + 100}\t0\t0\n`);
+    expect(await response.text()).toBe(`Rue de Fer\t${X0 + 150}\t${Y0 + 100}\t0\t${FLAT}\n`);
     await Promise.all(pending.splice(0));
     await call('/edge/v1/streets/342/314.tsv');
     expect(fetchMock).toHaveBeenCalledTimes(1);
