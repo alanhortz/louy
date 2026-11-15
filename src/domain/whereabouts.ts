@@ -13,9 +13,11 @@ const DECIMALS = 6;
  * Coordonnées d'un point Lambert 2008, telles qu'on les colle dans une carte ou
  * un GPS : latitude puis longitude, en degrés décimaux WGS84.
  */
-export function formatCoordinates(x: number, y: number): string {
+export function formatCoordinates(x: number, y: number, azimuth?: number): string {
   const { lat, lon } = toWgs84(x, y);
-  return `${lat.toFixed(DECIMALS)}, ${lon.toFixed(DECIMALS)}`;
+  const place = `${lat.toFixed(DECIMALS)}, ${lon.toFixed(DECIMALS)}`;
+  // avec un cap — celui du regard d'un promeneur — en degrés depuis le nord, dans le sens des aiguilles d'une montre
+  return azimuth === undefined ? place : `${place}, ${Math.round(((azimuth % 360) + 360) % 360) % 360}°`;
 }
 
 /** Position de l'appareil sur la carte, avec l'incertitude annoncée par le navigateur. */

@@ -1,7 +1,7 @@
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { MapPinIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import { walkPhase } from '../../machines/walk.machine.ts';
-import { useChild } from '../actors.ts';
+import { useApp, useChild } from '../actors.ts';
 
 /**
  * Balade au sol : le bandeau du bas dit où l'on en est — désigner un point, y
@@ -9,7 +9,12 @@ import { useChild } from '../actors.ts';
  * la balade, le reste de l'interface s'efface (walk.css).
  */
 export function WalkBar() {
+  const app = useApp();
   const walk = useChild('walk');
+  // à pied, les pastilles de la carte sont effacées : la copie se confirme ici
+  const copied = useSelector(useChild('coordinates'), (snapshot) => (
+    snapshot.matches('copied') ? `Copié · ${snapshot.context.text}` : snapshot.matches('shown') ? snapshot.context.text : null
+  ));
   const phase = useSelector(walk, walkPhase);
   const place = useSelector(walk, (snapshot) => snapshot.context.scan?.name ?? null);
   const notice = useSelector(walk, (snapshot) => snapshot.context.notice);
@@ -24,9 +29,22 @@ export function WalkBar() {
         {phase !== 'aiming' && <span className="walk-bar-lead">{place}</span>}
         {phase === 'arriving' && <span className="walk-bar-hint">Arrivée sur place…</span>}
         {phase === 'walking' && (
-          <span className="walk-bar-hint">Glisser pour regarder · toucher le sol pour avancer · flèches du clavier</span>
+          <span className="walk-bar-hint" aria-live="polite">
+            {copied ?? 'Glisser pour regarder · toucher le sol pour avancer · flèches du clavier'}
+          </span>
         )}
       </div>
+      {phase === 'walking' && (
+        <button
+          type="button"
+          className="walk-bar-exit"
+          aria-label="Copier ma position et le cap de mon regard"
+          title="Copier ma position et le cap de mon regard (degrés depuis le nord)"
+          onClick={() => app.send({ type: 'app.coordinatesRequested' })}
+        >
+          <MapPinIcon aria-hidden="true" />
+        </button>
+      )}
       <button type="button" className="walk-bar-exit" aria-label={leaving} title={leaving} onClick={() => walk.send({ type: 'walk.left' })}>
         <XMarkIcon aria-hidden="true" />
       </button>

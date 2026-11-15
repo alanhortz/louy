@@ -636,9 +636,14 @@ export const appMachine = setup({
         'viewer.walkFailed': { actions: sendTo('walk', { type: 'walk.failed' }) },
 
         /* ---- coordonnées du point visé, et position de l'appareil du visiteur ---- */
+        // à pied, la vue de carte est tenue à l'aplomb du promeneur et dans son cap : ce sont les siens que l'on copie
         'app.coordinatesRequested': {
-          actions: sendTo('coordinates', ({ context }) =>
-            ({ type: 'coordinates.copyRequested', x: context.view.pose.x, y: context.view.pose.y })),
+          actions: sendTo('coordinates', ({ context }) => ({
+            type: 'coordinates.copyRequested',
+            x: context.view.pose.x,
+            y: context.view.pose.y,
+            ...(context.walk ? { azimuth: context.view.pose.azimuth } : {}),
+          })),
         },
         'location.changed': {
           actions: sendTo('viewer', ({ event }) => ({
