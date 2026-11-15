@@ -1,14 +1,16 @@
 import {
-  ClockIcon, CubeTransparentIcon, HeartIcon, PaperAirplaneIcon, PhotoIcon, TagIcon, VideoCameraIcon,
+  ClockIcon, CubeTransparentIcon, HeartIcon, MapIcon, PaperAirplaneIcon, PhotoIcon, TagIcon, VideoCameraIcon,
 } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import type { ReactNode } from 'react';
 import { AERIAL_LABEL, OBJECTS_LABEL, SURVIVAL_LABEL, type Scan } from '../../domain/scans.ts';
+import { STREET_SOURCE } from '../../domain/streets.ts';
 import { aircraftFeed } from '../../machines/aircraft.machine.ts';
 import { camerasFeed } from '../../machines/cameras.machine.ts';
 import { placesStatus, type LayerFeed } from '../../machines/places.machine.ts';
 import { AERIAL_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER } from '../../machines/scans.layer.ts';
 import { layerAvailable, layerFeed } from '../../machines/selectionLayer.machine.ts';
+import { streetsCount, streetsFeed, streetsOutOfRange } from '../../machines/streets.machine.ts';
 import { AIRCRAFT_SOURCE } from '../../services/aircraft.ts';
 import { FILMS_LABEL } from '../../domain/timeline.ts';
 import { filmsFeed } from '../../machines/films.machine.ts';
@@ -81,6 +83,25 @@ function PlacesRow() {
       feed={status.feed}
       meta={`OpenStreetMap · ${provenance}`}
       onToggle={() => places.send({ type: 'places.toggled' })}
+    />
+  );
+}
+
+/** Noms de rues : demandés dalle par dalle autour de la vue, lisibles seulement de près. */
+function StreetsRow() {
+  const streets = useChild('streets');
+  const feed = useSelector(streets, streetsFeed);
+  const total = useSelector(streets, streetsCount);
+  const tooFar = useSelector(streets, streetsOutOfRange);
+
+  return (
+    <LayerRow
+      icon={<MapIcon aria-hidden="true" />}
+      name="Noms de rues"
+      count={total}
+      feed={feed}
+      meta={`${STREET_SOURCE} · ${tooFar ? 'rapprochez-vous pour les lire' : 'visibles de près'}`}
+      onToggle={() => streets.send({ type: 'streets.toggled' })}
     />
   );
 }
@@ -167,6 +188,7 @@ export function LayersPanel() {
     <Panel id="layers" title="Calques">
       <div className="data-toggle-list">
         <PlacesRow />
+        <StreetsRow />
         <CamerasRow />
         <AircraftRow />
         <ScanLayerRow layer={AERIAL_LAYER} name={AERIAL_LABEL} icon={<PhotoIcon aria-hidden="true" />} meta="Lieux filmés au drone, reconstruits en volume" />

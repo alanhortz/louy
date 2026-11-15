@@ -83,3 +83,13 @@
   color: var(--text-secondary);
   text-align: right;
 }
+
+/* intertitre entre les sites et les rues */
+.search-section {
+  margin: 8px 4px 2px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2.6px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
