@@ -20,6 +20,19 @@
     }
   },
   {
+    "id": "crossfit-hawks-nest",
+    "name": "CrossFit Hawks Nest",
+    "x": 636186,
+    "y": 619125,
+    "splats": "/scans/crossfit-hawks-nest.spz",
+    "credit": {
+      "author": "Alan Hortz",
+      "title": "Prises de vue au drone, 2026",
+      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
+      "licence": "© 2026"
+    }
+  },
+  {
     "id": "lettres-namur",
     "name": "Lettres « NAMUR », esplanade de la Confluence",
     "x": 685567,
