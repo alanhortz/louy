@@ -26,6 +26,17 @@ export interface DevicePosition extends LambertPoint {
   accuracy: number;
 }
 
+/**
+ * Rayon, autour de l'appareil, dans lequel aucune coordonnée n'est écrite nulle part :
+ * ni dans le journal local, ni dans l'adresse de la page. La position du visiteur — et
+ * ce qu'il regarde tout près d'elle — n'existe qu'en mémoire, le temps de la visite.
+ */
+export const PRIVATE_RADIUS = 1000;
+
+/** Le point est-il assez près de l'appareil pour le trahir ? */
+export const nearDevice = (device: LambertPoint | null, x: number, y: number): boolean =>
+  device !== null && Math.hypot(x - device.x, y - device.y) < PRIVATE_RADIUS;
+
 export type LocationFailure = 'denied' | 'unavailable' | 'outside';
 
 /** Porte une position du navigateur sur la carte ; `null` si elle tombe hors de Wallonie. */

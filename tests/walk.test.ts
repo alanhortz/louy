@@ -152,3 +152,32 @@ describe('coordonnées et position du visiteur', () => {
     expect(locationNotice(refused.getSnapshot())).toBe('Localisation refusée par le navigateur');
   });
 });
+
+describe('la position du visiteur ne s’écrit nulle part', () => {
+  it('est masquée dans le journal local, avec tout ce qui la trahirait', async () => {
+    const { createTelemetryInspector } = await import('../src/app/inspector.ts');
+    const { TelemetryBuffer } = await import('../src/services/telemetry.ts');
+    const buffer = new TelemetryBuffer();
+    const inspect = createTelemetryInspector(buffer);
+    const actor = (id: string) => ({ id }) as never;
+    const event = (to: string, from: string, payload: AnyEventObject) =>
+      inspect({ type: '@xstate.event', actorRef: actor(to), sourceRef: actor(from), event: payload, rootId: 'app' } as never);
+    const home = { x: 684783, y: 627522, accuracy: 20 };
+
+    event('viewer', 'app', { type: 'viewer.flyoverRequested', flyover: { x: 700000, y: 640000, height: 200 } });
+    event('location', 'location.locate', { type: 'xstate.done.actor.location.locate', output: home });
+    event('app', 'location', { type: 'location.changed', position: home });
+    event('viewer', 'app', { type: 'viewer.flyoverRequested', flyover: { x: home.x, y: home.y, height: 260 } });
+    event('app', 'viewer', { type: 'viewer.viewSettled', pose: { x: home.x + 300, y: home.y - 200, distance: 400 } });
+    event('app', 'viewer', { type: 'viewer.viewSettled', pose: { x: home.x + 5000, y: home.y + 7000, distance: 400 } });
+    // le repère retiré, la position reste tue jusqu'à la fin de la page
+    event('app', 'location', { type: 'location.changed', position: null });
+    event('app', 'viewer', { type: 'viewer.viewSettled', pose: { x: home.x, y: home.y, distance: 400 } });
+
+    const written = JSON.stringify(buffer.drain());
+    expect(written).toContain('700000');
+    expect(written).toContain(String(home.x + 5000));
+    for (const secret of [home.x, home.y, home.x + 300, home.y - 200]) expect(written).not.toContain(String(secret));
+    expect(written.match(/masqué/g)).toHaveLength(6);
+  });
+});

@@ -5,8 +5,8 @@
  *   off ──▶ locating ──▶ shown ──▶ off
  *               └──▶ failed ──(un instant)──▶ off
  *
- * La position reste dans le navigateur : elle n'est ni envoyée, ni conservée,
- * ni inscrite dans le lien de partage.
+ * La position n'existe qu'en mémoire, le temps de la page : elle n'est ni envoyée,
+ * ni écrite dans le journal local (l'inspecteur la masque), ni inscrite dans l'adresse.
  */
 
 import { assign, fromPromise, sendParent, setup, type SnapshotFrom } from 'xstate';

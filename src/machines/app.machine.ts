@@ -52,7 +52,7 @@ import { trajectoryMachine, type TrajectoryEmitted } from './trajectory.machine.
 import { walkMachine, type WalkEmitted } from './walk.machine.ts';
 import { coordinatesMachine } from './coordinates.machine.ts';
 import { locationMachine, type LocationEmitted } from './location.machine.ts';
-import { locationHeight } from '../domain/whereabouts.ts';
+import { locationHeight, nearDevice, type DevicePosition } from '../domain/whereabouts.ts';
 import { WALK_REACH, nearestPlace } from '../domain/walk.ts';
 
 /** Cadrage du film tourné qui remplit le mieux l'écran : debout sur un téléphone tenu droit. */
@@ -102,6 +102,8 @@ interface AppContext extends AppInput {
   places: Scan[];
   /** Lieu où le visiteur marche : dessiné lui aussi, quelle que soit la sélection. */
   walk: Scan | null;
+  /** Position de l'appareil, si le visiteur l'a demandée : en mémoire seulement, pour ne jamais l'écrire dans l'adresse. */
+  device: DevicePosition | null;
 }
 
 /** Hauteur de survol d'un site touristique, et d'une caméra routière. */
@@ -200,6 +202,8 @@ export const appMachine = setup({
      */
     syncUrl: ({ context }) => {
       if (context.startsAtHome) return;
+      // une vue prise tout près de l'appareil du visiteur dirait où il est : l'adresse garde la vue d'avant
+      if (nearDevice(context.device, context.view.pose.x, context.view.pose.y)) return;
       history.replaceState(null, '', `#${encodeView(context.view)}`);
     },
     /** Dessine dans la carte l'imagerie sélectionnée et celles que le visiteur garde affichées. */
@@ -211,7 +215,7 @@ export const appMachine = setup({
   },
 }).createMachine({
   id: 'app',
-  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] }, places: [], walk: null }),
+  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] }, places: [], walk: null, device: null }),
   initial: 'checking',
   states: {
     checking: {
@@ -646,12 +650,12 @@ export const appMachine = setup({
           })),
         },
         'location.changed': {
-          actions: sendTo('viewer', ({ event }) => ({
+          actions: [assign({ device: ({ context, event }) => event.position ?? context.device }), sendTo('viewer', ({ event }) => ({
             type: 'viewer.overlayChanged',
             layer: 'location',
             features: event.position
               ? [{ id: 'visiteur', x: event.position.x, y: event.position.y, label: 'Vous êtes ici', rank: 0 }] : [],
-          })),
+          }))],
         },
         'location.flyRequested': {
           actions: sendTo('viewer', ({ event }) => ({
