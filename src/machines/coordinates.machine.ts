@@ -1,13 +1,15 @@
 /**
  * Machine des coordonnées : copie dans le presse-papiers celles du point que la
- * vue vise, et le confirme un instant.
+ * vue vise — ou, à pied, celles du promeneur et le cap de son regard — et le
+ * confirme un instant.
  */
 
 import { assign, fromPromise, setup } from 'xstate';
 import { formatCoordinates } from '../domain/whereabouts.ts';
 import { copyText } from '../services/whereabouts.ts';
 
-export type CoordinatesEvent = { type: 'coordinates.copyRequested'; x: number; y: number };
+/** `azimuth` : cap à joindre aux coordonnées, en degrés depuis le nord. */
+export type CoordinatesEvent = { type: 'coordinates.copyRequested'; x: number; y: number; azimuth?: number };
 
 /** Durée d'affichage de la confirmation. */
 const CONFIRMATION_MS = 2600;
@@ -27,7 +29,7 @@ export const coordinatesMachine = setup({
   on: {
     'coordinates.copyRequested': {
       target: '.copying',
-      actions: assign({ text: ({ event }) => formatCoordinates(event.x, event.y) }),
+      actions: assign({ text: ({ event }) => formatCoordinates(event.x, event.y, event.azimuth) }),
     },
   },
   states: {

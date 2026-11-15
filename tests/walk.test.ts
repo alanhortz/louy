@@ -116,6 +116,8 @@ describe('coordonnées et position du visiteur', () => {
     const { toLambert } = await import('../src/domain/lambert2008.ts');
     const namur = toLambert(50.464149, 4.855642);
     expect(formatCoordinates(namur.x, namur.y)).toBe('50.464149, 4.855642');
+    expect(formatCoordinates(namur.x, namur.y, 180)).toBe('50.464149, 4.855642, 180°');
+    expect(formatCoordinates(namur.x, namur.y, 359.7)).toBe('50.464149, 4.855642, 0°');
     expect(devicePosition(50.464149, 4.855642, 12)).toMatchObject({ accuracy: 12 });
     // Paris n'est pas sur la carte
     expect(devicePosition(48.8566, 2.3522, 12)).toBeNull();
