@@ -1,10 +1,11 @@
 import { useSelector } from '@xstate/react';
 import { useApp, useChild } from '../actors.ts';
 
-/** Actions rondes : chercher un site, partager la vue, revenir à la vue d'accueil. */
+/** Actions rondes : chercher un site ou une rue, partager la vue, revenir à la vue d'accueil. */
 export function TopActions() {
   const app = useApp();
   const sites = useChild('sites');
+  const streetSearch = useChild('streetSearch');
   const share = useChild('share');
   const sharing = useSelector(share, (snapshot) => snapshot.matches('delivering'));
 
@@ -12,9 +13,12 @@ export function TopActions() {
     <nav className="top-actions" aria-label="Actions">
       <button
         type="button"
-        title="Chercher un site touristique"
-        aria-label="Chercher un site touristique"
-        onClick={() => sites.send({ type: 'sites.opened' })}
+        title="Chercher un site ou une rue"
+        aria-label="Chercher un site ou une rue"
+        onClick={() => {
+          sites.send({ type: 'sites.opened' });
+          streetSearch.send({ type: 'streetSearch.opened' });
+        }}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
       </button>

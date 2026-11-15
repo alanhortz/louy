@@ -40,6 +40,8 @@ import { filmsMachine, type FilmsEmitted } from './films.machine.ts';
 import { sceneMachine, type SceneEmitted } from './scene.machine.ts';
 import { shareMachine } from './share.machine.ts';
 import { sitesMachine, type SitesEmitted } from './sites.machine.ts';
+import { streetSearchMachine, type StreetSearchEmitted } from './streetSearch.machine.ts';
+import { streetsMachine, type StreetsEmitted } from './streets.machine.ts';
 import { telemetryMachine } from './telemetry.machine.ts';
 import { timelineMachine, type TimelineEmitted } from './timeline.machine.ts';
 import { trajectoryMachine, type TrajectoryEmitted } from './trajectory.machine.ts';
@@ -60,6 +62,8 @@ export type AppEvent =
   | PlacesEmitted
   | CamerasEmitted
   | SitesEmitted
+  | StreetsEmitted
+  | StreetSearchEmitted
   | LayersEmitted<Scan>
   | ObjectEmitted
   | AircraftEmitted
@@ -83,6 +87,8 @@ interface AppContext extends AppInput {
 
 /** Hauteur de survol d'un site touristique, et d'une caméra routière. */
 const SITE_HEIGHT = 200;
+/** Hauteur de survol d'une rue : assez bas pour lire son tracé et les noms des rues voisines. */
+const STREET_HEIGHT = 320;
 const CAMERA_HEIGHT = 450;
 
 /**
@@ -109,6 +115,8 @@ export const appMachine = setup({
       places: 'places';
       cameras: 'cameras';
       sites: 'sites';
+      streets: 'streets';
+      streetSearch: 'streetSearch';
       layers: 'layers';
       object: 'object';
       aircraft: 'aircraft';
@@ -129,6 +137,8 @@ export const appMachine = setup({
     places: placesMachine,
     cameras: camerasMachine,
     sites: sitesMachine,
+    streets: streetsMachine,
+    streetSearch: streetSearchMachine,
     // les calques à sélection naissent tous du même état générique, sous un orchestrateur
     layers: createLayersMachine([aerialLayer, objectsLayer, survivalLayer]),
     object: objectMachine,
@@ -234,6 +244,12 @@ export const appMachine = setup({
         },
         { id: 'sites', src: 'sites' },
         {
+          id: 'streets',
+          src: 'streets',
+          input: ({ context }) => ({ visible: context.view.overlays.streets, focus: context.view.pose }),
+        },
+        { id: 'streetSearch', src: 'streetSearch' },
+        {
           id: 'layers',
           src: 'layers',
           input: ({ context }) => ({
@@ -282,6 +298,9 @@ export const appMachine = setup({
             sendTo('places', ({ event }) => ({ type: 'places.viewChanged', distance: event.pose.distance })),
             sendTo('cameras', ({ event }) => ({ type: 'cameras.viewChanged', x: event.pose.x, y: event.pose.y })),
             sendTo('layers', ({ event }) => ({ type: 'layers.viewChanged', distance: event.pose.distance })),
+            sendTo('streets', ({ event }) => ({
+              type: 'streets.viewChanged', x: event.pose.x, y: event.pose.y, distance: event.pose.distance,
+            })),
             sendTo('acquisition', ({ event }) => ({
               type: 'acquisition.viewChanged', x: event.pose.x, y: event.pose.y, distance: event.pose.distance,
             })),
@@ -414,6 +433,27 @@ export const appMachine = setup({
           actions: sendTo('viewer', ({ event }) => ({
             type: 'viewer.flyoverRequested',
             flyover: { x: event.x, y: event.y, height: CAMERA_HEIGHT, orbit: false },
+          })),
+        },
+
+        /* ---- noms de rues : un calque d'étiquettes, lisible de près ---- */
+        'streets.changed': {
+          actions: [
+            assign({
+              view: ({ context, event }) =>
+                ({ ...context.view, overlays: { ...context.view.overlays, streets: event.visible } }),
+            }),
+            sendTo('viewer', ({ event }) =>
+              ({ type: 'viewer.overlayChanged', layer: 'streets', features: event.features })),
+            'syncUrl',
+          ],
+        },
+
+        /* ---- rues : survol à hauteur de quartier, sans orbite ---- */
+        'streetSearch.chosen': {
+          actions: sendTo('viewer', ({ event }) => ({
+            type: 'viewer.flyoverRequested',
+            flyover: { x: event.street.x, y: event.street.y, height: STREET_HEIGHT, orbit: false },
           })),
         },
 

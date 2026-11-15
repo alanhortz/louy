@@ -8,6 +8,8 @@
  *
  *   /edge/v1/tiles/<service>/<px>/<niveau>/<i>/<j>.<png|jpg>
  *   /edge/v1/flights/<cx>/<cy>.json
+ *   /edge/v1/streets/<cx>/<cy>.tsv
+ *   /edge/v1/streets/search/<saisie>.json
  *
  * — que ce Worker traduit en requête ArcGIS, puis rend avec une durée de vie
  * longue. Une campagne LiDAR datée ne change plus : sa tuile est immuable.
@@ -33,6 +35,10 @@ import { AIRCRAFT_CACHE_SECONDS, AIRCRAFT_EDGE_PATH, aircraftFeedUrl } from '../
 import { LATEST_VINTAGE, VINTAGES } from '../src/domain/catalog.ts';
 import { ROUTE_CACHE_SECONDS, ROUTE_ROUTE, routeUrl } from '../src/domain/flightRoute.ts';
 import {
+  STREET_CELL, STREET_CELL_CACHE, STREET_EDGE_ROUTE, STREET_SEARCH_CACHE_SECONDS,
+  buildStreetCell, streetCellUrl, streetSearchQuery, streetSearchUrl,
+} from '../src/domain/streets.ts';
+import {
   SERVICE_PATTERN, TILE_SIZES, WARM_FLAG, edgeTileUrl, exportUrl, isImmutableService, parseTilePath, siblingVintages,
 } from '../src/domain/tiles.ts';
 import { WALLONIA_EXTENT, isValidAddress, paddedExtent } from '../src/domain/tiling.ts';
@@ -50,6 +56,11 @@ interface Upstream {
   /** Type attendu : ArcGIS signale ses erreurs en JSON avec un statut 200. */
   contentType: string;
   cacheControl: string;
+  /**
+   * Réponse à réduire avant de la servir et de la garder : le type rendu au
+   * visiteur, et la conversion du corps reçu — `null` s'il n'est pas celui attendu.
+   */
+  reshape?: { contentType: string; convert(body: string): string | null };
 }
 
 const PREFIX = '/edge/v1';
@@ -106,6 +117,38 @@ function routeUpstream(path: string): Upstream | null {
   };
 }
 
+/** Noms de rues d'une dalle : la couche « Rues » d'ICAR, réduite à une ligne par rue. Hors de Wallonie, rien. */
+function streetCellUpstream(path: string): Upstream | null {
+  const match = STREET_EDGE_ROUTE.exec(path);
+  if (!match) return null;
+  const cell = { cx: Number(match[1]), cy: Number(match[2]) };
+  const inside = (cell.cx + 1) * STREET_CELL > WALLONIA_EXTENT.xmin && cell.cx * STREET_CELL < WALLONIA_EXTENT.xmax
+    && (cell.cy + 1) * STREET_CELL > WALLONIA_EXTENT.ymin && cell.cy * STREET_CELL < WALLONIA_EXTENT.ymax;
+  if (!inside) return null;
+  return {
+    url: streetCellUrl(cell),
+    contentType: 'application/json',
+    cacheControl: STREET_CELL_CACHE,
+    reshape: {
+      contentType: 'text/tab-separated-values; charset=utf-8',
+      convert(body) {
+        try { return buildStreetCell(JSON.parse(body), cell); } catch { return null; }
+      },
+    },
+  };
+}
+
+/** Recherche de rues : le géocodeur du SPW, pour une saisie sous sa forme canonique seulement. */
+function streetSearchUpstream(path: string): Upstream | null {
+  const query = streetSearchQuery(path);
+  if (!query) return null;
+  return {
+    url: streetSearchUrl(query),
+    contentType: 'application/json',
+    cacheControl: `public, max-age=${STREET_SEARCH_CACHE_SECONDS}, s-maxage=${STREET_SEARCH_CACHE_SECONDS}`,
+  };
+}
+
 const refusal = (status: number, message: string): Response =>
   new Response(message, { status, headers: { 'Cache-Control': 'no-store', 'Content-Type': 'text/plain; charset=utf-8' } });
 
@@ -114,9 +157,11 @@ async function fetchUpstream(upstream: Upstream): Promise<Response | null> {
   const answer = await fetch(upstream.url, { headers: { Accept: upstream.contentType } });
   const type = answer.headers.get('Content-Type') ?? '';
   if (!answer.ok || !type.startsWith(upstream.contentType)) return null;
-  return new Response(answer.body, {
+  const body = upstream.reshape ? upstream.reshape.convert(await answer.text()) : answer.body;
+  if (body === null) return null;
+  return new Response(body, {
     headers: {
-      'Content-Type': upstream.contentType,
+      'Content-Type': upstream.reshape?.contentType ?? upstream.contentType,
       'Cache-Control': upstream.cacheControl,
       'Access-Control-Allow-Origin': '*',
       'Timing-Allow-Origin': '*',
@@ -151,7 +196,8 @@ async function warmSiblings(cache: Cache, origin: string, route: string): Promis
 async function relay(request: Request, context: ExecutionContext): Promise<Response> {
   const { origin, pathname, searchParams } = new URL(request.url);
   const route = pathname.slice(PREFIX.length);
-  const upstream = tileUpstream(route) ?? flightsUpstream(route) ?? aircraftUpstream(route) ?? routeUpstream(route);
+  const upstream = tileUpstream(route) ?? flightsUpstream(route) ?? aircraftUpstream(route) ?? routeUpstream(route)
+    ?? streetCellUpstream(route) ?? streetSearchUpstream(route);
   if (!upstream) return refusal(404, 'Ressource inconnue');
 
   // la clef ignore la chaîne de requête : impossible de fragmenter le cache par des paramètres

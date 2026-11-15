@@ -34,7 +34,7 @@ export function ControlsPanel() {
         ))}
       </dl>
       <p className="controls-note">
-        La loupe, en haut, emmène directement au-dessus d’un site touristique.
+        La loupe, en haut, emmène directement au-dessus d’un site touristique ou d’une rue.
       </p>
     </Panel>
   );
