@@ -368,10 +368,10 @@ describe('calque « Street art »', () => {
     expect(objectLabel(fresque)).toBe('Street art');
   });
 
-  it('classe en art de rue les trois œuvres publiées de Namur', () => {
+  it('classe en art de rue les œuvres publiées de Namur', () => {
     const published = parseScans(JSON.parse(readFileSync(new URL('../public/scans/index.json', import.meta.url), 'utf8')));
     expect(published.filter((scan) => scan.art === 'street').map((scan) => scan.id).sort())
-      .toEqual(['detail-facade-namur', 'lettres-namur', 'mur-peint-namur']);
+      .toEqual(['detail-facade-namur', 'lettres-namur', 'mur-peint-namur', 'poteau-autocollants-saint-aubain']);
   });
 
   it('ouvre l’œuvre touchée, sous son propre nom de calque', async () => {
