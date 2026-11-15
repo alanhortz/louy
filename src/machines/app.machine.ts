@@ -54,6 +54,7 @@ import { coordinatesMachine } from './coordinates.machine.ts';
 import { locationMachine, type LocationEmitted } from './location.machine.ts';
 import { locationHeight, nearDevice, type DevicePosition } from '../domain/whereabouts.ts';
 import { WALK_REACH, nearestPlace } from '../domain/walk.ts';
+import { clipViewPose, type ScanClip } from '../domain/clips.ts';
 
 /** Cadrage du film tourné qui remplit le mieux l'écran : debout sur un téléphone tenu droit. */
 const filmFraming = (): FilmFraming =>
@@ -68,6 +69,8 @@ export type AppEvent =
   | { type: 'app.timelineRequested' }
   /** Copier les coordonnées du point que la vue vise. */
   | { type: 'app.coordinatesRequested' }
+  /** Aller voir une séquence filmée, replacée dans son lieu. */
+  | { type: 'app.clipRequested'; clip: ScanClip }
   | SceneEmitted
   | ViewerEmitted
   | PlacesEmitted
@@ -638,6 +641,14 @@ export const appMachine = setup({
         },
         'viewer.walkEntered': { actions: sendTo('walk', { type: 'walk.entered' }) },
         'viewer.walkFailed': { actions: sendTo('walk', { type: 'walk.failed' }) },
+
+        /* ---- séquence filmée : la vue se place derrière la caméra qui l'a tournée ---- */
+        'app.clipRequested': {
+          actions: [
+            sendTo('viewer', { type: 'viewer.orbitStopped' }),
+            sendTo('viewer', ({ event }) => ({ type: 'viewer.poseApplied', pose: clipViewPose(event.clip) })),
+          ],
+        },
 
         /* ---- coordonnées du point visé, et position de l'appareil du visiteur ---- */
         // à pied, la vue de carte est tenue à l'aplomb du promeneur et dans son cap : ce sont les siens que l'on copie

@@ -2,7 +2,7 @@ import { useSelector } from '@xstate/react';
 import { AERIAL_LABEL, walkStart, type Scan } from '../../domain/scans.ts';
 import { AERIAL_LAYER } from '../../machines/scans.layer.ts';
 import { layerFeed, layerKept, layerSelection } from '../../machines/selectionLayer.machine.ts';
-import { useChild, useLayer } from '../actors.ts';
+import { useApp, useChild, useLayer } from '../actors.ts';
 import { Panel } from './Panel.tsx';
 
 /**
@@ -11,6 +11,7 @@ import { Panel } from './Panel.tsx';
  * en regarde un autre. Sans sélection, la liste des lieux disponibles.
  */
 export function ImageryPanel() {
+  const app = useApp();
   const layers = useChild('layers');
   const walk = useChild('walk');
   const layer = useLayer<Scan>(AERIAL_LAYER);
@@ -88,6 +89,22 @@ export function ImageryPanel() {
               VISITER
             </button>
           </div>
+          {scan.clips && scan.clips.length > 0 && (
+            <div className="imagery-clips">
+              <span className="imagery-kicker">Séquences filmées sur place</span>
+              {scan.clips.map((clip) => (
+                <button
+                  key={clip.id}
+                  type="button"
+                  className="scene-btn"
+                  title="Voir la séquence là où la caméra l’a tournée"
+                  onClick={() => app.send({ type: 'app.clipRequested', clip })}
+                >
+                  {clip.name}
+                </button>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
