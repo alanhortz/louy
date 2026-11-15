@@ -92,4 +92,19 @@
   letter-spacing: 2.6px;
   text-transform: uppercase;
   color: var(--accent);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
 }
+/* « Effacer » les recherches récentes : discret, à droite de l'intertitre */
+.search-section-action {
+  padding: 2px 4px;
+  background: none;
+  border: 0;
+  font: inherit;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.search-section-action:hover, .search-section-action:focus-visible { color: var(--text-primary); outline: none; }

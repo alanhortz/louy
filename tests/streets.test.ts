@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createActor, createMachine, fromPromise, sendTo, waitFor, type AnyEventObject } from 'xstate';
+import { MAX_RECENT_SEARCHES, matchRecentSearches, parseRecentSearches, recentKey, rememberSearch, type RecentSearch } from '../src/domain/recentSearches.ts';
 import {
   STREET_CELL, STREET_MAX_DISTANCE, buildStreetCell, parseStreetCell, parseStreetSearch, streetCellAt, streetCellUrl,
   streetCellsAround, streetEdgePath, streetQuery, streetSearchEdgePath, streetSearchQuery, streetSearchUrl,
   type Street, type StreetLabel,
 } from '../src/domain/streets.ts';
+import { recentsMachine } from '../src/machines/recents.machine.ts';
 import { streetSearchMachine, streetSearchStage } from '../src/machines/streetSearch.machine.ts';
 import { streetsCount, streetsFeed, streetsMachine, streetsOutOfRange } from '../src/machines/streets.machine.ts';
 import worker from '../worker/index.ts';
@@ -86,19 +88,21 @@ describe('dalles de noms de rues', () => {
       feature('', [[X0 + 10, Y0 + 10], [X0 + 20, Y0 + 10]]),
     ] }, CELL)!;
     expect(tsv.trim().split('\n')).toEqual([
-      `Chaussée de Louvain\t${X0 + 950}\t${Y0 + 1000}\t3`,
-      `Rue de Fer\t${X0 + 150}\t${Y0 + 100}\t0`,
+      `Chaussée de Louvain\t${X0 + 950}\t${Y0 + 1000}\t3\t0`,
+      `Rue de Fer\t${X0 + 150}\t${Y0 + 100}\t0\t0`,
     ]);
+    // une rue qui monte vers le nord-est : sa direction est gardée
+    expect(buildStreetCell({ features: [feature('Rue en Biais', [[X0 + 100, Y0 + 100], [X0 + 160, Y0 + 160]])] }, CELL)).toBe(`Rue en Biais\t${X0 + 130}\t${Y0 + 130}\t0\t45\n`);
     expect(buildStreetCell({ features: [] }, CELL)).toBe('');
     // ArcGIS signale ses erreurs avec un statut 200 : ce n'est pas une dalle
     expect(buildStreetCell({ error: { code: 400 } }, CELL)).toBeNull();
   });
 
   it('relit la dalle servie en étiquettes', () => {
-    const labels = parseStreetCell(`Rue de Fer\t684150\t628100\t0\nChaussée de Louvain\t685000\t629000\t2\n\nabîmée\tx\ty\n`, CELL);
+    const labels = parseStreetCell(`Rue de Fer\t684150\t628100\t0\t-30\nChaussée de Louvain\t685000\t629000\t2\n\nabîmée\tx\ty\n`, CELL);
     expect(labels).toEqual([
-      { id: '342_314:Rue de Fer', label: 'Rue de Fer', x: 684150, y: 628100, rank: 0, maxDistance: STREET_MAX_DISTANCE },
-      { id: '342_314:Chaussée de Louvain', label: 'Chaussée de Louvain', x: 685000, y: 629000, rank: 2, maxDistance: STREET_MAX_DISTANCE },
+      { id: '342_314:Rue de Fer', label: 'Rue de Fer', x: 684150, y: 628100, rank: 0, bearing: -30, maxDistance: STREET_MAX_DISTANCE },
+      { id: '342_314:Chaussée de Louvain', label: 'Chaussée de Louvain', x: 685000, y: 629000, rank: 2, bearing: 0, maxDistance: STREET_MAX_DISTANCE },
     ]);
   });
 });
@@ -182,7 +186,7 @@ describe('machine de recherche de rues', () => {
 });
 
 describe('machine du calque des noms de rues', () => {
-  const label = (key: string): StreetLabel => ({ id: `${key}:Rue`, label: 'Rue', x: 0, y: 0, rank: 0, maxDistance: STREET_MAX_DISTANCE });
+  const label = (key: string): StreetLabel => ({ id: `${key}:Rue`, label: 'Rue', x: 0, y: 0, rank: 0, bearing: 0, maxDistance: STREET_MAX_DISTANCE });
   function layer(visible: boolean, distance = 900) {
     const load = vi.fn(async ({ input }: { input: { cx: number; cy: number }[] }) =>
       input.map((cell) => [`${cell.cx}_${cell.cy}`, [label(`${cell.cx}_${cell.cy}`)]] as [string, StreetLabel[]]));
@@ -248,7 +252,7 @@ describe('relais des rues', () => {
     expect(new URL(fetchMock.mock.calls[0]![0]).pathname).toContain('/ICAR_ADR_PT/MapServer/4/query');
     expect(response.headers.get('Content-Type')).toBe('text/tab-separated-values; charset=utf-8');
     expect(response.headers.get('Cache-Control')).toContain('s-maxage=2592000');
-    expect(await response.text()).toBe(`Rue de Fer\t${X0 + 150}\t${Y0 + 100}\t0\n`);
+    expect(await response.text()).toBe(`Rue de Fer\t${X0 + 150}\t${Y0 + 100}\t0\t0\n`);
     await Promise.all(pending.splice(0));
     await call('/edge/v1/streets/342/314.tsv');
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -271,5 +275,51 @@ describe('relais des rues', () => {
     expect(response.headers.get('Cache-Control')).toContain('s-maxage=604800');
     expect((await call('/edge/v1/streets/search/RUE%20HAUTE.json')).status).toBe(404);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('recherches récentes', () => {
+  const entry = (kind: 'site' | 'street', id: string, name = id, meta = 'Namur'): RecentSearch => ({ kind, id, name, meta, x: 685000, y: 628000 });
+
+  it('place le dernier choix en tête, sans le répéter, et n’en garde que huit', () => {
+    let list: RecentSearch[] = [];
+    for (let k = 0; k < 10; k++) list = rememberSearch(list, entry('street', `rue-${k}`));
+    expect(list).toHaveLength(MAX_RECENT_SEARCHES);
+    expect(list[0]!.id).toBe('rue-9');
+    list = rememberSearch(list, entry('street', 'rue-5'));
+    expect(list.map((item) => item.id).slice(0, 2)).toEqual(['rue-5', 'rue-9']);
+    expect(list).toHaveLength(MAX_RECENT_SEARCHES);
+    // un site et une rue de même identifiant sont deux choix
+    expect(rememberSearch([entry('site', 'a')], entry('street', 'a'))).toHaveLength(2);
+  });
+
+  it('écarte ce qui est abîmé dans la liste gardée par le navigateur', () => {
+    expect(parseRecentSearches([entry('site', 'citadelle'), { kind: 'avion', id: 'x' }, { kind: 'street', id: 'r', name: 'R', meta: 'M', x: 'a', y: 1 }, null, entry('site', 'citadelle')]))
+      .toEqual([entry('site', 'citadelle')]);
+    expect(parseRecentSearches('rien')).toEqual([]);
+  });
+
+  it('répond à une saisie mot par mot, sans tenir compte des accents', () => {
+    const list = [entry('street', '1', 'Rue Hors-Château', '4000 Liège'), entry('site', '2', 'Citadelle de Namur', 'Château · Namur')];
+    expect(matchRecentSearches(list, '')).toHaveLength(2);
+    expect(matchRecentSearches(list, 'chateau').map((item) => item.id)).toEqual(['1', '2']);
+    expect(matchRecentSearches(list, 'liege hors').map((item) => item.id)).toEqual(['1']);
+    expect(matchRecentSearches(list, 'dinant')).toEqual([]);
+  });
+
+  it('retient un choix, le rend en tête quand on le reprend, et s’efface sur demande', () => {
+    const persist = vi.fn();
+    const { actor, send, announced } = host('recents', recentsMachine.provide({ actions: { persist } }), { list: [entry('site', 'citadelle')] });
+    const list = () => (actor.getSnapshot() as { context: { list: RecentSearch[] } }).context.list.map(recentKey);
+    send({ type: 'recents.added', entry: entry('street', 'fer') });
+    expect(list()).toEqual(['street:fer', 'site:citadelle']);
+    send({ type: 'recents.picked', key: 'site:citadelle' });
+    expect(list()).toEqual(['site:citadelle', 'street:fer']);
+    expect(announced.at(-1)).toEqual({ type: 'recents.chosen', entry: entry('site', 'citadelle') });
+    send({ type: 'recents.picked', key: 'site:inconnu' });
+    expect(announced).toHaveLength(1);
+    send({ type: 'recents.cleared' });
+    expect(list()).toEqual([]);
+    expect(persist).toHaveBeenCalledTimes(3);
   });
 });

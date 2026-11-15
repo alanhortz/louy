@@ -14,7 +14,7 @@ const ANNOUNCEMENTS = [
   'places.changed',
   'cameras.changed', 'cameras.selectionChanged', 'cameras.flyRequested',
   'sites.chosen',
-  'streets.changed', 'streetSearch.chosen',
+  'streets.changed', 'streetSearch.chosen', 'recents.chosen',
   // avions en direct
   'aircraft.changed', 'aircraft.selectionChanged', 'aircraft.followChanged', 'aircraft.flyRequested',
   'aircraft.tracked', 'trajectory.changed',

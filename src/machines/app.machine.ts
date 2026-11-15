@@ -22,6 +22,7 @@ import { timelineSteps, timelineTint, type FilmFraming } from '../domain/timelin
 import { DEFAULT_VIEW, encodeView, viewUrl, type View } from '../domain/view.ts';
 import type { SupportReport } from '../services/capabilities.ts';
 import { isAcknowledged } from '../services/preferences.ts';
+import { readRecentSearches } from '../services/recentSearches.ts';
 import type { TelemetryBuffer } from '../services/telemetry.ts';
 import { acquisitionMachine } from './acquisition.machine.ts';
 import { activityMachine } from './activity.machine.ts';
@@ -39,6 +40,7 @@ import type { OverlayName } from './actors/engine.actor.ts';
 import { filmsMachine, type FilmsEmitted } from './films.machine.ts';
 import { sceneMachine, type SceneEmitted } from './scene.machine.ts';
 import { shareMachine } from './share.machine.ts';
+import { recentsMachine, type RecentsEmitted } from './recents.machine.ts';
 import { sitesMachine, type SitesEmitted } from './sites.machine.ts';
 import { streetSearchMachine, type StreetSearchEmitted } from './streetSearch.machine.ts';
 import { streetsMachine, type StreetsEmitted } from './streets.machine.ts';
@@ -64,6 +66,7 @@ export type AppEvent =
   | SitesEmitted
   | StreetsEmitted
   | StreetSearchEmitted
+  | RecentsEmitted
   | LayersEmitted<Scan>
   | ObjectEmitted
   | AircraftEmitted
@@ -117,6 +120,7 @@ export const appMachine = setup({
       sites: 'sites';
       streets: 'streets';
       streetSearch: 'streetSearch';
+      recents: 'recents';
       layers: 'layers';
       object: 'object';
       aircraft: 'aircraft';
@@ -139,6 +143,7 @@ export const appMachine = setup({
     sites: sitesMachine,
     streets: streetsMachine,
     streetSearch: streetSearchMachine,
+    recents: recentsMachine,
     // les calques à sélection naissent tous du même état générique, sous un orchestrateur
     layers: createLayersMachine([aerialLayer, objectsLayer, survivalLayer]),
     object: objectMachine,
@@ -249,6 +254,7 @@ export const appMachine = setup({
           input: ({ context }) => ({ visible: context.view.overlays.streets, focus: context.view.pose }),
         },
         { id: 'streetSearch', src: 'streetSearch' },
+        { id: 'recents', src: 'recents', input: () => ({ list: readRecentSearches() }) },
         {
           id: 'layers',
           src: 'layers',
@@ -451,18 +457,40 @@ export const appMachine = setup({
 
         /* ---- rues : survol à hauteur de quartier, sans orbite ---- */
         'streetSearch.chosen': {
+          actions: [
+            sendTo('viewer', ({ event }) => ({
+              type: 'viewer.flyoverRequested',
+              flyover: { x: event.street.x, y: event.street.y, height: STREET_HEIGHT, orbit: false },
+            })),
+            sendTo('recents', ({ event }) => ({
+              type: 'recents.added',
+              entry: { kind: 'street', id: event.street.id, name: event.street.name, meta: event.street.near, x: event.street.x, y: event.street.y },
+            })),
+          ],
+        },
+
+        /* ---- recherches récentes : même survol que la première fois ---- */
+        'recents.chosen': {
           actions: sendTo('viewer', ({ event }) => ({
             type: 'viewer.flyoverRequested',
-            flyover: { x: event.street.x, y: event.street.y, height: STREET_HEIGHT, orbit: false },
+            flyover: event.entry.kind === 'site'
+              ? { x: event.entry.x, y: event.entry.y, height: SITE_HEIGHT, orbit: true }
+              : { x: event.entry.x, y: event.entry.y, height: STREET_HEIGHT, orbit: false },
           })),
         },
 
         /* ---- sites touristiques : survol à 200 m, en orbite ---- */
         'sites.chosen': {
-          actions: sendTo('viewer', ({ event }) => ({
-            type: 'viewer.flyoverRequested',
-            flyover: { x: event.site.x, y: event.site.y, height: SITE_HEIGHT, orbit: true },
-          })),
+          actions: [
+            sendTo('viewer', ({ event }) => ({
+              type: 'viewer.flyoverRequested',
+              flyover: { x: event.site.x, y: event.site.y, height: SITE_HEIGHT, orbit: true },
+            })),
+            sendTo('recents', ({ event }) => ({
+              type: 'recents.added',
+              entry: { kind: 'site', id: event.site.id, name: event.site.name, meta: `${event.site.kind} · ${event.site.near}`, x: event.site.x, y: event.site.y },
+            })),
+          ],
         },
 
         /* ---- calques à sélection (imagerie 3D) : leurs marqueurs, puis l'élément que l'on sélectionne ---- */
