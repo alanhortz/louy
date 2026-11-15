@@ -628,12 +628,19 @@ export const appMachine = setup({
             }),
           },
         ],
+        // comme dans une carte grand public : zoomer encore, au plus près d'un lieu filmé, y fait entrer à pied
+        'viewer.zoomedThrough': {
+          guard: ({ context, event }) => context.view.overlays.scans && context.walk === null
+            && (nearestPlace(context.places, event.x, event.y)?.distance ?? Infinity) <= WALK_REACH,
+          actions: sendTo('walk', ({ context, event }) =>
+            ({ type: 'walk.placed', scan: nearestPlace(context.places, event.x, event.y)!.scan, x: event.x, y: event.y, byZoom: true })),
+        },
         // le lieu est dessiné même si son calque est éteint ; la balade commence dès qu'il est arrivé
         'walk.started': {
           actions: [
             assign({ walk: ({ event }) => event.scan }),
             'drawImagery',
-            sendTo('viewer', ({ event }) => ({ type: 'viewer.walkRequested', scanId: event.scan.id, x: event.x, y: event.y, azimuth: event.azimuth })),
+            sendTo('viewer', ({ event }) => ({ type: 'viewer.walkRequested', scanId: event.scan.id, x: event.x, y: event.y, azimuth: event.azimuth, strict: event.strict })),
           ],
         },
         'walk.ended': {

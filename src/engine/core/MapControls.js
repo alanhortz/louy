@@ -17,6 +17,8 @@
 import { MathUtils, Vector3 } from 'three';
 
 const DEG = Math.PI / 180;
+/** Zoom excedentaire qui vaut une demande d'entree : trois ou quatre crans de molette, un pincement franc. */
+const ZOOM_THROUGH = 1.2;
 const NAV_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', '+', '=', '-', '_']);
 
 export class MapControls {
@@ -47,6 +49,13 @@ export class MapControls {
     this.onUserInput = () => {};
     /** Faux quand une autre navigation tient la camera (balade au sol) : les gestes sont ignores. */
     this.enabled = true;
+    /**
+     * Appele quand le visiteur continue de zoomer alors que la vue est deja au plus pres :
+     * il veut entrer dans ce qu'il regarde. Une seule fois par geste.
+     */
+    this.onZoomThrough = () => {};
+    /** Zoom demande au-dela du plus pres, cumule (logarithme du rapport de distance). */
+    this._through = 0;
 
     this._d = { pan: new Vector3(), dist: 0, az: 0, pol: 0 };
     this._ptr = new Map();
@@ -243,6 +252,17 @@ export class MapControls {
         const before = this._zoomTo ? this.#groundAt(this._zoomTo, new Vector3()) : null;
         const next = MathUtils.clamp(this.distance * Math.exp(step),
           this.minDistance, this.maxDistance);
+        // au plus pres, le zoom qui ne peut plus rapprocher s'accumule : passe un seuil, on « traverse »
+        if (step < 0 && this.distance <= this.minDistance * 1.02) {
+          this._through -= step;
+          if (this._through > ZOOM_THROUGH) {
+            this._through = 0;
+            this._d.dist = 0;
+            this.onZoomThrough();
+          }
+        } else {
+          this._through = 0;
+        }
         const ratio = next / this.distance;
         this.distance = next;
         // zoom vers le curseur : la cible glisse vers le point vise
