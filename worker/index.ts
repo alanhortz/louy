@@ -20,6 +20,9 @@
  * De même `/edge/v1/aircraft/route/<indicatif>.json`, la liaison que dessert
  * un indicatif, demandée à la base ouverte adsbdb et gardée un jour.
  *
+ * Et `/edge/v1/vessels/<décalage>.json`, les bateaux des voies navigables,
+ * demandés page par page à EuRIS et gardés une demi-minute.
+ *
  * Préchauffage : une tuile de photo aérienne demandée par le film du temps
  * (`?film`) et absente du cache annonce que la même tuile va être demandée à
  * tous les autres millésimes. Le Worker va les chercher sans attendre, en
@@ -33,6 +36,7 @@
 import { FLIGHT_CELL, flightDatesUrl } from '../src/domain/acquisition.ts';
 import { AIRCRAFT_CACHE_SECONDS, AIRCRAFT_EDGE_PATH, aircraftFeedUrl } from '../src/domain/aircraft.ts';
 import { LATEST_VINTAGE, VINTAGES } from '../src/domain/catalog.ts';
+import { VESSEL_CACHE_SECONDS, VESSEL_ROUTE, vesselPageUrl } from '../src/domain/vessels.ts';
 import { ROUTE_CACHE_SECONDS, ROUTE_ROUTE, routeUrl } from '../src/domain/flightRoute.ts';
 import {
   STREET_CELL, STREET_CELL_CACHE, STREET_EDGE_ROUTE, STREET_SEARCH_CACHE_SECONDS,
@@ -117,6 +121,17 @@ function routeUpstream(path: string): Upstream | null {
   };
 }
 
+/** Bateaux des voies navigables : une page de la réponse d'EuRIS, désignée par son décalage — quatre valeurs possibles. */
+function vesselsUpstream(path: string): Upstream | null {
+  const match = VESSEL_ROUTE.exec(path);
+  if (!match) return null;
+  return {
+    url: vesselPageUrl(Number(match[1])),
+    contentType: 'application/json',
+    cacheControl: `public, max-age=${VESSEL_CACHE_SECONDS}, s-maxage=${VESSEL_CACHE_SECONDS}`,
+  };
+}
+
 /** Noms de rues d'une dalle : la couche « Rues » d'ICAR, réduite à une ligne par rue. Hors de Wallonie, rien. */
 function streetCellUpstream(path: string): Upstream | null {
   const match = STREET_EDGE_ROUTE.exec(path);
@@ -197,7 +212,7 @@ async function relay(request: Request, context: ExecutionContext): Promise<Respo
   const { origin, pathname, searchParams } = new URL(request.url);
   const route = pathname.slice(PREFIX.length);
   const upstream = tileUpstream(route) ?? flightsUpstream(route) ?? aircraftUpstream(route) ?? routeUpstream(route)
-    ?? streetCellUpstream(route) ?? streetSearchUpstream(route);
+    ?? streetCellUpstream(route) ?? streetSearchUpstream(route) ?? vesselsUpstream(route);
   if (!upstream) return refusal(404, 'Ressource inconnue');
 
   // la clef ignore la chaîne de requête : impossible de fragmenter le cache par des paramètres

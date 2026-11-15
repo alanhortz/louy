@@ -156,6 +156,40 @@
 /* l'avion lui-même est une maquette en volume : le marqueur n'en garde que la zone de toucher et l'étiquette */
 .aircraft-marker-icon { visibility: hidden; }
 
+/* ---- bateaux : la coque est en volume ; le marqueur n'en garde que la zone de toucher et l'étiquette ---- */
+.vessel-marker {
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.vessel-marker:focus-visible { outline: none; }
+.vessel-marker.active { z-index: 2; }
+.vessel-caption {
+  position: absolute;
+  left: calc(50% + 14px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 6px 3px;
+  border-radius: 4px;
+  background: rgba(4, 12, 16, 0.74);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.vessel-caption b { font-size: 9px; font-weight: 600; letter-spacing: 0.9px; color: var(--text-primary); }
+.vessel-caption span { font-size: 8px; letter-spacing: 0.6px; color: var(--text-dim); }
+/* en route : la seconde ligne prend l'accent ; sélectionné : l'or */
+.vessel-marker.moving .vessel-caption span { color: #6be8ff; }
+.vessel-marker.active .vessel-caption { background: rgba(20, 16, 4, 0.82); }
+.vessel-marker.active .vessel-caption span { color: #ffd97a; }
+
 /* marqueur d'un groupe : une pastille dit combien d'objets il rassemble */
 .scan-count {
   position: absolute;

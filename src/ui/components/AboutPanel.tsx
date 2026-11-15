@@ -37,6 +37,7 @@ export function AboutPanel() {
       <div className="about-heading">Données</div>
       <ul>
         <li>Relief et orthophotos : <a href="https://geoportail.wallonie.be" target="_blank" rel="noreferrer">Géoportail de la Wallonie</a> (SPW), CC-BY 4.0.</li>
+        <li>Trafic fluvial : positions anonymes des bateaux, service « Tracks » incorporé depuis <a href="https://www.eurisportal.eu" target="_blank" rel="noreferrer">EuRIS</a> (eurisportal.eu).</li>
         <li>Noms de rues et recherche de rues : ICAR, inventaire des rues et adresses du <a href="https://geoportail.wallonie.be" target="_blank" rel="noreferrer">Service public de Wallonie</a>.</li>
         <li>Noms de lieux et sites touristiques : contributeurs <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>, ODbL.</li>
         <li>

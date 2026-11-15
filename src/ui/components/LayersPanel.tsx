@@ -1,16 +1,18 @@
 import {
-  ClockIcon, CubeTransparentIcon, HeartIcon, MapIcon, PaintBrushIcon, PaperAirplaneIcon, PhotoIcon, PuzzlePieceIcon, TagIcon, VideoCameraIcon,
+  ClockIcon, CubeTransparentIcon, HeartIcon, LifebuoyIcon, MapIcon, PaintBrushIcon, PaperAirplaneIcon, PhotoIcon, PuzzlePieceIcon, TagIcon, VideoCameraIcon,
 } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import type { ReactNode } from 'react';
 import { AERIAL_LABEL, ART_LABEL, FUN_LABEL, OBJECTS_LABEL, SURVIVAL_LABEL, type Scan } from '../../domain/scans.ts';
 import { STREET_SOURCE } from '../../domain/streets.ts';
+import { VESSEL_SOURCE } from '../../domain/vessels.ts';
 import { aircraftFeed } from '../../machines/aircraft.machine.ts';
 import { camerasFeed } from '../../machines/cameras.machine.ts';
 import { placesStatus, type LayerFeed } from '../../machines/places.machine.ts';
 import { AERIAL_LAYER, ART_LAYER, FUN_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER } from '../../machines/scans.layer.ts';
 import { layerAvailable, layerFeed } from '../../machines/selectionLayer.machine.ts';
 import { streetsCount, streetsFeed, streetsOutOfRange } from '../../machines/streets.machine.ts';
+import { vesselsFeed } from '../../machines/vessels.machine.ts';
 import { AIRCRAFT_SOURCE } from '../../services/aircraft.ts';
 import { FILMS_LABEL } from '../../domain/timeline.ts';
 import { filmsFeed } from '../../machines/films.machine.ts';
@@ -143,6 +145,24 @@ function AircraftRow() {
   );
 }
 
+function VesselsRow() {
+  const vessels = useChild('vessels');
+  const feed = useSelector(vessels, vesselsFeed);
+  const total = useSelector(vessels, (snapshot) => snapshot.context.list.length);
+  const updatedAt = useSelector(vessels, (snapshot) => snapshot.context.updatedAt);
+
+  return (
+    <LayerRow
+      icon={<LifebuoyIcon aria-hidden="true" />}
+      name="Trafic fluvial"
+      count={total}
+      feed={feed}
+      meta={`${VESSEL_SOURCE} · ${updatedAt === null ? 'jamais relevé' : 'en direct, positions anonymes'}`}
+      onToggle={() => vessels.send({ type: 'vessels.toggled' })}
+    />
+  );
+}
+
 /** Un calque tiré des scans : sa ligne n'existe que si le site en publie. */
 function ScanLayerRow({ layer, name, icon, meta }: { layer: string; name: string; icon: ReactNode; meta: string }) {
   const layers = useChild('layers');
@@ -191,6 +211,7 @@ export function LayersPanel() {
         <StreetsRow />
         <CamerasRow />
         <AircraftRow />
+        <VesselsRow />
         <ScanLayerRow layer={AERIAL_LAYER} name={AERIAL_LABEL} icon={<PhotoIcon aria-hidden="true" />} meta="Lieux filmés au drone, reconstruits en volume" />
         <ScanLayerRow layer={OBJECTS_LAYER} name={OBJECTS_LABEL} icon={<CubeTransparentIcon aria-hidden="true" />} meta="Relevés sur place, au téléphone" />
         <ScanLayerRow layer={ART_LAYER} name={ART_LABEL} icon={<PaintBrushIcon aria-hidden="true" />} meta="Fresques, lettrages et détails peints, relevés dans la rue" />

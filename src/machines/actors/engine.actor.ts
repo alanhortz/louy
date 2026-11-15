@@ -14,8 +14,10 @@ import { directTileUrl, edgeTileUrl } from '../../domain/tiles.ts';
 import type { Pose } from '../../domain/view.ts';
 import type { OverlayFeature } from '../../engine/OverlayLayer.ts';
 import type { AircraftModel } from '../../engine/AircraftLayer.ts';
+import type { VesselModel } from '../../engine/VesselLayer.ts';
 import type { TrajectoryPoint } from '../../engine/TrajectoryLayer.ts';
 import { aircraftMarkerStyle } from '../../engine/overlays/aircraftMarkers.ts';
+import { vesselMarkerStyle } from '../../engine/overlays/vesselMarkers.ts';
 import { cameraMarkerStyle } from '../../engine/overlays/cameraMarkers.ts';
 import { placeLabelStyle } from '../../engine/overlays/placeLabels.ts';
 import { streetLabelStyle } from '../../engine/overlays/streetLabels.ts';
@@ -23,7 +25,7 @@ import { filmMarkerStyle } from '../../engine/overlays/filmMarkers.ts';
 import { aerialMarkerStyle, artMarkerStyle, funMarkerStyle, objectMarkerStyle, survivalMarkerStyle } from '../../engine/overlays/scanMarkers.ts';
 import { SceneEngine, type Altimeter, type Flyover, type FollowTarget } from '../../engine/SceneEngine.ts';
 
-export type OverlayName = 'streets' | 'places' | 'cameras' | 'scans' | 'objects' | 'survival' | 'fun' | 'art' | 'aircraft' | 'films';
+export type OverlayName = 'streets' | 'places' | 'cameras' | 'scans' | 'objects' | 'survival' | 'fun' | 'art' | 'vessels' | 'aircraft' | 'films';
 
 export interface ViewerMount {
   canvas: HTMLCanvasElement;
@@ -76,7 +78,7 @@ export interface EngineInput {
   preload: Scan[];
 }
 
-const OVERLAYS: readonly OverlayName[] = ['streets', 'places', 'cameras', 'scans', 'objects', 'survival', 'fun', 'art', 'aircraft', 'films'];
+const OVERLAYS: readonly OverlayName[] = ['streets', 'places', 'cameras', 'scans', 'objects', 'survival', 'fun', 'art', 'vessels', 'aircraft', 'films'];
 
 export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport>(
   ({ input, sendBack, receive }) => {
@@ -117,6 +119,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
     engine.addOverlay('survival', survivalMarkerStyle);
     engine.addOverlay('fun', funMarkerStyle);
     engine.addOverlay('art', artMarkerStyle);
+    engine.addOverlay('vessels', vesselMarkerStyle);
     engine.addOverlay('aircraft', aircraftMarkerStyle);
     engine.addOverlay('films', filmMarkerStyle);
     for (const layer of OVERLAYS) {
@@ -125,6 +128,8 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
     }
     engine.setAircraftModels(input.overlays.aircraft as unknown as AircraftModel[]);
     engine.setAircraftActive(input.active.aircraft);
+    engine.setVesselModels(input.overlays.vessels as unknown as VesselModel[]);
+    engine.setVesselActive(input.active.vessels);
     engine.setScans(input.scans);
     engine.preloadScans(input.preload);
 
@@ -134,9 +139,11 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
         case 'viewer.overlayChanged':
           // les avions sont aussi dessinés en volume : leurs marqueurs n'en gardent que l'étiquette
           if (command.layer === 'aircraft') engine.setAircraftModels(command.features as unknown as AircraftModel[]);
+          if (command.layer === 'vessels') engine.setVesselModels(command.features as unknown as VesselModel[]);
           return engine.setOverlayFeatures(command.layer, command.features);
         case 'viewer.overlayActivated':
           if (command.layer === 'aircraft') engine.setAircraftActive(command.id);
+          if (command.layer === 'vessels') engine.setVesselActive(command.id);
           return engine.setOverlayActive(command.layer, command.id);
         case 'viewer.scansChanged': return engine.setScans(command.scans);
         case 'viewer.scansPreloaded': return engine.preloadScans(command.scans);
