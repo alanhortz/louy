@@ -6,7 +6,7 @@
  * représente et porte leur nombre.
  */
 
-import { AERIAL_LABEL, OBJECTS_LABEL, SURVIVAL_LABEL } from '../../domain/scans.ts';
+import { AERIAL_LABEL, FUN_LABEL, OBJECTS_LABEL, SURVIVAL_LABEL } from '../../domain/scans.ts';
 import type { OverlayFeature, OverlayStyle } from '../OverlayLayer.ts';
 import { TINT_ACTIVE, TINT_IDLE, tinted } from './tint.ts';
 
@@ -37,6 +37,16 @@ const SURVIVAL_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height
   <g fill="none" stroke-linejoin="round" stroke-linecap="round">
     <path d="M18 30.500C8.500 24 5 19.500 5 14.200 5 10.300 8 7.500 11.500 7.500c2.600 0 4.900 1.400 6.500 3.800 1.600-2.400 3.900-3.800 6.500-3.800C28 7.500 31 10.300 31 14.200c0 5.300-3.500 9.800-13 16.300Z" fill="#0e1720" stroke="#75e7ff" stroke-width="1.500"/>
     <path d="M19.800 11.500 14.200 19h4.300l-2 6.500 6.300-8.300h-4.500Z" fill="#c9f6ff" stroke="#dbfbff" stroke-width="0.700"/>
+  </g>
+</svg>`;
+
+/** Fun : une manette — la croix d'un côté, deux boutons de l'autre. */
+const FUN_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <g fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M11 11h14a7 7 0 0 1 6.900 5.800l1.300 7.400a3.300 3.300 0 0 1-5.700 2.700L24.500 23h-13l-3 3.900a3.300 3.300 0 0 1-5.700-2.700l1.300-7.400A7 7 0 0 1 11 11Z" fill="#0e1720" stroke="#75e7ff" stroke-width="1.500"/>
+    <path d="M12 14.500v5M9.500 17h5" stroke="#c9f6ff" stroke-width="1.500"/>
+    <circle cx="22.500" cy="18.300" r="1.300" fill="#c9f6ff" stroke="#dbfbff" stroke-width="0.600"/>
+    <circle cx="26" cy="15.700" r="1.300" fill="#c9f6ff" stroke="#dbfbff" stroke-width="0.600"/>
   </g>
 </svg>`;
 
@@ -90,4 +100,8 @@ export const objectMarkerStyle = scanMarker({
 
 export const survivalMarkerStyle = scanMarker({
   className: 'overlay-survival', kicker: SURVIVAL_LABEL, plural: (count) => `${count} équipements`, icon: SURVIVAL_ICON,
+});
+
+export const funMarkerStyle = scanMarker({
+  className: 'overlay-fun', kicker: FUN_LABEL, plural: (count) => `${count} objets`, icon: FUN_ICON,
 });

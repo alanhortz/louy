@@ -4,7 +4,7 @@ import { createTelemetryInspector } from '../src/app/inspector.ts';
 import { fitFlyover, objectLabel, parseScans, scansSpread, type Scan } from '../src/domain/scans.ts';
 import { createLayersMachine, layerRef } from '../src/machines/layers.machine.ts';
 import { objectMachine, objectPage } from '../src/machines/object.machine.ts';
-import { aerialLayer, drawnScans, objectsLayer, survivalLayer } from '../src/machines/scans.layer.ts';
+import { aerialLayer, drawnScans, funLayer, objectsLayer, survivalLayer } from '../src/machines/scans.layer.ts';
 import {
   createSelectionLayer, layerAvailable, layerFeed, layerKept, layerSelection, type SelectionLayerSpec,
 } from '../src/machines/selectionLayer.machine.ts';
@@ -314,6 +314,35 @@ describe('calque des équipements de survie', () => {
     await waitFor(actor, (snapshot) => snapshot.matches('visible'));
     send({ type: 'layer.picked', id: 'dea', members: ['dea'] });
     expect(announced.at(-1)).toMatchObject({ type: 'layer.activated', layer: 'survival', item: { id: 'dea' } });
+  });
+});
+
+describe('calque « Fun »', () => {
+  const arcade: Scan = { ...object('borne', 680365, 630599), name: 'Borne d’arcade', fun: 'arcade' };
+  const defibrillator: Scan = { ...object('dea', 636210, 619128), name: 'Défibrillateur', survival: 'defibrillator' };
+
+  it('prend les objets de loisir, que les autres calques ne montrent pas', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify([citadelle, lettres, defibrillator, arcade])));
+    const signal = new AbortController().signal;
+    expect((await funLayer.load(signal)).map((scan) => scan.id)).toEqual(['borne']);
+    expect((await objectsLayer.load(signal)).map((scan) => scan.id)).toEqual(['lettres']);
+    expect((await survivalLayer.load(signal)).map((scan) => scan.id)).toEqual(['dea']);
+    spy.mockRestore();
+  });
+
+  it('n’accepte qu’un genre connu, sur un objet, et dans une seule catégorie', () => {
+    expect(parseScans([arcade])).toHaveLength(1);
+    expect(parseScans([{ ...arcade, fun: 'flipper' }])).toEqual([]);
+    expect(parseScans([{ ...citadelle, fun: 'arcade' }])).toEqual([]);
+    expect(parseScans([{ ...arcade, survival: 'defibrillator' }])).toEqual([]);
+    expect(objectLabel(arcade)).toBe('Fun');
+  });
+
+  it('ouvre l’objet touché, sous son propre nom de calque', async () => {
+    const { actor, send, announced } = underParent(createSelectionLayer({ ...funLayer, load: async () => [arcade] }));
+    await waitFor(actor, (snapshot) => snapshot.matches('visible'));
+    send({ type: 'layer.picked', id: 'borne', members: ['borne'] });
+    expect(announced.at(-1)).toMatchObject({ type: 'layer.activated', layer: 'fun', item: { id: 'borne' } });
   });
 });
 

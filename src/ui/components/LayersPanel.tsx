@@ -1,14 +1,14 @@
 import {
-  ClockIcon, CubeTransparentIcon, HeartIcon, MapIcon, PaperAirplaneIcon, PhotoIcon, TagIcon, VideoCameraIcon,
+  ClockIcon, CubeTransparentIcon, HeartIcon, MapIcon, PaperAirplaneIcon, PhotoIcon, PuzzlePieceIcon, TagIcon, VideoCameraIcon,
 } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import type { ReactNode } from 'react';
-import { AERIAL_LABEL, OBJECTS_LABEL, SURVIVAL_LABEL, type Scan } from '../../domain/scans.ts';
+import { AERIAL_LABEL, FUN_LABEL, OBJECTS_LABEL, SURVIVAL_LABEL, type Scan } from '../../domain/scans.ts';
 import { STREET_SOURCE } from '../../domain/streets.ts';
 import { aircraftFeed } from '../../machines/aircraft.machine.ts';
 import { camerasFeed } from '../../machines/cameras.machine.ts';
 import { placesStatus, type LayerFeed } from '../../machines/places.machine.ts';
-import { AERIAL_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER } from '../../machines/scans.layer.ts';
+import { AERIAL_LAYER, FUN_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER } from '../../machines/scans.layer.ts';
 import { layerAvailable, layerFeed } from '../../machines/selectionLayer.machine.ts';
 import { streetsCount, streetsFeed, streetsOutOfRange } from '../../machines/streets.machine.ts';
 import { AIRCRAFT_SOURCE } from '../../services/aircraft.ts';
@@ -194,6 +194,7 @@ export function LayersPanel() {
         <ScanLayerRow layer={AERIAL_LAYER} name={AERIAL_LABEL} icon={<PhotoIcon aria-hidden="true" />} meta="Lieux filmés au drone, reconstruits en volume" />
         <ScanLayerRow layer={OBJECTS_LAYER} name={OBJECTS_LABEL} icon={<CubeTransparentIcon aria-hidden="true" />} meta="Relevés sur place, au téléphone" />
         <ScanLayerRow layer={SURVIVAL_LAYER} name={SURVIVAL_LABEL} icon={<HeartIcon aria-hidden="true" />} meta="Défibrillateurs relevés sur place" />
+        <ScanLayerRow layer={FUN_LAYER} name={FUN_LABEL} icon={<PuzzlePieceIcon aria-hidden="true" />} meta="Jeux et curiosités relevés sur place" />
         <FilmsRow />
       </div>
     </Panel>

@@ -97,5 +97,19 @@
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     }
+  },
+  {
+    "id": "borne-arcade-ibis-suarlee",
+    "name": "Borne d’arcade — Ibis Styles Namur, Suarlée",
+    "x": 680365,
+    "y": 630599,
+    "mesh": "/scans/borne-arcade-ibis-suarlee.glb",
+    "fun": "arcade",
+    "credit": {
+      "author": "Alan Hortz",
+      "title": "Relevé Polycam, 2026",
+      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
+      "licence": "© 2026"
+    }
   }
 ]
