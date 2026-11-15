@@ -63,13 +63,21 @@ export function ImageryPanel() {
               type="button"
               className={kept.includes(scan.id) ? 'scene-btn active' : 'scene-btn'}
               aria-pressed={kept.includes(scan.id)}
-              title="La garder dessinée dans la carte tant que le calque est allumé, même en sélectionnant autre chose"
+              title={kept.includes(scan.id)
+                ? 'Affichée en permanence dans la carte — toucher pour ne plus la garder'
+                : 'La laisser affichée dans la carte tant que le calque est allumé, même en sélectionnant autre chose'}
               onClick={() => send({ type: 'layers.keepToggled', id: scan.id })}
             >
-              {kept.includes(scan.id) ? 'AFFICHÉE EN PERMANENCE' : 'LAISSER AFFICHÉE'}
+              {/* libellés courts : trois boutons se partagent la largeur du panneau, l'infobulle dit le reste */}
+              {kept.includes(scan.id) ? 'ÉPINGLÉE' : 'ÉPINGLER'}
             </button>
-            <button type="button" className="scene-btn" onClick={() => send({ type: 'layers.picked', id: scan.id })}>
-              Y RETOURNER
+            <button
+              type="button"
+              className="scene-btn"
+              title="Ramener la caméra au-dessus de ce lieu"
+              onClick={() => send({ type: 'layers.picked', id: scan.id })}
+            >
+              RETOUR
             </button>
             <button
               type="button"
@@ -77,7 +85,7 @@ export function ImageryPanel() {
               title="Se poser au sol dans ce lieu et s'y promener"
               onClick={() => walk.send({ type: 'walk.placed', scan, ...walkStart(scan) })}
             >
-              S’Y PROMENER
+              VISITER
             </button>
           </div>
         </section>
