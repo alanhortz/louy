@@ -1,5 +1,6 @@
 import { useSelector } from '@xstate/react';
 import { useEffect, useRef, useState } from 'react';
+import { matchRecentSearches, recentKey } from '../../domain/recentSearches.ts';
 import { STREET_SOURCE } from '../../domain/streets.ts';
 import { streetSearchStage } from '../../machines/streetSearch.machine.ts';
 import { useChild } from '../actors.ts';
@@ -10,29 +11,38 @@ const SITES_BESIDE_STREETS = 8;
 /**
  * Recherche : un seul champ pour les sites touristiques et pour les rues.
  * Choisir un site y emmène la caméra en orbite ; choisir une rue la survole.
- * Chaque liste a sa machine, cette palette ne fait que leur parler à toutes deux.
+ * Ce que le visiteur a déjà choisi lui est proposé en premier.
+ * Chaque liste a sa machine, cette palette ne fait que leur parler à toutes.
  */
 export function SiteSearch() {
   const sites = useChild('sites');
   const streetSearch = useChild('streetSearch');
+  const recents = useChild('recents');
   const stage = useSelector(sites, (snapshot) => snapshot.value);
   const query = useSelector(sites, (snapshot) => snapshot.context.query);
   const allSites = useSelector(sites, (snapshot) => snapshot.context.results);
   const total = useSelector(sites, (snapshot) => snapshot.context.index.length);
   const streetStage = useSelector(streetSearch, streetSearchStage);
-  const streets = useSelector(streetSearch, (snapshot) => snapshot.context.results);
+  const foundStreets = useSelector(streetSearch, (snapshot) => snapshot.context.results);
+  const remembered = useSelector(recents, (snapshot) => snapshot.context.list);
   const input = useRef<HTMLInputElement>(null);
   const [cursor, setCursor] = useState(0);
 
   const open = stage !== 'closed';
-  const siteResults = streets.length > 0 ? allSites.slice(0, SITES_BESIDE_STREETS) : allSites;
+  // les recherches récentes qui répondent à la saisie passent d'abord, et ne se répètent pas plus bas
+  const recent = matchRecentSearches(remembered, query);
+  const isRecent = (kind: 'site' | 'street', id: string) => recent.some((entry) => recentKey(entry) === recentKey({ kind, id }));
+  const streets = foundStreets.filter((street) => !isRecent('street', street.id));
+  const freshSites = allSites.filter((site) => !isRecent('site', site.id));
+  const siteResults = streets.length > 0 || recent.length > 0 ? freshSites.slice(0, SITES_BESIDE_STREETS) : freshSites;
   const options = [
+    ...recent.map((entry) => ({ kind: 'recent' as const, id: recentKey(entry) })),
     ...siteResults.map((site) => ({ kind: 'site' as const, id: site.id })),
     ...streets.map((street) => ({ kind: 'street' as const, id: street.id })),
   ];
 
   useEffect(() => { if (open) input.current?.focus(); }, [open]);
-  useEffect(() => setCursor(0), [allSites, streets]);
+  useEffect(() => setCursor(0), [allSites, foundStreets, query]);
 
   if (!open) return null;
 
@@ -42,12 +52,18 @@ export function SiteSearch() {
   };
   const pick = (option: (typeof options)[number] | undefined) => {
     if (!option) return;
-    // la liste choisie annonce son choix et se ferme ; l'autre est simplement refermée
-    if (option.kind === 'site') {
+    // la liste choisie annonce son choix et se ferme ; les autres sont simplement refermées
+    // un choix fait, la saisie a servi : la palette rouvrira sur les recherches récentes
+    if (option.kind === 'recent') {
+      recents.send({ type: 'recents.picked', key: option.id });
+      sites.send({ type: 'sites.queryChanged', query: '' });
+      close();
+    } else if (option.kind === 'site') {
       sites.send({ type: 'sites.picked', id: option.id });
       streetSearch.send({ type: 'streetSearch.closed' });
     } else {
       streetSearch.send({ type: 'streetSearch.picked', id: option.id });
+      sites.send({ type: 'sites.queryChanged', query: '' });
       sites.send({ type: 'sites.closed' });
     }
   };
@@ -75,7 +91,7 @@ export function SiteSearch() {
     : stage === 'failed' ? 'Liste indisponible — réessayez dans un instant'
     : !query ? `${total} sites touristiques (OpenStreetMap) et toutes les rues de Wallonie (${STREET_SOURCE})`
     : options.length === 0 && !streetStatus ? 'Aucun site ni aucune rue ne correspond'
-    : [allSites.length > 0 ? plural(allSites.length, 'site') : null, streetStatus].filter(Boolean).join(' · ');
+    : [recent.length > 0 ? plural(recent.length, 'récente') : null, freshSites.length > 0 ? plural(freshSites.length, 'site') : null, streetStatus].filter(Boolean).join(' · ');
 
   return (
     <div className="search-backdrop" onPointerDown={(event) => { if (event.target === event.currentTarget) close(); }}>
@@ -103,12 +119,35 @@ export function SiteSearch() {
           <p className="search-status" role="status">{status}</p>
           <div className="panel-body">
             <ul className="search-results" role="listbox" aria-label="Sites et rues">
+              {recent.length > 0 && (
+                <li className="search-section" role="presentation">
+                  Récentes
+                  <button type="button" className="search-section-action" onClick={() => recents.send({ type: 'recents.cleared' })}>
+                    Effacer
+                  </button>
+                </li>
+              )}
+              {recent.map((entry, at) => (
+                <li key={`recent:${recentKey(entry)}`} role="presentation">
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={at === cursor}
+                    className="search-result"
+                    onClick={() => pick({ kind: 'recent', id: recentKey(entry) })}
+                  >
+                    <span className="search-result-name">{entry.name}</span>
+                    <span className="search-result-meta">{entry.kind === 'street' ? `Rue · ${entry.meta}` : entry.meta}</span>
+                  </button>
+                </li>
+              ))}
+              {recent.length > 0 && siteResults.length > 0 && <li className="search-section" role="presentation">Sites</li>}
               {siteResults.map((site, at) => (
                 <li key={`site:${site.id}`} role="presentation">
                   <button
                     type="button"
                     role="option"
-                    aria-selected={at === cursor}
+                    aria-selected={recent.length + at === cursor}
                     className="search-result"
                     onClick={() => pick({ kind: 'site', id: site.id })}
                   >
@@ -123,7 +162,7 @@ export function SiteSearch() {
                   <button
                     type="button"
                     role="option"
-                    aria-selected={siteResults.length + at === cursor}
+                    aria-selected={recent.length + siteResults.length + at === cursor}
                     className="search-result"
                     onClick={() => pick({ kind: 'street', id: street.id })}
                   >
