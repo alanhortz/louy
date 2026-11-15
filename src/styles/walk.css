@@ -6,7 +6,9 @@
   bottom: calc(26px + var(--safe-bottom));
   z-index: 110;
   transform: translateX(-50%);
-  max-width: calc(100vw - 2 * var(--edge));
+  /* centré par son milieu, le bandeau ne disposerait sinon que de la moitié de l'écran : il prend la largeur de son texte, bornée à celle de l'écran */
+  width: max-content;
+  max-width: calc(100vw - 2 * var(--edge) - var(--safe-left) - var(--safe-right));
   min-height: 44px;
   display: flex;
   align-items: center;
@@ -23,7 +25,9 @@
   letter-spacing: 1.4px;
   text-transform: uppercase;
 }
-.walk-bar-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.walk-bar-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.walk-bar-lead { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.walk-bar-hint { text-wrap: balance; line-height: 1.5; }
 .walk-bar-lead { color: var(--accent); font-weight: 600; }
 .walk-bar-hint { color: var(--text-secondary); font-size: 9px; letter-spacing: 1px; }
 .walk-bar-exit {
@@ -46,6 +50,8 @@
 
 /* L'outil armé : le pointeur vise. */
 body:has(.walk-aiming) .stage canvas { cursor: crosshair; }
+/* tant que l'on vise, un marqueur ne retient pas le toucher : on désigne le sol qu'il recouvre */
+body:has(.walk-aiming) .overlay-root * { pointer-events: none !important; }
 .top-actions button[aria-pressed='true'] { border-color: var(--accent); color: var(--accent); }
 
 /* À pied, rien ne doit couvrir ce que l'on voit : ni panneaux, ni marqueurs, ni instruments de carte. */
