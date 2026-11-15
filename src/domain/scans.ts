@@ -38,6 +38,8 @@ export interface Scan {
    * arrivant (cap en degrés) ; à défaut, à son ancrage, dans le cap de la carte.
    */
   walk?: { x: number; y: number; azimuth?: number };
+  /** Ce qu'il y a à savoir de l'objet, en une phrase ou deux : affiché dans sa visionneuse. */
+  note?: string;
   /** Photos de l'objet tel qu'on le trouve sur place, consultées dans sa visionneuse. */
   photos?: ScanPhoto[];
   /** Auteur et licence des images d'origine. */
@@ -122,6 +124,7 @@ const isScan = (value: unknown): value is Scan => {
     // on ne se promène que dans un lieu
     && (scan.walk === undefined || (typeof scan.splats === 'string' && Number.isFinite(scan.walk?.x) && Number.isFinite(scan.walk?.y)
       && (scan.walk?.azimuth === undefined || Number.isFinite(scan.walk.azimuth))))
+    && (scan.note === undefined || (typeof scan.mesh === 'string' && typeof scan.note === 'string'))
     // des photos n'accompagnent qu'un objet : c'est sa visionneuse qui les montre
     && (scan.photos === undefined || (typeof scan.mesh === 'string' && Array.isArray(scan.photos) && scan.photos.every(isPhoto)))
     // un équipement de survie est toujours un objet, d'un genre connu
