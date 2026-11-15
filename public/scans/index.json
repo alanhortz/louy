@@ -20,6 +20,19 @@
     }
   },
   {
+    "id": "esplanade-citadelle-namur",
+    "name": "Esplanade de la citadelle, Namur",
+    "x": 684783,
+    "y": 627522,
+    "splats": "/scans/esplanade-citadelle-namur.spz",
+    "credit": {
+      "author": "Alan Hortz",
+      "title": "Prises de vue au drone, 2026",
+      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
+      "licence": "© 2026"
+    }
+  },
+  {
     "id": "crossfit-hawks-nest",
     "name": "CrossFit Hawks Nest",
     "x": 636186,
