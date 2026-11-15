@@ -1,10 +1,11 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { createMachine, createActor, sendTo, waitFor, type AnyActorLogic, type AnyEventObject } from 'xstate';
 import { createTelemetryInspector } from '../src/app/inspector.ts';
 import { fitFlyover, objectLabel, parseScans, scansSpread, type Scan } from '../src/domain/scans.ts';
 import { createLayersMachine, layerRef } from '../src/machines/layers.machine.ts';
 import { objectMachine, objectPage } from '../src/machines/object.machine.ts';
-import { aerialLayer, drawnScans, funLayer, objectsLayer, survivalLayer } from '../src/machines/scans.layer.ts';
+import { aerialLayer, artLayer, drawnScans, funLayer, objectsLayer, survivalLayer } from '../src/machines/scans.layer.ts';
 import {
   createSelectionLayer, layerAvailable, layerFeed, layerKept, layerSelection, type SelectionLayerSpec,
 } from '../src/machines/selectionLayer.machine.ts';
@@ -343,6 +344,41 @@ describe('calque « Fun »', () => {
     await waitFor(actor, (snapshot) => snapshot.matches('visible'));
     send({ type: 'layer.picked', id: 'borne', members: ['borne'] });
     expect(announced.at(-1)).toMatchObject({ type: 'layer.activated', layer: 'fun', item: { id: 'borne' } });
+  });
+});
+
+describe('calque « Street art »', () => {
+  const fresque: Scan = { ...object('fresque', 685567, 627965), name: 'Fresque', art: 'street' };
+  const arcade: Scan = { ...object('borne', 680365, 630599), name: 'Borne d’arcade', fun: 'arcade' };
+
+  it('prend les œuvres d’art de rue, que le calque des objets scannés ne montre plus', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify([citadelle, lettres, fresque, arcade])));
+    const signal = new AbortController().signal;
+    expect((await artLayer.load(signal)).map((scan) => scan.id)).toEqual(['fresque']);
+    expect((await objectsLayer.load(signal)).map((scan) => scan.id)).toEqual(['lettres']);
+    expect((await funLayer.load(signal)).map((scan) => scan.id)).toEqual(['borne']);
+    spy.mockRestore();
+  });
+
+  it('n’accepte qu’un genre connu, sur un objet, et dans une seule catégorie', () => {
+    expect(parseScans([fresque])).toHaveLength(1);
+    expect(parseScans([{ ...fresque, art: 'musée' }])).toEqual([]);
+    expect(parseScans([{ ...citadelle, art: 'street' }])).toEqual([]);
+    expect(parseScans([{ ...fresque, fun: 'arcade' }])).toEqual([]);
+    expect(objectLabel(fresque)).toBe('Street art');
+  });
+
+  it('classe en art de rue les trois œuvres publiées de Namur', () => {
+    const published = parseScans(JSON.parse(readFileSync(new URL('../public/scans/index.json', import.meta.url), 'utf8')));
+    expect(published.filter((scan) => scan.art === 'street').map((scan) => scan.id).sort())
+      .toEqual(['detail-facade-namur', 'lettres-namur', 'mur-peint-namur']);
+  });
+
+  it('ouvre l’œuvre touchée, sous son propre nom de calque', async () => {
+    const { actor, send, announced } = underParent(createSelectionLayer({ ...artLayer, load: async () => [fresque] }));
+    await waitFor(actor, (snapshot) => snapshot.matches('visible'));
+    send({ type: 'layer.picked', id: 'fresque', members: ['fresque'] });
+    expect(announced.at(-1)).toMatchObject({ type: 'layer.activated', layer: 'art', item: { id: 'fresque' } });
   });
 });
 

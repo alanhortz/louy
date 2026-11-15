@@ -14,7 +14,7 @@
  * carte qui les rassemble sous un seul, avec leur nombre.
  */
 
-import { isFunScan, isObjectScan, isSurvivalScan, placeScans, type Scan } from '../domain/scans.ts';
+import { isArtScan, isFunScan, isObjectScan, isSurvivalScan, placeScans, type Scan } from '../domain/scans.ts';
 import type { ScanFeature } from '../engine/overlays/scanMarkers.ts';
 import { loadScans } from '../services/scans.ts';
 import type { SelectionLayerSpec } from './selectionLayer.machine.ts';
@@ -23,6 +23,7 @@ export const AERIAL_LAYER = 'scans';
 export const OBJECTS_LAYER = 'objects';
 export const SURVIVAL_LAYER = 'survival';
 export const FUN_LAYER = 'fun';
+export const ART_LAYER = 'art';
 
 /**
  * Éloignement sous lequel le marqueur d'un lieu dessiné s'efface : on a alors
@@ -46,7 +47,7 @@ export const aerialLayer: SelectionLayerSpec<Scan> = {
 
 export const objectsLayer: SelectionLayerSpec<Scan> = {
   name: OBJECTS_LAYER,
-  load: async (signal) => (await loadScans(signal)).filter((scan) => isObjectScan(scan) && !isSurvivalScan(scan) && !isFunScan(scan)),
+  load: async (signal) => (await loadScans(signal)).filter((scan) => isObjectScan(scan) && !isSurvivalScan(scan) && !isFunScan(scan) && !isArtScan(scan)),
   markers: (scans) => scans.map(toFeature),
 };
 
@@ -67,6 +68,16 @@ export const survivalLayer: SelectionLayerSpec<Scan> = {
 export const funLayer: SelectionLayerSpec<Scan> = {
   name: FUN_LAYER,
   load: async (signal) => (await loadScans(signal)).filter(isFunScan),
+  markers: (scans) => scans.map(toFeature),
+};
+
+/**
+ * Street art : fresques, lettrages et détails peints relevés dans la rue.
+ * Même mécanique toujours, et un calque à eux.
+ */
+export const artLayer: SelectionLayerSpec<Scan> = {
+  name: ART_LAYER,
+  load: async (signal) => (await loadScans(signal)).filter(isArtScan),
   markers: (scans) => scans.map(toFeature),
 };
 

@@ -6,7 +6,7 @@
  * représente et porte leur nombre.
  */
 
-import { AERIAL_LABEL, FUN_LABEL, OBJECTS_LABEL, SURVIVAL_LABEL } from '../../domain/scans.ts';
+import { AERIAL_LABEL, ART_LABEL, FUN_LABEL, OBJECTS_LABEL, SURVIVAL_LABEL } from '../../domain/scans.ts';
 import type { OverlayFeature, OverlayStyle } from '../OverlayLayer.ts';
 import { TINT_ACTIVE, TINT_IDLE, tinted } from './tint.ts';
 
@@ -47,6 +47,17 @@ const FUN_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"
     <path d="M12 14.500v5M9.500 17h5" stroke="#c9f6ff" stroke-width="1.500"/>
     <circle cx="22.500" cy="18.300" r="1.300" fill="#c9f6ff" stroke="#dbfbff" stroke-width="0.600"/>
     <circle cx="26" cy="15.700" r="1.300" fill="#c9f6ff" stroke="#dbfbff" stroke-width="0.600"/>
+  </g>
+</svg>`;
+
+/** Street art : une bombe de peinture, et son jet. */
+const ART_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <g fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="10" y="14" width="12" height="17" rx="2.500" fill="#0e1720" stroke="#75e7ff" stroke-width="1.500"/>
+    <path d="M12.500 14v-2.500a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2V14" stroke="#75e7ff" stroke-width="1.400"/>
+    <rect x="14.200" y="6" width="3.600" height="3.500" rx="0.800" fill="#c9f6ff" stroke="#dbfbff" stroke-width="0.600"/>
+    <path d="M10 20h12" stroke="#4ecde7" stroke-width="1"/>
+    <path d="M21.500 7.500h.01M25 5.500h.01M25 9.500h.01M28.500 3.500h.01M28.500 7.500h.01M28.500 11.500h.01" stroke="#c9f6ff" stroke-width="1.800"/>
   </g>
 </svg>`;
 
@@ -104,4 +115,8 @@ export const survivalMarkerStyle = scanMarker({
 
 export const funMarkerStyle = scanMarker({
   className: 'overlay-fun', kicker: FUN_LABEL, plural: (count) => `${count} objets`, icon: FUN_ICON,
+});
+
+export const artMarkerStyle = scanMarker({
+  className: 'overlay-art', kicker: ART_LABEL, plural: (count) => `${count} œuvres`, icon: ART_ICON,
 });

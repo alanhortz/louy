@@ -34,7 +34,8 @@ import { objectMachine, type ObjectEmitted } from './object.machine.ts';
 import { placesMachine, type PlacesEmitted } from './places.machine.ts';
 import { createLayersMachine, type LayersEmitted } from './layers.machine.ts';
 import {
-  AERIAL_LAYER, FUN_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER, aerialLayer, drawnScans, funLayer, objectsLayer, survivalLayer,
+  AERIAL_LAYER, ART_LAYER, FUN_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER,
+  aerialLayer, artLayer, drawnScans, funLayer, objectsLayer, survivalLayer,
 } from './scans.layer.ts';
 import type { OverlayName } from './actors/engine.actor.ts';
 import { filmsMachine, type FilmsEmitted } from './films.machine.ts';
@@ -145,7 +146,7 @@ export const appMachine = setup({
     streetSearch: streetSearchMachine,
     recents: recentsMachine,
     // les calques à sélection naissent tous du même état générique, sous un orchestrateur
-    layers: createLayersMachine([aerialLayer, objectsLayer, survivalLayer, funLayer]),
+    layers: createLayersMachine([aerialLayer, objectsLayer, artLayer, survivalLayer, funLayer]),
     object: objectMachine,
     aircraft: aircraftMachine,
     films: filmsMachine,
@@ -264,6 +265,7 @@ export const appMachine = setup({
               [OBJECTS_LAYER]: context.view.overlays.objects,
               [SURVIVAL_LAYER]: context.view.overlays.survival,
               [FUN_LAYER]: context.view.overlays.fun,
+              [ART_LAYER]: context.view.overlays.art,
             },
             distance: context.view.pose.distance,
           }),
@@ -416,7 +418,7 @@ export const appMachine = setup({
           },
           {
             // imagerie aérienne ou objets scannés : le calque reçoit ce que le marqueur touché rassemble
-            guard: ({ event }) => [AERIAL_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER, FUN_LAYER].includes(event.layer),
+            guard: ({ event }) => [AERIAL_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER, FUN_LAYER, ART_LAYER].includes(event.layer),
             actions: sendTo('layers', ({ event }) =>
               ({ type: 'layers.picked', layer: event.layer, id: event.id, members: event.members })),
           },
@@ -544,7 +546,7 @@ export const appMachine = setup({
         'layers.activated': [
           {
             // objets scannés, équipements de survie et objets de loisir s'examinent dans la même visionneuse
-            guard: ({ event }) => [OBJECTS_LAYER, SURVIVAL_LAYER, FUN_LAYER].includes(event.layer),
+            guard: ({ event }) => [OBJECTS_LAYER, SURVIVAL_LAYER, FUN_LAYER, ART_LAYER].includes(event.layer),
             actions: sendTo('object', ({ event }) => ({ type: 'object.opened', scan: event.item, group: event.siblings })),
           },
           {
@@ -558,6 +560,7 @@ export const appMachine = setup({
             sendTo('layers', { type: 'layers.dismissed', layer: OBJECTS_LAYER }),
             sendTo('layers', { type: 'layers.dismissed', layer: SURVIVAL_LAYER }),
             sendTo('layers', { type: 'layers.dismissed', layer: FUN_LAYER }),
+            sendTo('layers', { type: 'layers.dismissed', layer: ART_LAYER }),
           ],
         },
 
@@ -636,6 +639,7 @@ export const appMachine = setup({
             sendTo('layers', { type: 'layers.dismissed', layer: OBJECTS_LAYER }),
             sendTo('layers', { type: 'layers.dismissed', layer: SURVIVAL_LAYER }),
             sendTo('layers', { type: 'layers.dismissed', layer: FUN_LAYER }),
+            sendTo('layers', { type: 'layers.dismissed', layer: ART_LAYER }),
           ],
         },
       },

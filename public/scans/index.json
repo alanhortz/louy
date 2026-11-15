@@ -25,6 +25,7 @@
     "x": 685567,
     "y": 627965,
     "mesh": "/scans/lettres-namur.glb",
+    "art": "street",
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam, 2026",
@@ -38,6 +39,7 @@
     "x": 685186,
     "y": 628504,
     "mesh": "/scans/detail-facade-namur.glb",
+    "art": "street",
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam, 2026",
@@ -51,6 +53,7 @@
     "x": 685188,
     "y": 628493,
     "mesh": "/scans/mur-peint-namur.glb",
+    "art": "street",
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam, 2026",

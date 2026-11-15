@@ -1,7 +1,7 @@
 import { useSelector } from '@xstate/react';
 import { PROJECT } from '../../config/project.ts';
 import { AERIAL_LABEL, OBJECTS_LABEL, type Scan } from '../../domain/scans.ts';
-import { AERIAL_LAYER, FUN_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER } from '../../machines/scans.layer.ts';
+import { AERIAL_LAYER, ART_LAYER, FUN_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER } from '../../machines/scans.layer.ts';
 import sponsorMark from '../assets/sorcery-systems.svg';
 import { RETENTION_MS } from '../../services/telemetry.ts';
 import { useChild, useLayer } from '../actors.ts';
@@ -16,7 +16,8 @@ export function AboutPanel() {
   const scanned = useSelector(useLayer<Scan>(OBJECTS_LAYER), (snapshot) => snapshot.context.items);
   const survival = useSelector(useLayer<Scan>(SURVIVAL_LAYER), (snapshot) => snapshot.context.items);
   const fun = useSelector(useLayer<Scan>(FUN_LAYER), (snapshot) => snapshot.context.items);
-  const objects = [...scanned, ...survival, ...fun];
+  const art = useSelector(useLayer<Scan>(ART_LAYER), (snapshot) => snapshot.context.items);
+  const objects = [...scanned, ...art, ...survival, ...fun];
   const telemetry = useChild('telemetry');
   const summary = useSelector(telemetry, (snapshot) => snapshot.context.summary);
   const busy = useSelector(telemetry, (snapshot) => !snapshot.matches({ recording: { ledger: 'idle' } }));
