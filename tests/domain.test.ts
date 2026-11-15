@@ -128,10 +128,13 @@ describe('vue partageable', () => {
 
   it('garde l’imagerie et les objets allumés pour un lien d’avant leur existence, et éteints si le lien le dit', () => {
     const old = decodeView('c=685300,628200,1500&s=2021-2022.mnt.ortho.last&o=p');
-    expect([old.overlays.scans, old.overlays.objects, old.overlays.survival, old.overlays.fun]).toEqual([true, true, true, true]);
-    const off = encodeView({ ...view, overlays: { ...view.overlays, scans: false, objects: false, survival: false, fun: false } });
-    expect(off).toContain('o=carxyzw');
-    expect(decodeView(off).overlays.fun).toBe(false);
+    expect([old.overlays.scans, old.overlays.objects, old.overlays.survival]).toEqual([true, true, true]);
+    // le calque « Fun », lui, est éteint tant que le lien ne l'allume pas
+    expect(old.overlays.fun).toBe(false);
+    expect(DEFAULT_VIEW.overlays.fun).toBe(false);
+    const off = encodeView({ ...view, overlays: { ...view.overlays, scans: false, objects: false, survival: false } });
+    expect(off).toContain('o=cafrxyz');
+    expect(decodeView(off).overlays.fun).toBe(true);
     expect(decodeView(off).overlays.survival).toBe(false);
     expect([decodeView(off).overlays.scans, decodeView(off).overlays.objects]).toEqual([false, false]);
     const onlyObjects = encodeView({ ...view, overlays: { ...view.overlays, scans: false } });
