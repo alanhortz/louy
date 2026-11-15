@@ -33,6 +33,8 @@ export interface Scan {
   fun?: FunKind;
   /** L'objet est une œuvre d'art de rue (fresque, lettrage, détail peint…) : elle aussi sur son calque. */
   art?: ArtKind;
+  /** Photos de l'objet tel qu'on le trouve sur place, consultées dans sa visionneuse. */
+  photos?: ScanPhoto[];
   /** Auteur et licence des images d'origine. */
   credit: ScanCredit;
   /** Cadrage d'ouverture ; à défaut, la caméra se place au-dessus de l'ancrage. */
@@ -47,6 +49,15 @@ export interface ScanCredit {
   url: string;
   /** Licence, en abrégé (« CC BY »). */
   licence: string;
+}
+
+export interface ScanPhoto {
+  /** Adresse de la photo, servie par le site. */
+  src: string;
+  /** Vignette de la même photo ; à défaut, la photo elle-même en tient lieu. */
+  thumb?: string;
+  /** Ce que la photo montre, en une phrase : c'est aussi son texte de remplacement. */
+  caption?: string;
 }
 
 export interface ScanView {
@@ -103,6 +114,8 @@ const isScan = (value: unknown): value is Scan => {
     // l'un ou l'autre, jamais les deux : un scan est soit un lieu, soit un objet
     && (typeof scan.splats === 'string') !== (typeof scan.mesh === 'string') && isCredit(scan.credit)
     && (scan.view === undefined || isView(scan.view))
+    // des photos n'accompagnent qu'un objet : c'est sa visionneuse qui les montre
+    && (scan.photos === undefined || (typeof scan.mesh === 'string' && Array.isArray(scan.photos) && scan.photos.every(isPhoto)))
     // un équipement de survie est toujours un objet, d'un genre connu
     && (scan.survival === undefined || (typeof scan.mesh === 'string' && scan.survival in SURVIVAL_KINDS))
     // de même un objet de loisir ; et un objet n'appartient qu'à une catégorie
@@ -117,6 +130,18 @@ const isCredit = (value: unknown): value is ScanCredit => {
     && [credit.author, credit.title, credit.url, credit.licence].every((field) => typeof field === 'string')
     && /^https:\/\//.test(credit.url!);
 };
+
+/** Une photo vient du site lui-même : aucune adresse extérieure n'est chargée au nom du visiteur. */
+const isPhoto = (value: unknown): value is ScanPhoto => {
+  const photo = value as Partial<ScanPhoto> | null;
+  const local = (path: unknown) => typeof path === 'string' && /^\/(?!\/)/.test(path);
+  return typeof photo === 'object' && photo !== null && local(photo.src)
+    && (photo.thumb === undefined || local(photo.thumb))
+    && (photo.caption === undefined || typeof photo.caption === 'string');
+};
+
+/** Photos attachées à un objet ; aucune pour la plupart. */
+export const scanPhotos = (scan: Scan): readonly ScanPhoto[] => scan.photos ?? [];
 
 const isView = (value: unknown): value is ScanView => {
   const view = value as Partial<ScanView> | null;

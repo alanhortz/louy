@@ -125,7 +125,14 @@
       "title": "Relevé Polycam du 14 novembre 2026",
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
-    }
+    },
+    "photos": [
+      {
+        "src": "/scans/photos/defibrillateur-crossfit-hawks-nest-1.jpg",
+        "thumb": "/scans/photos/defibrillateur-crossfit-hawks-nest-1.vignette.jpg",
+        "caption": "Le défibrillateur dans son boîtier, au mur de la salle"
+      }
+    ]
   },
   {
     "id": "borne-arcade-ibis-suarlee",

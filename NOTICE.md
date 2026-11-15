@@ -55,6 +55,7 @@ AGPL du code : les réutiliser demande son accord.
 | Imagerie 3D de l'esplanade de la citadelle de Namur (`public/scans/esplanade-citadelle-namur.spz`) | Prises de vue au drone réalisées par Alan Hortz le 14 novembre 2026, reconstruites en « gaussian splats », recadrées et calées sur le LiDAR | © 2026 Alan Hortz — imagerie non couverte par la licence AGPL du code |
 | Imagerie 3D du CrossFit Hawks Nest (`public/scans/crossfit-hawks-nest.spz`) | Prises de vue au drone réalisées par Alan Hortz le 14 novembre 2026, reconstruites en « gaussian splats », recadrées et calées sur le LiDAR | © 2026 Alan Hortz — imagerie non couverte par la licence AGPL du code |
 | Imagerie 3D des lettres « NAMUR », esplanade de la Confluence (`public/scans/lettres-namur.glb`) | Relevé photogrammétrique réalisé par Alan Hortz avec Polycam, le 13 novembre 2026 ; l'œuvre photographiée est installée à demeure dans l'espace public | © 2026 Alan Hortz — relevé non couvert par la licence AGPL du code |
+| Photos attachées aux objets scannés (`public/scans/photos/`) | Photos prises sur place par Alan Hortz, redimensionnées | © 2026 Alan Hortz — images non couvertes par la licence AGPL du code |
 
 ## Bibliothèques
 

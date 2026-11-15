@@ -52,6 +52,49 @@ describe('scans : lieux et objets', () => {
 
 });
 
+describe('photos d’un objet', () => {
+  const photos = [{ src: '/scans/photos/a.jpg', caption: 'Au mur' }, { src: '/scans/photos/b.jpg', thumb: '/scans/photos/b.vignette.jpg' }];
+  const pictured: Scan = { ...letters, photos };
+
+  it('n’accepte que des photos servies par le site, sur un objet', () => {
+    expect(parseScans([pictured])).toEqual([pictured]);
+    expect(parseScans([{ ...letters, photos: [{ src: 'https://ailleurs.example/a.jpg' }] }])).toEqual([]);
+    expect(parseScans([{ ...letters, photos: [{ src: '//ailleurs.example/a.jpg' }] }])).toEqual([]);
+    expect(parseScans([{ ...citadel, photos }])).toEqual([]);
+  });
+
+  it('ouvre une photo, feuillette sans dépasser les bouts, puis revient à l’objet', () => {
+    const { actor, open } = harness();
+    const shown = () => actor.getSnapshot().context.photo;
+    open(pictured);
+    expect(shown()).toBeNull();
+    // sans photo ouverte, feuilleter ne fait rien
+    actor.send({ type: 'object.photoPaged', delta: 1, by: 'keyboard' });
+    expect(shown()).toBeNull();
+
+    actor.send({ type: 'object.photoOpened', index: 0 });
+    actor.send({ type: 'object.photoPaged', delta: -1, by: 'swipe' });
+    expect(shown()).toBe(0);
+    actor.send({ type: 'object.photoPaged', delta: 1, by: 'swipe' });
+    actor.send({ type: 'object.photoPaged', delta: 1, by: 'swipe' });
+    expect(shown()).toBe(1);
+    actor.send({ type: 'object.photoOpened', index: 7 });
+    expect(shown()).toBe(1);
+
+    actor.send({ type: 'object.photoClosed', by: 'escape' });
+    expect(shown()).toBeNull();
+    expect(objectPhase(actor.getSnapshot())).toBe('loading');
+  });
+
+  it('repart de l’objet en 3D à chaque objet ouvert', () => {
+    const { actor, open } = harness();
+    open(pictured);
+    actor.send({ type: 'object.photoOpened', index: 1 });
+    actor.send({ type: 'object.opened', scan: letters });
+    expect(actor.getSnapshot().context.photo).toBeNull();
+  });
+});
+
 describe('point de vue sur un objet', () => {
   it('reste dans ses bornes', () => {
     expect(clampObjectPose({ azimuth: -30, polar: 140, distance: 0.01 })).toEqual({ azimuth: 330, polar: 88, distance: 0.35 });
