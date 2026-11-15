@@ -47,8 +47,8 @@ export const filmsMachine = setup({
 }).createMachine({
   id: 'films',
   context: { places: FILM_PLACES, focus: null },
-  // montré d'emblée : sans marqueur, rien ne dit qu'un lieu a son film
-  initial: 'shown',
+  // éteint d'emblée : le calque s'allume depuis le panneau « Calques »
+  initial: 'hidden',
   states: {
     shown: {
       entry: 'mark',
