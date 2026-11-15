@@ -20,7 +20,8 @@ function loadWaterways(): Promise<Waterway[]> {
 export async function loadVessels(signal: AbortSignal): Promise<Vessel[]> {
   const vessels = new Map<string, Vessel>();
   for (let page = 0; page < VESSEL_PAGES; page++) {
-    const response = await fetch(`${EDGE_PREFIX}${vesselEdgePath(page * VESSEL_PAGE)}`, { signal });
+    // jamais depuis le cache du navigateur : c'est le relais qui garde la page, une demi-minute
+    const response = await fetch(`${EDGE_PREFIX}${vesselEdgePath(page * VESSEL_PAGE)}`, { signal, cache: 'no-store' });
     if (!response.ok) throw new Error(`Positions des bateaux indisponibles (${response.status})`);
     const { vessels: found, more } = parseVesselPage(await response.json(), Date.now());
     for (const vessel of found) vessels.set(vessel.id, vessel);
