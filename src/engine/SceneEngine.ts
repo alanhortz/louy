@@ -59,6 +59,8 @@ const WALK_FOV = 68;
 const WALK_MAP_DISTANCE = 170;
 /** À pied, distance en deçà de laquelle le relief n'est pas dessiné. */
 const WALK_RELIEF_NEAR = 90;
+/** Entré par le zoom, écart toléré entre le point regardé et le sol du lieu où l'on se pose, en mètres. */
+const ZOOM_ENTRY_SLACK = 15;
 /** Un clic qui a bougé de moins que cela désigne un point ; au-delà, c'est un déplacement de la carte. */
 const PICK_SLOP_PX = 6;
 
@@ -80,6 +82,8 @@ export interface EngineListeners {
   onFollowEnded(): void;
   /** Le visiteur a désigné un point de la carte (Lambert 2008) où se poser. */
   onGroundPicked(x: number, y: number): void;
+  /** Le visiteur zoome encore alors que la vue est au plus près : il veut entrer dans le lieu qu'il regarde. */
+  onZoomedThrough(x: number, y: number): void;
   /** La balade demandée commence — ou n'a pas pu commencer : le lieu n'a pas de sol. */
   onWalkEntered(): void;
   onWalkFailed(): void;
@@ -191,7 +195,7 @@ export class SceneEngine {
   /** Regard du dernier point désigné : il retrouve ce point sur le sol du lieu, plus juste que le relief. */
   #pickRay: { origin: Vector3; direction: Vector3; x: number; y: number } | null = null;
   /** Balade demandée, en attente du lieu : ses splats doivent être là pour en déduire le sol. */
-  #walkRequest: { scanId: string; x: number; y: number; azimuth?: number } | null = null;
+  #walkRequest: { scanId: string; x: number; y: number; azimuth?: number; strict?: boolean } | null = null;
   #walk: WalkControls | null = null;
   #raf = 0;
   #last = performance.now();
@@ -228,6 +232,10 @@ export class SceneEngine {
     this.#controls.groundProbe = (x: number, z: number) => this.#groundAt(x, z);
     this.#controls.onUserInput = () => { this.#endOrbit(); this.#endFollow(); };
     this.#controls.onAutoRotateEnd = () => this.#listeners.onOrbitEnded();
+    this.#controls.onZoomThrough = () => {
+      const { x, y } = this.getPose();
+      this.#listeners.onZoomedThrough(x, y);
+    };
 
     this.#edl = new EyeDomeLighting(this.#renderer);
     this.#edl.strength = EDL_STRENGTH;
@@ -386,9 +394,9 @@ export class SceneEngine {
    * Pose le visiteur au sol dans un lieu filmé, au point désigné. Le lieu doit
    * être parmi les scans dessinés ; la balade commence dès qu'il est reçu.
    */
-  startWalk(scanId: string, x: number, y: number, azimuth?: number): void {
+  startWalk(scanId: string, x: number, y: number, azimuth?: number, strict = false): void {
     this.#leaveWalk();
-    this.#walkRequest = { scanId, x, y, azimuth };
+    this.#walkRequest = { scanId, x, y, azimuth, strict };
     this.#wake();
   }
 
@@ -423,6 +431,8 @@ export class SceneEngine {
     // le regard du clic rencontre le sol du lieu lui-même ; à défaut, on se pose au plus près du point annoncé
     const start = ground && ((ray && castGround(ground, ray.origin, ray.direction, 20000)) ?? nearestStand(ground, worldX, worldZ));
     if (!ground || !start) return this.#listeners.onWalkFailed();
+    // entré par le zoom, on ne se pose que là où l'on regardait : pas question d'être emmené plus loin
+    if (request.strict && Math.hypot(start.x - worldX, start.z - worldZ) > ZOOM_ENTRY_SLACK) return this.#listeners.onWalkFailed();
     this.#endOrbit();
     this.#endFollow();
     this.#controls.enabled = false;

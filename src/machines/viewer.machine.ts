@@ -29,6 +29,7 @@ export type ViewerEmitted =
   | { type: 'viewer.overlayPicked'; layer: OverlayName; id: string; members: string[] }
   | { type: 'viewer.followEnded' }
   | { type: 'viewer.groundPicked'; x: number; y: number }
+  | { type: 'viewer.zoomedThrough'; x: number; y: number }
   | { type: 'viewer.walkEntered' }
   | { type: 'viewer.walkFailed' }
   | { type: 'viewer.captured'; blob: Blob | null; blank: boolean };
@@ -136,6 +137,9 @@ export const viewerMachine = viewer.createMachine({
         'viewer.walkStopped': { actions: 'command' },
         'engine.groundPicked': {
           actions: sendParent(({ event }): ViewerEmitted => ({ type: 'viewer.groundPicked', x: event.x, y: event.y })),
+        },
+        'engine.zoomedThrough': {
+          actions: sendParent(({ event }): ViewerEmitted => ({ type: 'viewer.zoomedThrough', x: event.x, y: event.y })),
         },
         'engine.walkEntered': { actions: sendParent((): ViewerEmitted => ({ type: 'viewer.walkEntered' })) },
         'engine.walkFailed': { actions: sendParent((): ViewerEmitted => ({ type: 'viewer.walkFailed' })) },

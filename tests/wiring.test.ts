@@ -28,7 +28,7 @@ const ANNOUNCEMENTS = [
   // séquences filmées
   'app.clipRequested',
   // balade au sol
-  'walk.aimChanged', 'viewer.groundPicked', 'walk.started', 'walk.ended', 'viewer.walkEntered', 'viewer.walkFailed',
+  'walk.aimChanged', 'viewer.groundPicked', 'viewer.zoomedThrough', 'walk.started', 'walk.ended', 'viewer.walkEntered', 'viewer.walkFailed',
   // film du temps
   'films.markersChanged', 'films.playRequested',
   'timeline.vintageRequested', 'timeline.captureRequested', 'timeline.restoreRequested',

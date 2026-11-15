@@ -15,7 +15,8 @@ export type WalkEvent =
   /** L'outil : armé, il attend qu'un point soit désigné ; touché de nouveau, il se désarme. */
   | { type: 'walk.toggled' }
   /** `azimuth` : cap du regard à l'arrivée ; à défaut, celui de la carte. */
-  | { type: 'walk.placed'; scan: Scan; x: number; y: number; azimuth?: number }
+  /** `byZoom` : demandée en zoomant jusqu'au bout — on n'entre que si le sol est bien là, et l'on se tait sinon. */
+  | { type: 'walk.placed'; scan: Scan; x: number; y: number; azimuth?: number; byZoom?: boolean }
   /** Le point désigné n'est dans aucun lieu filmé ; `nearest` nomme le plus proche. */
   | { type: 'walk.missed'; nearest: { name: string; distance: number } | null }
   | { type: 'walk.entered' }
@@ -24,7 +25,7 @@ export type WalkEvent =
 
 export type WalkEmitted =
   | { type: 'walk.aimChanged'; armed: boolean }
-  | { type: 'walk.started'; scan: Scan; x: number; y: number; azimuth?: number }
+  | { type: 'walk.started'; scan: Scan; x: number; y: number; azimuth?: number; strict: boolean }
   | { type: 'walk.ended' };
 
 interface WalkContext {
@@ -32,6 +33,8 @@ interface WalkContext {
   scan: Scan | null;
   /** Pourquoi le dernier point désigné n'a mené nulle part. */
   notice: string | null;
+  /** La balade en cours a été demandée par le zoom : si elle échoue, c'est sans bruit. */
+  byZoom: boolean;
 }
 
 const KILOMETRES = new Intl.NumberFormat('fr-BE', { maximumFractionDigits: 1 });
@@ -48,10 +51,14 @@ export const walkMachine = setup({
     announceDisarmed: sendParent((): WalkEmitted => ({ type: 'walk.aimChanged', armed: false })),
     start: sendParent(({ event }): WalkEmitted => {
       if (event.type !== 'walk.placed') throw new Error('balade sans lieu');
-      return { type: 'walk.started', scan: event.scan, x: event.x, y: event.y, azimuth: event.azimuth };
+      return { type: 'walk.started', scan: event.scan, x: event.x, y: event.y, azimuth: event.azimuth, strict: event.byZoom === true };
     }),
     end: sendParent((): WalkEmitted => ({ type: 'walk.ended' })),
-    keepScan: assign({ scan: ({ context, event }) => (event.type === 'walk.placed' ? event.scan : context.scan), notice: null }),
+    keepScan: assign({
+      scan: ({ context, event }) => (event.type === 'walk.placed' ? event.scan : context.scan),
+      notice: null,
+      byZoom: ({ event }) => event.type === 'walk.placed' && event.byZoom === true,
+    }),
     explainMiss: assign({
       notice: ({ event }) => {
         if (event.type !== 'walk.missed' || !event.nearest) return 'Aucun lieu filmé où se poser';
@@ -59,11 +66,11 @@ export const walkMachine = setup({
       },
     }),
     explainFailure: assign({ notice: 'Ce lieu ne se visite pas à pied' }),
-    forget: assign({ scan: null, notice: null }),
+    forget: assign({ scan: null, notice: null, byZoom: false }),
   },
 }).createMachine({
   id: 'walk',
-  context: { scan: null, notice: null },
+  context: { scan: null, notice: null, byZoom: false },
   initial: 'idle',
   states: {
     idle: {
@@ -96,7 +103,11 @@ export const walkMachine = setup({
         arriving: {
           on: {
             'walk.entered': 'walking',
-            'walk.failed': { target: '#walk.aiming', actions: 'explainFailure' },
+            'walk.failed': [
+              // zoomer au bout hors d'un lieu n'est pas une erreur : la carte reste la carte
+              { guard: ({ context }) => context.byZoom, target: '#walk.idle' },
+              { target: '#walk.aiming', actions: 'explainFailure' },
+            ],
           },
         },
         walking: {},

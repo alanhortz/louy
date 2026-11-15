@@ -50,7 +50,8 @@ export type EngineCommand =
   | { type: 'viewer.captureRequested' }
   /** Balade au sol : armer la désignation d'un point, se poser dans un lieu filmé, revenir à la carte. */
   | { type: 'viewer.pickArmed'; armed: boolean }
-  | { type: 'viewer.walkRequested'; scanId: string; x: number; y: number; azimuth?: number }
+  /** `strict` : ne se poser que sur le point demandé, sans être emmené au sol le plus proche. */
+  | { type: 'viewer.walkRequested'; scanId: string; x: number; y: number; azimuth?: number; strict?: boolean }
   | { type: 'viewer.walkStopped' }
   /** Trajectoire du vol sélectionné : chemin parcouru, estimation, instant désigné. */
   | { type: 'viewer.trajectoryChanged'; past: TrajectoryPoint[]; future: TrajectoryPoint[]; cursor: TrajectoryPoint | null };
@@ -67,6 +68,7 @@ export type EngineReport =
   | { type: 'engine.scanProgressed'; id: string; phase: ScanProgress['phase']; fraction: number }
   | { type: 'engine.followEnded' }
   | { type: 'engine.groundPicked'; x: number; y: number }
+  | { type: 'engine.zoomedThrough'; x: number; y: number }
   | { type: 'engine.walkEntered' }
   | { type: 'engine.walkFailed' }
   | { type: 'engine.overlayPicked'; layer: OverlayName; id: string; members: string[] }
@@ -108,6 +110,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
           onScanProgress: (progress) => sendBack({ type: 'engine.scanProgressed', ...progress }),
           onFollowEnded: () => sendBack({ type: 'engine.followEnded' }),
           onGroundPicked: (x, y) => sendBack({ type: 'engine.groundPicked', x, y }),
+          onZoomedThrough: (x, y) => sendBack({ type: 'engine.zoomedThrough', x, y }),
           onWalkEntered: () => sendBack({ type: 'engine.walkEntered' }),
           onWalkFailed: () => sendBack({ type: 'engine.walkFailed' }),
           onOverlayPicked: (layer, id, members) =>
@@ -165,7 +168,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
         case 'viewer.orbitStopped': return engine.stopOrbit();
         case 'viewer.followChanged': return engine.follow(command.target);
         case 'viewer.pickArmed': return engine.armPick(command.armed);
-        case 'viewer.walkRequested': return engine.startWalk(command.scanId, command.x, command.y, command.azimuth);
+        case 'viewer.walkRequested': return engine.startWalk(command.scanId, command.x, command.y, command.azimuth, command.strict);
         case 'viewer.walkStopped': return engine.stopWalk();
         case 'viewer.poseCaptureRequested':
           return sendBack({ type: 'engine.poseCaptured', pose: engine.getPose() });
