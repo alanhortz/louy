@@ -164,3 +164,7 @@
 
 /* mention de source demandée par EuRIS, au pied du panneau des bateaux */
 .vessel-attribution { margin: 0; font-family: var(--font-mono); font-size: 8px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); }
+
+/* séquences filmées d'un lieu : un bouton par séquence, sur toute la largeur de la fiche */
+.imagery-clips { display: flex; flex-direction: column; gap: 6px; }
+.imagery-clips .scene-btn { text-align: left; text-transform: uppercase; }

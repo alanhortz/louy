@@ -25,6 +25,8 @@ const ANNOUNCEMENTS = [
   'object.left',
   // coordonnées et position du visiteur
   'app.coordinatesRequested', 'location.changed', 'location.flyRequested',
+  // séquences filmées
+  'app.clipRequested',
   // balade au sol
   'walk.aimChanged', 'viewer.groundPicked', 'walk.started', 'walk.ended', 'viewer.walkEntered', 'viewer.walkFailed',
   // film du temps

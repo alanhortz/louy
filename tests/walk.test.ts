@@ -181,3 +181,34 @@ describe('la position du visiteur ne s’écrit nulle part', () => {
     expect(written.match(/masqué/g)).toHaveLength(6);
   });
 });
+
+describe('séquences filmées replacées dans la carte', () => {
+  it('interpole la pose de la caméra et lit son cap', async () => {
+    const { clipPose, clipHeading, clipViewPose, clipScreenDistance, isClip } = await import('../src/domain/clips.ts');
+    const { parseScans } = await import('../src/domain/scans.ts');
+    const north: [number, number, number, number] = [0, 0, 0, 1];
+    // un quart de tour vers la droite autour de la verticale : la caméra regarde l'est
+    const east: [number, number, number, number] = [0, -Math.SQRT1_2, 0, Math.SQRT1_2];
+    const track = [{ t: 0, x: 100, y: 200, altitude: 50, q: north }, { t: 2, x: 104, y: 200, altitude: 52, q: east }];
+    expect(clipHeading(north)).toBeCloseTo(0);
+    expect(clipHeading(east)).toBeCloseTo(90);
+    const middle = clipPose(track, 1);
+    expect(middle).toMatchObject({ x: 102, altitude: 51 });
+    expect(clipHeading(middle.q)).toBeCloseTo(45);
+    expect(clipPose(track, -3)).toBe(track[0]);
+    expect(clipPose(track, 9)).toBe(track[1]);
+
+    const clip = { id: 'c', name: 'Séquence', src: '/scans/clips/c.mp4', fov: 20, aspect: 16 / 9, track };
+    expect(isClip(clip)).toBe(true);
+    expect(isClip({ ...clip, src: 'https://ailleurs.example/c.mp4' })).toBe(false);
+    expect(isClip({ ...clip, track: [track[1], track[0]] })).toBe(false);
+    // la vue se place dans l'axe de la caméra, devant elle
+    const view = clipViewPose(clip);
+    expect(view.azimuth).toBeCloseTo(0);
+    expect(view.y).toBeCloseTo(200 + clipScreenDistance(clip) / 2);
+    // une séquence appartient à un lieu, jamais à un objet
+    const place = { id: 'p', name: 'p', x: 0, y: 0, splats: '/scans/p.spz', credit: { author: 'a', title: 't', url: 'https://example.org', licence: 'CC BY' } };
+    expect(parseScans([{ ...place, clips: [clip] }])).toHaveLength(1);
+    expect(parseScans([{ ...place, splats: undefined, mesh: '/scans/p.glb', clips: [clip] }])).toEqual([]);
+  });
+});

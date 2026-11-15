@@ -31,6 +31,7 @@ import { VesselLayer, type VesselModel } from './VesselLayer.ts';
 import { TrajectoryLayer, type TrajectoryPoint } from './TrajectoryLayer.ts';
 import { OverlayLayer, type OverlayFeature, type OverlayStyle } from './OverlayLayer.ts';
 import type { ScanProgress, SplatLayer } from './SplatLayer.ts';
+import { VideoCardLayer } from './VideoCardLayer.ts';
 
 const DEG = Math.PI / 180;
 const METRES = new Intl.NumberFormat('fr-BE', { maximumFractionDigits: 0 });
@@ -183,6 +184,8 @@ export class SceneEngine {
   /** Maquettes des avions ; créé au premier appareil à dessiner. */
   #aircraft: AircraftLayer | null = null;
   #vessels: VesselLayer | null = null;
+  /** Séquences filmées des lieux dessinés ; créé à la première séquence. */
+  #clips: VideoCardLayer | null = null;
   /** Écoute du prochain point désigné, tant que l'outil de balade est armé. */
   #pick: AbortController | null = null;
   /** Regard du dernier point désigné : il retrouve ce point sur le sol du lieu, plus juste que le relief. */
@@ -537,6 +540,10 @@ export class SceneEngine {
 
   setScans(scans: readonly Scan[]): void {
     this.#scans = scans;
+    // un lieu dessiné amène ses séquences filmées, chacune à l'endroit où elle a été tournée
+    const clips = scans.flatMap((scan) => scan.clips ?? []);
+    if (clips.length > 0) this.#clips ??= new VideoCardLayer(this.#renderer);
+    this.#clips?.setClips(clips);
     // annoncé tout de suite : le moteur de splats lui-même met un instant à arriver
     if (!this.#splats && scans[0]) this.#listeners.onScanProgress({ id: scans[0].id, phase: 'loading', fraction: 0 });
     if (this.#splats) {
@@ -552,6 +559,7 @@ export class SceneEngine {
     this.#pick?.abort();
     this.#walk?.dispose();
     this.#splats?.dispose();
+    this.#clips?.dispose();
     this.#aircraft?.dispose();
     this.#vessels?.dispose();
     this.#trajectory?.dispose();
@@ -721,7 +729,7 @@ export class SceneEngine {
     // Rendu à la demande : une vue immobile dont toutes les tuiles sont arrivées
     // ne coûte plus rien — ni GPU, ni batterie.
     // des maquettes d'avions à l'écran avancent et s'inclinent à chaque image
-    const busy = moved || this.#loader.pending > 0 || (this.#aircraft?.count ?? 0) > 0;
+    const busy = moved || this.#loader.pending > 0 || (this.#aircraft?.count ?? 0) > 0 || (this.#clips?.playing ?? false);
     this.#idleFrames = busy ? 0 : this.#idleFrames + 1;
     if (this.#idleFrames <= IDLE_FRAMES) this.#render();
     // la vue est immobile mais des entités bougent (avions) : seules leurs étiquettes sont replacées
@@ -768,6 +776,7 @@ export class SceneEngine {
       this.#edl.render(this.#scene, this.#camera);
     }
     this.#splats?.render(this.#camera);
+    this.#clips?.render(this.#camera);
     // les bateaux d'abord : un avion qui les survole se dessine par-dessus
     this.#vessels?.render(this.#camera, this.#size.height,
       (worldX, worldZ) => this.#groundAt(worldX, worldZ) ?? this.#controls.target.y);

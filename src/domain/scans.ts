@@ -14,6 +14,8 @@
  * scan porte le crédit de son auteur, affiché partout où le scan l'est.
  */
 
+import { isClip, type ScanClip } from './clips.ts';
+
 export interface Scan {
   id: string;
   name: string;
@@ -38,6 +40,8 @@ export interface Scan {
    * arrivant (cap en degrés) ; à défaut, à son ancrage, dans le cap de la carte.
    */
   walk?: { x: number; y: number; azimuth?: number };
+  /** Séquences de la vidéo d'origine, replacées dans le lieu là où la caméra les a tournées. */
+  clips?: ScanClip[];
   /** Ce qu'il y a à savoir de l'objet, en une phrase ou deux : affiché dans sa visionneuse. */
   note?: string;
   /** Photos de l'objet tel qu'on le trouve sur place, consultées dans sa visionneuse. */
@@ -121,6 +125,8 @@ const isScan = (value: unknown): value is Scan => {
     // l'un ou l'autre, jamais les deux : un scan est soit un lieu, soit un objet
     && (typeof scan.splats === 'string') !== (typeof scan.mesh === 'string') && isCredit(scan.credit)
     && (scan.view === undefined || isView(scan.view))
+    // une séquence filmée se replace dans un lieu, pas autour d'un objet
+    && (scan.clips === undefined || (typeof scan.splats === 'string' && Array.isArray(scan.clips) && scan.clips.every(isClip)))
     // on ne se promène que dans un lieu
     && (scan.walk === undefined || (typeof scan.splats === 'string' && Number.isFinite(scan.walk?.x) && Number.isFinite(scan.walk?.y)
       && (scan.walk?.azimuth === undefined || Number.isFinite(scan.walk.azimuth))))
