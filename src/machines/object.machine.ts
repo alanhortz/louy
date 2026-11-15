@@ -15,7 +15,7 @@
 
 import { assign, enqueueActions, sendTo, setup, type SnapshotFrom } from 'xstate';
 import { DEFAULT_OBJECT_POSE, type ObjectGesture, type ObjectPose } from '../domain/objectView.ts';
-import type { Scan } from '../domain/scans.ts';
+import { scanPhotos, type Scan } from '../domain/scans.ts';
 import type { ObjectStats } from '../engine/ObjectEngine.ts';
 import {
   objectEngineActor, type ObjectEngineCommand, type ObjectEngineReport,
@@ -25,6 +25,10 @@ export type ObjectEvent =
   | ObjectEngineReport
   | { type: 'object.opened'; scan: Scan; group?: Scan[] }
   | { type: 'object.paged'; delta: 1 | -1; by: 'button' | 'keyboard' }
+  /** Photos de l'objet : en ouvrir une, passer à sa voisine, revenir à l'objet en 3D. */
+  | { type: 'object.photoOpened'; index: number }
+  | { type: 'object.photoPaged'; delta: 1 | -1; by: 'button' | 'keyboard' | 'swipe' }
+  | { type: 'object.photoClosed'; by: 'button' | 'escape' }
   | { type: 'object.closed'; by: 'button' | 'backdrop' | 'escape' }
   | { type: 'object.canvasAttached'; canvas: HTMLCanvasElement }
   | { type: 'object.canvasDetached' }
@@ -49,9 +53,11 @@ interface ObjectContext {
   /** L'objet tourne seul tant que le visiteur ne l'a pas pris en main. */
   autoRotate: boolean;
   failure: string | null;
+  /** Rang de la photo regardée à la place de l'objet ; `null` quand on regarde l'objet en 3D. */
+  photo: number | null;
 }
 
-const fresh = { canvas: null, progress: 0, stats: null, pose: DEFAULT_OBJECT_POSE, gesture: null, autoRotate: true, failure: null };
+const fresh = { canvas: null, progress: 0, stats: null, pose: DEFAULT_OBJECT_POSE, gesture: null, autoRotate: true, failure: null, photo: null };
 
 export const objectMachine = setup({
   types: {
@@ -69,6 +75,15 @@ export const objectMachine = setup({
     },
   },
   actions: {
+    showPhoto: assign({
+      photo: ({ context, event }) => {
+        const total = context.scan ? scanPhotos(context.scan).length : 0;
+        const wanted = event.type === 'object.photoOpened' ? event.index
+          : event.type === 'object.photoPaged' ? (context.photo ?? 0) + event.delta : context.photo;
+        // hors des photos existantes, on reste où l'on est : le feuilletage s'arrête aux deux bouts
+        return wanted !== null && wanted >= 0 && wanted < total ? wanted : context.photo;
+      },
+    }),
     open: assign(({ event }) => (event.type === 'object.opened'
       ? { ...fresh, scan: event.scan, group: event.group ?? [event.scan] }
       : { ...fresh, scan: null, group: [] })),
@@ -100,6 +115,10 @@ export const objectMachine = setup({
       on: {
         'object.closed': { target: 'closed', actions: ['forget', 'announceLeft'] },
         'object.paged': { guard: 'canPage', target: 'open', reenter: true, actions: 'page' },
+        // les photos se regardent par-dessus l'objet, qui reste chargé derrière elles
+        'object.photoOpened': { actions: 'showPhoto' },
+        'object.photoPaged': { guard: ({ context }) => context.photo !== null, actions: 'showPhoto' },
+        'object.photoClosed': { actions: assign({ photo: null }) },
         // un autre objet demandé pendant que celui-ci est ouvert : on repart de zéro
         'object.opened': { guard: 'opensObject', target: 'open', reenter: true, actions: 'open' },
       },
