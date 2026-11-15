@@ -7,7 +7,7 @@
  * frontière entre le monde déclaratif de l'application et la boucle d'images.
  */
 
-import { Color, Group, PerspectiveCamera, Scene as ThreeScene, Vector3, WebGLRenderer } from 'three';
+import { Color, Group, MathUtils, PerspectiveCamera, Scene as ThreeScene, Vector3, WebGLRenderer } from 'three';
 
 import { castGround, nearestStand } from '../domain/walk.ts';
 import { WalkControls } from './WalkControls.ts';
@@ -777,7 +777,8 @@ export class SceneEngine {
     if (this.#walk) {
       // À pied, les points du relief tout proches seraient de gros carrés devant le lieu filmé :
       // le relief n'est dessiné qu'au loin, comme paysage, et le lieu occupe seul le premier plan.
-      this.#camera.near = WALK_RELIEF_NEAR;
+      // Pendant l'atterrissage, le relief reste entier sous la caméra : il ne s'écarte qu'à l'approche du sol.
+      this.#camera.near = MathUtils.lerp(1, WALK_RELIEF_NEAR, MathUtils.smoothstep(this.#walk.arrival, 0.75, 1));
       this.#camera.updateProjectionMatrix();
       this.#edl.render(this.#scene, this.#camera);
       this.#camera.near = 0.3;
