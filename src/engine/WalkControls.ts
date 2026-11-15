@@ -26,8 +26,20 @@ const TAP_SLOP_PX = 6;
 const TAP_MS = 450;
 /** Portée du toucher : au-delà, on ne s'y rend pas d'une traite. */
 const TAP_REACH = 250;
-/** Durée de la descente depuis la vue de carte jusqu'au sol. */
-const ARRIVAL_S = 1.8;
+/**
+ * L'arrivée est un atterrissage : la caméra descend vers le point où se poser en le regardant,
+ * redresse le regard vers l'horizon à l'approche du sol, puis touche terre — les genoux
+ * plient un peu, et se redressent.
+ * Durée de la descente, en secondes : d'autant plus longue que l'on vient de loin, entre deux bornes.
+ */
+const ARRIVAL_MIN_S = 2.4;
+const ARRIVAL_MAX_S = 4;
+const ARRIVAL_S_PER_METRE = 1 / 45;
+/** Part de la descente après laquelle le regard commence à se redresser. */
+const FLARE_FROM = 0.4;
+/** Toucher du sol : enfoncement, en mètres, et durée de l'amorti, en secondes. */
+const TOUCHDOWN_DIP = 0.22;
+const TOUCHDOWN_S = 0.9;
 const FORWARD_KEYS = ['KeyW', 'ArrowUp'];
 const BACK_KEYS = ['KeyS', 'ArrowDown'];
 const KEYS = new Set([...FORWARD_KEYS, ...BACK_KEYS, 'KeyA', 'KeyD', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight']);
@@ -53,6 +65,9 @@ export class WalkControls {
   /** Mètres encore à parcourir vers l'avant (molette, pincement) ; négatif pour reculer. */
   #advance = 0;
   #arrival = 0;
+  #arrivalSeconds = ARRIVAL_MIN_S;
+  /** Secondes écoulées depuis le toucher du sol ; l'amorti s'éteint de lui-même. */
+  #landed = 0;
   #press: { x: number; y: number; at: number; moved: number } | null = null;
   #pinch = 0;
   #changed = true;
@@ -67,12 +82,16 @@ export class WalkControls {
     // la caméra part d'où elle est, au-dessus de la carte, et descend se poser
     this.#from.position.copy(camera.position);
     this.#from.quaternion.copy(camera.quaternion);
+    const travel = Math.hypot(camera.position.x - start.x, camera.position.y - this.#eye, camera.position.z - start.z);
+    this.#arrivalSeconds = MathUtils.clamp(ARRIVAL_MIN_S + travel * ARRIVAL_S_PER_METRE, ARRIVAL_MIN_S, ARRIVAL_MAX_S);
     this.#bind();
   }
 
   get x(): number { return this.#position.x; }
   get z(): number { return this.#position.z; }
   get yaw(): number { return this.#yaw; }
+  /** Avancement de l'atterrissage, de 0 (on quitte la carte) à 1 (on a touché le sol). */
+  get arrival(): number { return this.#arrival; }
   /** Altitude du sol sous le promeneur. */
   get groundY(): number { return this.#eye - EYE_HEIGHT; }
 
@@ -216,13 +235,28 @@ export class WalkControls {
     this.#look.setFromEuler(this.#euler.set(this.#pitch, this.#yaw, 0));
 
     if (this.#arrival < 1) {
-      this.#arrival = Math.min(1, this.#arrival + dt / ARRIVAL_S);
-      const eased = MathUtils.smootherstep(this.#arrival, 0, 1);
-      this.#camera.position.lerpVectors(this.#from.position, this.#position, eased);
-      this.#camera.quaternion.slerpQuaternions(this.#from.quaternion, this.#look, eased);
+      this.#arrival = Math.min(1, this.#arrival + dt / this.#arrivalSeconds);
+      const e = this.#arrival;
+      // on avance vers le point d'un mouvement souple ; on descend vite d'abord, puis de plus en plus doucement
+      const along = MathUtils.smootherstep(e, 0, 1);
+      const down = 1 - (1 - e) ** 2.4;
+      this.#camera.position.set(
+        MathUtils.lerp(this.#from.position.x, this.#position.x, along),
+        MathUtils.lerp(this.#from.position.y, this.#position.y, down),
+        MathUtils.lerp(this.#from.position.z, this.#position.z, along),
+      );
+      // l'arrondi : le regard reste sur le sol pendant l'approche, puis se relève vers l'horizon
+      this.#camera.quaternion.slerpQuaternions(this.#from.quaternion, this.#look, MathUtils.smootherstep(e, FLARE_FROM, 1));
       return true;
     }
     this.#camera.position.copy(this.#position);
+    if (this.#landed < TOUCHDOWN_S) {
+      // le toucher : un enfoncement qui s'amortit
+      this.#landed += dt;
+      const t = this.#landed / TOUCHDOWN_S;
+      this.#camera.position.y -= TOUCHDOWN_DIP * Math.sin(Math.PI * Math.min(1, t * 1.6)) * (1 - t) ** 2;
+      moved = true;
+    }
     this.#camera.quaternion.copy(this.#look);
     return moved;
   }
