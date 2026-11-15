@@ -2,7 +2,10 @@ import { useSelector } from '@xstate/react';
 import { walkPhase } from '../../machines/walk.machine.ts';
 import { useApp, useChild } from '../actors.ts';
 
-/** Actions rondes : chercher un site ou une rue, se poser au sol dans un lieu filmé, partager la vue, revenir à la vue d'accueil. */
+/**
+ * Actions rondes : chercher un site ou une rue, se poser au sol dans un lieu filmé, partager la vue,
+ * revenir à la vue d'accueil, copier les coordonnées du point visé, se situer sur la carte.
+ */
 export function TopActions() {
   const app = useApp();
   const sites = useChild('sites');
@@ -10,6 +13,9 @@ export function TopActions() {
   const share = useChild('share');
   const sharing = useSelector(share, (snapshot) => snapshot.matches('delivering'));
   const walk = useChild('walk');
+  const location = useChild('location');
+  const located = useSelector(location, (snapshot) => snapshot.matches('shown'));
+  const locating = useSelector(location, (snapshot) => snapshot.matches('locating'));
   const aiming = useSelector(walk, (snapshot) => walkPhase(snapshot) === 'aiming');
 
   return (
@@ -56,6 +62,30 @@ export function TopActions() {
         onClick={() => app.send({ type: 'app.homeRequested' })}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5M6.5 9.8V20h11V9.8" /></svg>
+      </button>
+      <button
+        type="button"
+        title="Copier les coordonnées du centre de la vue"
+        aria-label="Copier les coordonnées du centre de la vue"
+        onClick={() => app.send({ type: 'app.coordinatesRequested' })}
+      >
+        {/* une épingle : le point dont on prend les coordonnées */}
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 21s6.5-6.2 6.5-11.2a6.5 6.5 0 0 0-13 0C5.5 14.8 12 21 12 21Z" /><circle cx="12" cy="9.8" r="2.3" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        title={located ? 'Retirer le repère de ma position' : 'Me situer sur la carte'}
+        aria-label={located ? 'Retirer le repère de ma position' : 'Me situer sur la carte'}
+        aria-pressed={located}
+        aria-busy={locating}
+        onClick={() => location.send({ type: 'location.toggled' })}
+      >
+        {/* une mire : là où se trouve l'appareil */}
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="6.5" /><circle cx="12" cy="12" r="1.8" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" />
+        </svg>
       </button>
     </nav>
   );

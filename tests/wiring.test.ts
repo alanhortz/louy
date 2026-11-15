@@ -23,6 +23,8 @@ const ANNOUNCEMENTS = [
   // imagerie aérienne et objets scannés
   'layers.listed', 'layers.changed', 'layers.selectionChanged', 'layers.keptChanged', 'layers.expandRequested', 'layers.activated',
   'object.left',
+  // coordonnées et position du visiteur
+  'app.coordinatesRequested', 'location.changed', 'location.flyRequested',
   // balade au sol
   'walk.aimChanged', 'viewer.groundPicked', 'walk.started', 'walk.ended', 'viewer.walkEntered', 'viewer.walkFailed',
   // film du temps

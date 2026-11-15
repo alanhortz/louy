@@ -212,7 +212,8 @@ button.chip { pointer-events: auto; cursor: pointer; }
   .brand-tagline { font-size: 7px; letter-spacing: 1px; white-space: nowrap; }
   /* le dépôt et le sponsor ne figurent, sur petit écran, que dans « À propos » */
   .brand-repo, .brand-sponsor { display: none; }
-  .top-actions { top: calc(16px + var(--safe-top)); left: auto; right: calc(var(--edge) + var(--safe-right)); transform: none; }
+  /* six outils ne tiennent plus à côté du nom du site : ils descendent en colonne, pendant du rail */
+  .top-actions { top: calc(16px + var(--safe-top)); left: auto; right: calc(var(--edge) + var(--safe-right)); transform: none; flex-direction: column; }
   .top-actions button { width: 40px; height: 40px; }
   .indicator { display: none; }
   .chips { top: auto; bottom: calc(28px + var(--safe-bottom)); }

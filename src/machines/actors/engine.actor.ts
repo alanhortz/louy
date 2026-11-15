@@ -22,10 +22,11 @@ import { cameraMarkerStyle } from '../../engine/overlays/cameraMarkers.ts';
 import { placeLabelStyle } from '../../engine/overlays/placeLabels.ts';
 import { streetLabelStyle } from '../../engine/overlays/streetLabels.ts';
 import { filmMarkerStyle } from '../../engine/overlays/filmMarkers.ts';
+import { locationMarkerStyle } from '../../engine/overlays/locationMarker.ts';
 import { aerialMarkerStyle, artMarkerStyle, funMarkerStyle, objectMarkerStyle, survivalMarkerStyle } from '../../engine/overlays/scanMarkers.ts';
 import { SceneEngine, type Altimeter, type Flyover, type FollowTarget } from '../../engine/SceneEngine.ts';
 
-export type OverlayName = 'streets' | 'places' | 'cameras' | 'scans' | 'objects' | 'survival' | 'fun' | 'art' | 'vessels' | 'aircraft' | 'films';
+export type OverlayName = 'streets' | 'places' | 'cameras' | 'scans' | 'objects' | 'survival' | 'fun' | 'art' | 'vessels' | 'aircraft' | 'films' | 'location';
 
 export interface ViewerMount {
   canvas: HTMLCanvasElement;
@@ -85,7 +86,7 @@ export interface EngineInput {
   preload: Scan[];
 }
 
-const OVERLAYS: readonly OverlayName[] = ['streets', 'places', 'cameras', 'scans', 'objects', 'survival', 'fun', 'art', 'vessels', 'aircraft', 'films'];
+const OVERLAYS: readonly OverlayName[] = ['streets', 'places', 'cameras', 'scans', 'objects', 'survival', 'fun', 'art', 'vessels', 'aircraft', 'films', 'location'];
 
 export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport>(
   ({ input, sendBack, receive }) => {
@@ -132,6 +133,8 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
     engine.addOverlay('vessels', vesselMarkerStyle);
     engine.addOverlay('aircraft', aircraftMarkerStyle);
     engine.addOverlay('films', filmMarkerStyle);
+    // en dernier : le repère du visiteur passe par-dessus tout le reste
+    engine.addOverlay('location', locationMarkerStyle);
     for (const layer of OVERLAYS) {
       engine.setOverlayFeatures(layer, input.overlays[layer]);
       engine.setOverlayActive(layer, input.active[layer]);

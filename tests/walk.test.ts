@@ -109,3 +109,44 @@ describe('machine de la balade', () => {
     expect(walk.getSnapshot().context.notice).toBe('Ce lieu ne se visite pas à pied');
   });
 });
+
+describe('coordonnées et position du visiteur', () => {
+  it('rend les coordonnées en latitude, longitude', async () => {
+    const { formatCoordinates, devicePosition, locationHeight } = await import('../src/domain/whereabouts.ts');
+    const { toLambert } = await import('../src/domain/lambert2008.ts');
+    const namur = toLambert(50.464149, 4.855642);
+    expect(formatCoordinates(namur.x, namur.y)).toBe('50.464149, 4.855642');
+    expect(devicePosition(50.464149, 4.855642, 12)).toMatchObject({ accuracy: 12 });
+    // Paris n'est pas sur la carte
+    expect(devicePosition(48.8566, 2.3522, 12)).toBeNull();
+    expect(locationHeight({ x: 0, y: 0, accuracy: 5 })).toBe(260);
+    expect(locationHeight({ x: 0, y: 0, accuracy: 5000 })).toBe(4000);
+  });
+
+  it('pose le repère, y emmène la vue, puis le retire', async () => {
+    const { fromPromise } = await import('xstate');
+    const { locationMachine, locationNotice } = await import('../src/machines/location.machine.ts');
+    const heard: AnyEventObject[] = [];
+    const run = (locate: () => Promise<{ x: number; y: number; accuracy: number }>) => {
+      const parent = createActor(createMachine({
+        invoke: { id: 'location', src: locationMachine.provide({ actors: { locate: fromPromise(locate) } }) },
+        on: { '*': { actions: ({ event }) => { heard.push(event); } } },
+      })).start();
+      return parent.getSnapshot().children.location as ReturnType<typeof createActor<typeof locationMachine>>;
+    };
+    const position = { x: 684783, y: 627522, accuracy: 20 };
+    const found = run(async () => position);
+    found.send({ type: 'location.toggled' });
+    expect(locationNotice(found.getSnapshot())).toBe('Recherche de votre position…');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(found.getSnapshot().matches('shown')).toBe(true);
+    expect(heard).toEqual([{ type: 'location.changed', position }, { type: 'location.flyRequested', position }]);
+    found.send({ type: 'location.toggled' });
+    expect(heard.at(-1)).toEqual({ type: 'location.changed', position: null });
+
+    const refused = run(() => Promise.reject('denied'));
+    refused.send({ type: 'location.toggled' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(locationNotice(refused.getSnapshot())).toBe('Localisation refusée par le navigateur');
+  });
+});
