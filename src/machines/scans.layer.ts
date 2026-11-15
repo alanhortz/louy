@@ -14,7 +14,7 @@
  * carte qui les rassemble sous un seul, avec leur nombre.
  */
 
-import { isObjectScan, isSurvivalScan, placeScans, type Scan } from '../domain/scans.ts';
+import { isFunScan, isObjectScan, isSurvivalScan, placeScans, type Scan } from '../domain/scans.ts';
 import type { ScanFeature } from '../engine/overlays/scanMarkers.ts';
 import { loadScans } from '../services/scans.ts';
 import type { SelectionLayerSpec } from './selectionLayer.machine.ts';
@@ -22,6 +22,7 @@ import type { SelectionLayerSpec } from './selectionLayer.machine.ts';
 export const AERIAL_LAYER = 'scans';
 export const OBJECTS_LAYER = 'objects';
 export const SURVIVAL_LAYER = 'survival';
+export const FUN_LAYER = 'fun';
 
 /**
  * Éloignement sous lequel le marqueur d'un lieu dessiné s'efface : on a alors
@@ -45,7 +46,7 @@ export const aerialLayer: SelectionLayerSpec<Scan> = {
 
 export const objectsLayer: SelectionLayerSpec<Scan> = {
   name: OBJECTS_LAYER,
-  load: async (signal) => (await loadScans(signal)).filter((scan) => isObjectScan(scan) && !isSurvivalScan(scan)),
+  load: async (signal) => (await loadScans(signal)).filter((scan) => isObjectScan(scan) && !isSurvivalScan(scan) && !isFunScan(scan)),
   markers: (scans) => scans.map(toFeature),
 };
 
@@ -56,6 +57,16 @@ export const objectsLayer: SelectionLayerSpec<Scan> = {
 export const survivalLayer: SelectionLayerSpec<Scan> = {
   name: SURVIVAL_LAYER,
   load: async (signal) => (await loadScans(signal)).filter(isSurvivalScan),
+  markers: (scans) => scans.map(toFeature),
+};
+
+/**
+ * Fun : les objets relevés pour le plaisir — une borne d'arcade pour commencer.
+ * Même mécanique encore, et un calque à eux.
+ */
+export const funLayer: SelectionLayerSpec<Scan> = {
+  name: FUN_LAYER,
+  load: async (signal) => (await loadScans(signal)).filter(isFunScan),
   markers: (scans) => scans.map(toFeature),
 };
 

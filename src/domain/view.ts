@@ -21,7 +21,7 @@ export interface Pose {
   tilt: number;
 }
 
-export type OverlayId = 'places' | 'cameras' | 'aircraft' | 'scans' | 'objects' | 'survival' | 'streets';
+export type OverlayId = 'places' | 'cameras' | 'aircraft' | 'scans' | 'objects' | 'survival' | 'fun' | 'streets';
 export type OverlayVisibility = Record<OverlayId, boolean>;
 
 export interface View {
@@ -45,11 +45,11 @@ export const POSE_LIMITS = {
 export const DEFAULT_VIEW: View = {
   pose: { x: 685070, y: 627918, distance: 1800, azimuth: 0, tilt: 58 },
   scene: DEFAULT_SCENE,
-  overlays: { places: true, cameras: false, aircraft: false, scans: true, objects: true, survival: true, streets: false },
+  overlays: { places: true, cameras: false, aircraft: false, scans: true, objects: true, survival: true, fun: true, streets: false },
   cameraId: null,
 };
 
-const OVERLAY_CODES: Record<OverlayId, string> = { places: 'p', cameras: 'c', aircraft: 'a', scans: 'i', objects: 'o', survival: 'd', streets: 'r' };
+const OVERLAY_CODES: Record<OverlayId, string> = { places: 'p', cameras: 'c', aircraft: 'a', scans: 'i', objects: 'o', survival: 'd', fun: 'f', streets: 'r' };
 /**
  * L'imagerie aérienne, les objets scannés et les équipements de survie sont nés après les premiers liens
  * partagés : un lien qui ne les mentionne pas ne les a pas éteints, il les
@@ -59,6 +59,7 @@ const OVERLAY_CODES: Record<OverlayId, string> = { places: 'p', cameras: 'c', ai
 const SCANS_OFF = 'x';
 const OBJECTS_OFF = 'y';
 const SURVIVAL_OFF = 'z';
+const FUN_OFF = 'w';
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -86,7 +87,7 @@ export function encodeView(view: View): string {
     .filter((id) => overlays[id])
     .map((id) => OVERLAY_CODES[id])
     .join('');
-  params.set('o', `${visible}${overlays.scans ? '' : SCANS_OFF}${overlays.objects ? '' : OBJECTS_OFF}${overlays.survival ? '' : SURVIVAL_OFF}`);
+  params.set('o', `${visible}${overlays.scans ? '' : SCANS_OFF}${overlays.objects ? '' : OBJECTS_OFF}${overlays.survival ? '' : SURVIVAL_OFF}${overlays.fun ? '' : FUN_OFF}`);
   if (cameraId) params.set('cam', cameraId);
   // les virgules et les points sont sûrs dans un fragment : on garde le lien lisible
   return params.toString().replaceAll('%2C', ',');
@@ -117,6 +118,7 @@ export function decodeView(fragment: string, fallback: View = DEFAULT_VIEW): Vie
         scans: !codes.includes(SCANS_OFF),
         objects: !codes.includes(OBJECTS_OFF),
         survival: !codes.includes(SURVIVAL_OFF),
+        fun: !codes.includes(FUN_OFF),
         streets: codes.includes(OVERLAY_CODES.streets),
       },
     cameraId: cameraId && /^\d{1,6}$/.test(cameraId) ? cameraId : null,

@@ -29,6 +29,8 @@ export interface Scan {
    * calque, que l'on doit pouvoir trouver sans le chercher parmi les autres objets.
    */
   survival?: SurvivalKind;
+  /** L'objet est là pour s'amuser (borne d'arcade…) : il a lui aussi son calque. */
+  fun?: FunKind;
   /** Auteur et licence des images d'origine. */
   credit: ScanCredit;
   /** Cadrage d'ouverture ; à défaut, la caméra se place au-dessus de l'ancrage. */
@@ -73,10 +75,15 @@ export const SCAN_MANIFEST = '/scans/index.json';
 export const AERIAL_LABEL = 'Imagerie aérienne';
 export const OBJECTS_LABEL = 'Objets scannés';
 export const SURVIVAL_LABEL = 'Équipements de survie';
+export const FUN_LABEL = 'Fun';
 
 /** Équipements de survie reconnus, et le nom de chacun à l'écran. */
 export const SURVIVAL_KINDS = { defibrillator: 'Défibrillateur' } as const;
 export type SurvivalKind = keyof typeof SURVIVAL_KINDS;
+
+/** Objets de loisir reconnus, et le nom de chacun à l'écran. */
+export const FUN_KINDS = { arcade: 'Borne d’arcade' } as const;
+export type FunKind = keyof typeof FUN_KINDS;
 
 /** Hauteur de survol à l'ouverture d'un scan sans cadrage propre. */
 export const SCAN_HEIGHT = 110;
@@ -90,7 +97,9 @@ const isScan = (value: unknown): value is Scan => {
     && (typeof scan.splats === 'string') !== (typeof scan.mesh === 'string') && isCredit(scan.credit)
     && (scan.view === undefined || isView(scan.view))
     // un équipement de survie est toujours un objet, d'un genre connu
-    && (scan.survival === undefined || (typeof scan.mesh === 'string' && scan.survival in SURVIVAL_KINDS));
+    && (scan.survival === undefined || (typeof scan.mesh === 'string' && scan.survival in SURVIVAL_KINDS))
+    // de même un objet de loisir ; et un objet n'appartient qu'à une catégorie
+    && (scan.fun === undefined || (typeof scan.mesh === 'string' && scan.fun in FUN_KINDS && scan.survival === undefined));
 };
 
 const isCredit = (value: unknown): value is ScanCredit => {
@@ -123,8 +132,12 @@ export const placeScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan
 /** L'objet est un équipement de survie, signalé sur son propre calque. */
 export const isSurvivalScan = (scan: Scan): boolean => scan.survival !== undefined;
 
+/** L'objet est là pour s'amuser, signalé sur son propre calque. */
+export const isFunScan = (scan: Scan): boolean => scan.fun !== undefined;
+
 /** Nom du calque auquel un objet appartient : c'est ce que sa visionneuse annonce. */
-export const objectLabel = (scan: Scan): string => (isSurvivalScan(scan) ? SURVIVAL_LABEL : OBJECTS_LABEL);
+export const objectLabel = (scan: Scan): string =>
+  (isSurvivalScan(scan) ? SURVIVAL_LABEL : isFunScan(scan) ? FUN_LABEL : OBJECTS_LABEL);
 
 /** Le scan est un objet, à examiner dans la visionneuse. */
 export const isObjectScan = (scan: Scan): boolean => scan.mesh !== undefined;

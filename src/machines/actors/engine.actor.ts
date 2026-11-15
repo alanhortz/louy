@@ -20,10 +20,10 @@ import { cameraMarkerStyle } from '../../engine/overlays/cameraMarkers.ts';
 import { placeLabelStyle } from '../../engine/overlays/placeLabels.ts';
 import { streetLabelStyle } from '../../engine/overlays/streetLabels.ts';
 import { filmMarkerStyle } from '../../engine/overlays/filmMarkers.ts';
-import { aerialMarkerStyle, objectMarkerStyle, survivalMarkerStyle } from '../../engine/overlays/scanMarkers.ts';
+import { aerialMarkerStyle, funMarkerStyle, objectMarkerStyle, survivalMarkerStyle } from '../../engine/overlays/scanMarkers.ts';
 import { SceneEngine, type Altimeter, type Flyover, type FollowTarget } from '../../engine/SceneEngine.ts';
 
-export type OverlayName = 'streets' | 'places' | 'cameras' | 'scans' | 'objects' | 'survival' | 'aircraft' | 'films';
+export type OverlayName = 'streets' | 'places' | 'cameras' | 'scans' | 'objects' | 'survival' | 'fun' | 'aircraft' | 'films';
 
 export interface ViewerMount {
   canvas: HTMLCanvasElement;
@@ -76,7 +76,7 @@ export interface EngineInput {
   preload: Scan[];
 }
 
-const OVERLAYS: readonly OverlayName[] = ['streets', 'places', 'cameras', 'scans', 'objects', 'survival', 'aircraft', 'films'];
+const OVERLAYS: readonly OverlayName[] = ['streets', 'places', 'cameras', 'scans', 'objects', 'survival', 'fun', 'aircraft', 'films'];
 
 export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport>(
   ({ input, sendBack, receive }) => {
@@ -115,6 +115,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
     engine.addOverlay('scans', aerialMarkerStyle);
     engine.addOverlay('objects', objectMarkerStyle);
     engine.addOverlay('survival', survivalMarkerStyle);
+    engine.addOverlay('fun', funMarkerStyle);
     engine.addOverlay('aircraft', aircraftMarkerStyle);
     engine.addOverlay('films', filmMarkerStyle);
     for (const layer of OVERLAYS) {
