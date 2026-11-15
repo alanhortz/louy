@@ -10,6 +10,7 @@ import { useApp, useChild } from '../actors.ts';
  */
 export function WalkBar() {
   const app = useApp();
+  const touch = useSelector(app, (snapshot) => snapshot.context.support?.touch ?? false);
   const walk = useChild('walk');
   // à pied, les pastilles de la carte sont effacées : la copie se confirme ici
   const copied = useSelector(useChild('coordinates'), (snapshot) => (
@@ -30,7 +31,8 @@ export function WalkBar() {
         {phase === 'arriving' && <span className="walk-bar-hint">Arrivée sur place…</span>}
         {phase === 'walking' && (
           <span className="walk-bar-hint" aria-live="polite">
-            {copied ?? 'Glisser pour regarder · toucher le sol pour avancer · flèches du clavier'}
+            {/* sans clavier, on ne parle pas de ses flèches : le texte tient sur un téléphone */}
+            {copied ?? (touch ? 'Glisser pour regarder · toucher le sol pour avancer' : 'Glisser pour regarder · toucher le sol pour avancer · flèches du clavier')}
           </span>
         )}
       </div>
