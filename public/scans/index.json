@@ -114,5 +114,19 @@
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     }
+  },
+  {
+    "id": "poteau-autocollants-saint-aubain",
+    "name": "Poteau — autocollants",
+    "x": 684573,
+    "y": 628265,
+    "mesh": "/scans/poteau-autocollants-saint-aubain.glb",
+    "art": "street",
+    "credit": {
+      "author": "Alan Hortz",
+      "title": "Relevé Polycam, 2026",
+      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
+      "licence": "© 2026"
+    }
   }
 ]
