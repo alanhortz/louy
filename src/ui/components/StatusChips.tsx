@@ -1,4 +1,5 @@
 import { useSelector } from '@xstate/react';
+import { locationNotice } from '../../machines/location.machine.ts';
 import { AERIAL_LABEL } from '../../domain/scans.ts';
 import { isOrbiting } from '../../machines/viewer.machine.ts';
 import { useChild } from '../actors.ts';
@@ -19,6 +20,11 @@ export function StatusChips() {
   const suspended = useSelector(viewer, (snapshot) => snapshot.matches({ attached: 'suspended' }));
   const failure = useSelector(viewer, (snapshot) => snapshot.context.failure);
   const scanBuild = useSelector(viewer, (snapshot) => snapshot.context.scanBuild);
+  const coordinates = useSelector(useChild('coordinates'), (snapshot) => (
+    snapshot.matches('copied') || snapshot.matches('shown')
+      ? { text: snapshot.context.text, copied: snapshot.matches('copied') } : null
+  ), (a, b) => a?.text === b?.text && a?.copied === b?.copied);
+  const whereabouts = useSelector(useChild('location'), locationNotice);
   const outcome = useSelector(share, (snapshot) => (snapshot.matches('confirmed') ? snapshot.context.outcome : null));
 
   return (
@@ -41,6 +47,8 @@ export function StatusChips() {
         </span>
       )}
       {outcome && <span className="chip">{outcome === 'copied' ? 'Lien de la vue copié' : 'Vue partagée'}</span>}
+      {coordinates && <span className="chip">{coordinates.copied ? `Coordonnées copiées · ${coordinates.text}` : coordinates.text}</span>}
+      {whereabouts && <span className="chip">{whereabouts}</span>}
     </div>
   );
 }

@@ -50,6 +50,9 @@ import { telemetryMachine } from './telemetry.machine.ts';
 import { timelineMachine, type TimelineEmitted } from './timeline.machine.ts';
 import { trajectoryMachine, type TrajectoryEmitted } from './trajectory.machine.ts';
 import { walkMachine, type WalkEmitted } from './walk.machine.ts';
+import { coordinatesMachine } from './coordinates.machine.ts';
+import { locationMachine, type LocationEmitted } from './location.machine.ts';
+import { locationHeight } from '../domain/whereabouts.ts';
 import { WALK_REACH, nearestPlace } from '../domain/walk.ts';
 
 /** Cadrage du film tourné qui remplit le mieux l'écran : debout sur un téléphone tenu droit. */
@@ -63,6 +66,8 @@ export type AppEvent =
   /** Touche Échap sur la carte : plus aucun marqueur n'est sélectionné. */
   | { type: 'app.selectionDismissed' }
   | { type: 'app.timelineRequested' }
+  /** Copier les coordonnées du point que la vue vise. */
+  | { type: 'app.coordinatesRequested' }
   | SceneEmitted
   | ViewerEmitted
   | PlacesEmitted
@@ -78,7 +83,8 @@ export type AppEvent =
   | FilmsEmitted
   | TimelineEmitted
   | TrajectoryEmitted
-  | WalkEmitted;
+  | WalkEmitted
+  | LocationEmitted;
 
 export interface AppInput {
   /** Vue lue dans l'URL au chargement. */
@@ -139,6 +145,8 @@ export const appMachine = setup({
       timeline: 'timeline';
       trajectory: 'trajectory';
       walk: 'walk';
+      coordinates: 'coordinates';
+      location: 'location';
       acquisition: 'acquisition';
       activity: 'activity';
       share: 'share';
@@ -165,6 +173,8 @@ export const appMachine = setup({
     timeline: timelineMachine,
     trajectory: trajectoryMachine,
     walk: walkMachine,
+    coordinates: coordinatesMachine,
+    location: locationMachine,
     acquisition: acquisitionMachine,
     activity: activityMachine,
     share: shareMachine,
@@ -293,6 +303,8 @@ export const appMachine = setup({
         { id: 'timeline', src: 'timeline' },
         { id: 'trajectory', src: 'trajectory' },
         { id: 'walk', src: 'walk' },
+        { id: 'coordinates', src: 'coordinates' },
+        { id: 'location', src: 'location' },
         {
           id: 'acquisition',
           src: 'acquisition',
@@ -622,6 +634,26 @@ export const appMachine = setup({
         },
         'viewer.walkEntered': { actions: sendTo('walk', { type: 'walk.entered' }) },
         'viewer.walkFailed': { actions: sendTo('walk', { type: 'walk.failed' }) },
+
+        /* ---- coordonnées du point visé, et position de l'appareil du visiteur ---- */
+        'app.coordinatesRequested': {
+          actions: sendTo('coordinates', ({ context }) =>
+            ({ type: 'coordinates.copyRequested', x: context.view.pose.x, y: context.view.pose.y })),
+        },
+        'location.changed': {
+          actions: sendTo('viewer', ({ event }) => ({
+            type: 'viewer.overlayChanged',
+            layer: 'location',
+            features: event.position
+              ? [{ id: 'visiteur', x: event.position.x, y: event.position.y, label: 'Vous êtes ici', rank: 0 }] : [],
+          })),
+        },
+        'location.flyRequested': {
+          actions: sendTo('viewer', ({ event }) => ({
+            type: 'viewer.flyoverRequested',
+            flyover: { x: event.position.x, y: event.position.y, height: locationHeight(event.position), orbit: false },
+          })),
+        },
 
         /* ---- trafic fluvial : coques, sélection, fiche du bateau ---- */
         'vessels.changed': {

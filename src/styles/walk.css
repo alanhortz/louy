@@ -52,3 +52,30 @@ body:has(.walk-aiming) .stage canvas { cursor: crosshair; }
 body:has(.walk-arriving, .walk-walking) :is(.stacks, .rail, .top-actions, .chips, .indicator, .altimeter, .dock, .overlay-root) { display: none; }
 body:has(.walk-walking) .stage canvas { cursor: grab; }
 body:has(.walk-walking) .stage canvas:active { cursor: grabbing; }
+
+/* Repère de la position du visiteur : un point qui bat, et son halo. */
+.location-marker { position: absolute; width: 0; height: 0; pointer-events: none; }
+.location-dot, .location-halo { position: absolute; left: 0; top: 0; border-radius: 50%; transform: translate(-50%, -50%); }
+.location-dot { width: 14px; height: 14px; background: var(--accent); border: 2px solid #fff; box-shadow: 0 0 10px rgba(0, 212, 255, 0.9); }
+.location-halo { width: 44px; height: 44px; background: rgba(0, 212, 255, 0.22); border: 1px solid rgba(0, 212, 255, 0.55); animation: location-pulse 2.4s ease-out infinite; }
+.location-caption {
+  position: absolute;
+  left: 0;
+  top: 16px;
+  transform: translateX(-50%);
+  padding: 2px 7px;
+  background: rgba(8, 10, 18, 0.72);
+  border-radius: 6px;
+  color: #e8eaed;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+@keyframes location-pulse {
+  from { transform: translate(-50%, -50%) scale(0.35); opacity: 1; }
+  to { transform: translate(-50%, -50%) scale(1.25); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .location-halo { animation: none; } }
+.top-actions button[aria-busy='true'] { color: var(--accent); cursor: progress; }
