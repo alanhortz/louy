@@ -45,7 +45,7 @@ export const POSE_LIMITS = {
 export const DEFAULT_VIEW: View = {
   pose: { x: 685070, y: 627918, distance: 1800, azimuth: 0, tilt: 58 },
   scene: DEFAULT_SCENE,
-  overlays: { places: true, cameras: false, aircraft: false, scans: true, objects: true, survival: true, fun: false, art: true, streets: false },
+  overlays: { places: true, cameras: false, aircraft: false, scans: true, objects: true, survival: true, fun: false, art: false, streets: false },
   cameraId: null,
 };
 
@@ -59,7 +59,6 @@ const OVERLAY_CODES: Record<OverlayId, string> = { places: 'p', cameras: 'c', ai
 const SCANS_OFF = 'x';
 const OBJECTS_OFF = 'y';
 const SURVIVAL_OFF = 'z';
-const ART_OFF = 'v';
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -87,7 +86,7 @@ export function encodeView(view: View): string {
     .filter((id) => overlays[id])
     .map((id) => OVERLAY_CODES[id])
     .join('');
-  params.set('o', `${visible}${overlays.scans ? '' : SCANS_OFF}${overlays.objects ? '' : OBJECTS_OFF}${overlays.survival ? '' : SURVIVAL_OFF}${overlays.art ? '' : ART_OFF}`);
+  params.set('o', `${visible}${overlays.scans ? '' : SCANS_OFF}${overlays.objects ? '' : OBJECTS_OFF}${overlays.survival ? '' : SURVIVAL_OFF}`);
   if (cameraId) params.set('cam', cameraId);
   // les virgules et les points sont sûrs dans un fragment : on garde le lien lisible
   return params.toString().replaceAll('%2C', ',');
@@ -119,7 +118,7 @@ export function decodeView(fragment: string, fallback: View = DEFAULT_VIEW): Vie
         objects: !codes.includes(OBJECTS_OFF),
         survival: !codes.includes(SURVIVAL_OFF),
         fun: codes.includes(OVERLAY_CODES.fun),
-        art: !codes.includes(ART_OFF),
+        art: codes.includes(OVERLAY_CODES.art),
         streets: codes.includes(OVERLAY_CODES.streets),
       },
     cameraId: cameraId && /^\d{1,6}$/.test(cameraId) ? cameraId : null,
