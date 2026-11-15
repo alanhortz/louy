@@ -318,9 +318,12 @@ describe('calque des films du temps', () => {
     return { announced, actor, send: (event: AnyEventObject) => parent.send({ type: 'to.child', event }) };
   }
 
-  it('signale d’emblée ses lieux, le Grognon en premier', () => {
-    const { announced, actor } = films();
+  it('reste éteint d’emblée ; allumé, signale ses lieux, le Grognon en premier', () => {
+    const { announced, actor, send } = films();
     expect(FILM_PLACES[0]).toMatchObject({ id: 'grognon' });
+    expect(filmsFeed(actor.getSnapshot() as never)).toBe('off');
+    expect(announced).toHaveLength(0);
+    send({ type: 'films.toggled' });
     expect(announced.at(-1)).toMatchObject({ type: 'films.markersChanged', activeId: null });
     expect(announced.at(-1)!.features[0]).toMatchObject({ id: 'grognon', x: 685487, y: 627968 });
     expect(filmsFeed(actor.getSnapshot() as never)).toBe('nominal');
@@ -328,6 +331,7 @@ describe('calque des films du temps', () => {
 
   it('demande le film du lieu dont on touche le marqueur', () => {
     const { announced, send } = films();
+    send({ type: 'films.toggled' });
     send({ type: 'films.picked', id: 'inconnu' });
     expect(announced.some((event) => event.type === 'films.playRequested')).toBe(false);
     send({ type: 'films.picked', id: 'grognon' });
@@ -336,6 +340,7 @@ describe('calque des films du temps', () => {
 
   it('retire ses marqueurs quand le calque est éteint, et les remet', () => {
     const { announced, actor, send } = films();
+    send({ type: 'films.toggled' });
     send({ type: 'films.toggled' });
     expect(announced.at(-1)).toMatchObject({ type: 'films.markersChanged', features: [] });
     expect(filmsFeed(actor.getSnapshot() as never)).toBe('off');
