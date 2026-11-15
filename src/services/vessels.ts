@@ -1,5 +1,17 @@
 import { EDGE_PREFIX } from '../config/project.ts';
-import { VESSEL_PAGE, VESSEL_PAGES, parseVesselPage, vesselEdgePath, type Vessel } from '../domain/vessels.ts';
+import { VESSEL_PAGE, VESSEL_PAGES, parseVesselPage, settleVessels, vesselEdgePath, type Vessel } from '../domain/vessels.ts';
+import { WATERWAYS_PATH, parseWaterways, type Waterway } from '../domain/waterways.ts';
+
+let waterways: Promise<Waterway[]> | null = null;
+
+/** Tracé des voies navigables, publié avec le site ; chargé une fois. Sans lui, les bateaux gardent leur route annoncée. */
+function loadWaterways(): Promise<Waterway[]> {
+  waterways ??= fetch(WATERWAYS_PATH)
+    .then((response) => (response.ok ? response.json() : []))
+    .then(parseWaterways)
+    .catch(() => []);
+  return waterways;
+}
 
 /**
  * Bateaux actuellement sur les voies navigables wallonnes. Toujours par le
@@ -14,5 +26,5 @@ export async function loadVessels(signal: AbortSignal): Promise<Vessel[]> {
     for (const vessel of found) vessels.set(vessel.id, vessel);
     if (!more) break;
   }
-  return [...vessels.values()];
+  return settleVessels([...vessels.values()], await loadWaterways());
 }

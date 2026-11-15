@@ -16,6 +16,7 @@
     "deploy": "npm run build && wrangler deploy",
     "cameras:harvest": "node scripts/harvest-cameras.mjs",
     "aircraft:photos": "node scripts/harvest-aircraft-photos.mjs",
+    "waterways:harvest": "node scripts/harvest-waterways.mjs",
     "provenance:verify": "node scripts/verify-provenance.ts",
     "sites:harvest": "node scripts/harvest-sites.mjs",
     "places:harvest": "node scripts/harvest-places.mjs"

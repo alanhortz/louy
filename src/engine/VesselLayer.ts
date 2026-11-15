@@ -3,8 +3,8 @@
  * réelles, posée sur l'eau et tournée sur sa route.
  *
  * Vue de loin, une péniche de quatre-vingts mètres ne ferait pas un pixel :
- * elle est alors agrandie pour rester lisible, et retrouve sa taille réelle dès
- * que l'on s'approche — comme les avions.
+ * elle est alors agrandie en plan pour rester lisible, sans prendre de hauteur,
+ * et retrouve sa taille réelle dès que l'on s'approche.
  */
 
 import {
@@ -27,7 +27,13 @@ export interface VesselModel {
 
 const DEG = Math.PI / 180;
 /** Longueur minimale d'une coque à l'écran, en pixels. */
-const MIN_SCREEN_LENGTH = 26;
+const MIN_SCREEN_LENGTH = 20;
+/**
+ * Agrandie pour rester visible de loin, une coque ne doit pas devenir un immeuble :
+ * sa hauteur ne suit l'agrandissement que jusqu'à ce facteur, puis elle s'aplatit
+ * en une silhouette posée sur l'eau.
+ */
+const MAX_HEIGHT_SCALE = 2;
 /** Hauteur de la coque au-dessus de l'eau, et de la timonerie, en mètres. */
 const FREEBOARD = 2.4;
 
@@ -129,7 +135,7 @@ export class VesselLayer {
       mesh.rotation.set(0, -model.course * DEG, 0);
       const range = mesh.position.distanceTo(camera.position);
       const scale = Math.max(1, (MIN_SCREEN_LENGTH * range) / (pixelsAtUnit * model.length));
-      mesh.scale.set(model.beam * scale, FREEBOARD * scale, model.length * scale);
+      mesh.scale.set(model.beam * scale, FREEBOARD * Math.min(scale, MAX_HEIGHT_SCALE), model.length * scale);
     }
     const autoClear = this.#renderer.autoClear;
     this.#renderer.autoClear = false;

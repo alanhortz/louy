@@ -8,7 +8,7 @@
  */
 
 import { assign, fromPromise, sendParent, setup, type SnapshotFrom } from 'xstate';
-import { VESSEL_POLL_MS, vesselLabel, vesselStateLabel, type Vessel } from '../domain/vessels.ts';
+import { VESSEL_POLL_MS, vesselCentre, vesselLabel, vesselStateLabel, type Vessel } from '../domain/vessels.ts';
 import type { VesselFeature } from '../engine/overlays/vesselMarkers.ts';
 import { loadVessels } from '../services/vessels.ts';
 import type { LayerFeed } from './places.machine.ts';
@@ -38,9 +38,10 @@ const RETRY_MS = 15_000;
 const LOCATE_HEIGHT = 260;
 
 const toFeature = (vessel: Vessel): VesselFeature => ({
-  id: vessel.id, x: vessel.x, y: vessel.y,
+  // la coque se dessine autour de son milieu, pas autour du récepteur de position
+  id: vessel.id, ...vesselCentre(vessel),
   label: vesselLabel(vessel), detail: vesselStateLabel(vessel),
-  course: vessel.course, length: vessel.length ?? 40, beam: vessel.beam ?? 6, moving: vessel.moving,
+  course: vessel.heading, length: vessel.length ?? 40, beam: vessel.beam ?? 6, moving: vessel.moving,
   // les bateaux en route passent avant ceux à quai quand la place manque ; à défaut, les plus longs
   rank: (vessel.moving ? 1000 : 0) + (vessel.length ?? 0),
 });
@@ -76,7 +77,7 @@ export const vesselsMachine = setup({
       ({ type: 'vessels.selectionChanged', vessel: selected(context) })),
     requestFly: sendParent(({ context }): VesselsEmitted => {
       const vessel = selected(context)!;
-      return { type: 'vessels.flyRequested', x: vessel.x, y: vessel.y, height: LOCATE_HEIGHT };
+      return { type: 'vessels.flyRequested', ...vesselCentre(vessel), height: LOCATE_HEIGHT };
     }),
     keepList: assign({
       list: ({ event }) => (event as unknown as { output: Vessel[] }).output,

@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createActor, createMachine, fromPromise, sendTo, waitFor, type AnyEventObject } from 'xstate';
+import { readFileSync } from 'node:fs';
 import { toLambert } from '../src/domain/lambert2008.ts';
+import { parseWaterways, waterwayAt } from '../src/domain/waterways.ts';
 import { inWallonia } from '../src/domain/walloniaOutline.ts';
 import {
-  VESSEL_ROUTE, parseVesselPage, vesselEdgePath, vesselLabel, vesselPageUrl, vesselStateLabel, type Vessel,
+  VESSEL_ROUTE, parseVesselPage, settleVessels, vesselCentre, vesselEdgePath, vesselLabel, vesselPageUrl, vesselStateLabel, type Vessel,
 } from '../src/domain/vessels.ts';
 import { selectedVessel, vesselsFeed, vesselsMachine } from '../src/machines/vessels.machine.ts';
 import worker from '../worker/index.ts';
@@ -14,6 +16,7 @@ const track = (over: Record<string, unknown> = {}) => ({
   trackId: '651050', name: 'Track 651050', mmsi: 0, eni: null, callSign: null,
   lat: 50.4079, lon: 4.4441, navigationalStatus: 0, length: 83, beam: 9.5,
   courseGround: 247, speedGround: 11.2, isMoving: true, isLost: false,
+  dimensionA: 70, dimensionB: 13, dimensionC: 3, dimensionD: 6.5,
   positionMeasuredAt: '2026-11-15T09:59:20+00:00', isrsPositionName: 'Sambre km 38.2', privacyClass: 2, ...over,
 });
 
@@ -22,7 +25,7 @@ describe('positions des bateaux', () => {
     const { vessels, more } = parseVesselPage({ items: [track()], count: 1 }, NOW);
     const at = toLambert(50.4079, 4.4441);
     expect(vessels).toEqual([{
-      id: '651050', x: Math.round(at.x), y: Math.round(at.y), length: 83, beam: 9.5, course: 247, speed: 11.2,
+      id: '651050', x: Math.round(at.x), y: Math.round(at.y), length: 83, beam: 9.5, course: 247, heading: 247, centre: { ahead: 28.5, right: 1.75 }, speed: 11.2,
       moving: true, state: 'underway', place: 'Sambre km 38.2', seenAt: Date.parse('2026-11-15T09:59:20Z'),
     }]);
     expect(Object.keys(vessels[0]!)).not.toEqual(expect.arrayContaining(['name', 'mmsi', 'eni', 'callSign']));
@@ -72,7 +75,7 @@ describe('machine du trafic fluvial', () => {
   afterEach(() => vi.useRealTimers());
 
   const barge = (id: string, over: Partial<Vessel> = {}): Vessel => ({
-    id, x: 650000, y: 620000, length: 83, beam: 9.5, course: 247, speed: 11, moving: true, state: 'underway', place: null, seenAt: NOW, ...over,
+    id, x: 650000, y: 620000, length: 83, beam: 9.5, course: 247, heading: 247, centre: { ahead: 0, right: 0 }, speed: 11, moving: true, state: 'underway', place: null, seenAt: NOW, ...over,
   });
   function traffic(visible: boolean, load: () => Promise<Vessel[]> = async () => [barge('a'), barge('b', { moving: false, length: 110 })]) {
     const announced: AnyEventObject[] = [];
@@ -160,6 +163,50 @@ describe('relais des bateaux', () => {
     await call('/edge/v1/vessels/100.json');
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect((await call('/edge/v1/vessels/500.json')).status).toBe(404);
+  });
+});
+
+describe('sens et milieu de la coque', () => {
+  const vessel = (over: Partial<Vessel> = {}): Vessel => ({
+    id: 'a', x: 1000, y: 1000, length: 80, beam: 9, course: 0, heading: 0, centre: { ahead: 0, right: 0 }, speed: 0,
+    moving: false, state: 'moored', place: null, seenAt: NOW, ...over,
+  });
+  // un canal qui file plein est, puis une rivière vers le nord-est
+  const ways = parseWaterways([{ name: 'CANAL DU CENTRE A GRAND GABARIT', points: [0, 1000, 5000, 1000] }, { name: 'BASSE MEUSE', points: [9000, 0, 10000, 1000] }]);
+
+  it('couche un bateau à l’arrêt le long de sa voie d’eau, du côté de sa dernière route', () => {
+    const [idle, west, far, moving] = settleVessels([
+      vessel({ y: 1030 }), vessel({ y: 970, course: 250 }), vessel({ x: 1000, y: 4000, course: 33 }), vessel({ moving: true, course: 33 }),
+    ], ways);
+    expect([idle!.heading, west!.heading]).toEqual([90, 270]);
+    // loin de toute voie, ou en route : la route annoncée fait foi
+    expect([far!.heading, moving!.heading]).toEqual([33, 33]);
+    expect(idle!.place).toBe('Canal du Centre à Grand Gabarit');
+    expect(settleVessels([vessel({ place: 'Écluse 4' })], ways)[0]!.place).toBe('Écluse 4');
+  });
+
+  it('lit l’axe de la voie la plus proche, sans tenir compte de son sens', () => {
+    expect(waterwayAt(ways, 9500, 520)).toEqual({ name: 'BASSE MEUSE', bearing: 45 });
+    expect(waterwayAt(ways, 2000, 1249)?.bearing).toBe(90);
+    expect(waterwayAt(ways, 2000, 1300)).toBeNull();
+    expect(parseWaterways([{ name: 'x', points: [1, 2] }, { name: 'y', points: [1, 2, 3] }, null])).toEqual([]);
+  });
+
+  it('place la coque autour de son milieu, pas autour du récepteur de position', () => {
+    // récepteur à 70 m de la proue et 10 m de la poupe : le milieu est 30 m devant lui
+    const centre = (heading: number) => vesselCentre(vessel({ heading, centre: { ahead: 30, right: 2 } }));
+    expect(centre(0)).toEqual({ x: 1002, y: 1030 });
+    expect(centre(90).x).toBeCloseTo(1030);
+    expect(centre(90).y).toBeCloseTo(998);
+  });
+
+  it('couvre les grandes voies wallonnes dans le tracé publié', () => {
+    const published = parseWaterways(JSON.parse(readFileSync(new URL('../public/data/waterways.json', import.meta.url), 'utf8')));
+    const names = new Set(published.map((way) => way.name));
+    for (const name of ['CANAL ALBERT', 'CANAL DU CENTRE A GRAND GABARIT', 'CANAL CHARLEROI-BRUXELLES']) expect(names.has(name), name).toBe(true);
+    // la Meuse à Namur, au pied de la citadelle
+    const namur = toLambert(50.4609, 4.8679);
+    expect(waterwayAt(published, namur.x, namur.y)).not.toBeNull();
   });
 });
 
