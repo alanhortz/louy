@@ -10,6 +10,7 @@
 
 import { toLambert } from './lambert2008.ts';
 import { inWallonia } from './walloniaOutline.ts';
+import { waterwayAt, type Waterway } from './waterways.ts';
 
 export const VESSEL_SOURCE = 'EuRIS';
 /** Mention demandée par EuRIS à qui réutilise ses services. */
@@ -28,6 +29,13 @@ export interface Vessel {
   beam: number | null;
   /** Route suivie, en degrés depuis le nord. */
   course: number;
+  /**
+   * Sens dans lequel la coque est tournée, en degrés depuis le nord. EuRIS ne le
+   * donne pas : en route, c'est la route suivie ; à l'arrêt, l'axe de la voie d'eau.
+   */
+  heading: number;
+  /** Du récepteur de position au milieu de la coque, en mètres : vers l'avant, et vers tribord. */
+  centre: { ahead: number; right: number };
   /** Vitesse sur le fond, en km/h. */
   speed: number;
   moving: boolean;
@@ -84,12 +92,17 @@ export function parseVesselPage(payload: unknown, now: number): VesselPage {
     const seenAt = Date.parse(String(raw.positionMeasuredAt));
     if (!Number.isFinite(seenAt) || now - seenAt > STALE_MS) continue;
     const size = (value: unknown) => (typeof value === 'number' && value > 0 && value < 400 ? value : null);
+    // distances du récepteur à la proue, la poupe, bâbord et tribord : le milieu de la coque s'en déduit
+    const span = (value: unknown) => (typeof value === 'number' && value >= 0 && value < 400 ? value : 0);
+    const [bow, stern, port, starboard] = [span(raw.dimensionA), span(raw.dimensionB), span(raw.dimensionC), span(raw.dimensionD)];
+    const course = typeof raw.courseGround === 'number' && raw.courseGround >= 0 && raw.courseGround < 360 ? raw.courseGround : 0;
     const speed = typeof raw.speedGround === 'number' && raw.speedGround >= 0 && raw.speedGround < 80 ? raw.speedGround : 0;
     vessels.push({
       id: String(raw.trackId),
       x: Math.round(x), y: Math.round(y),
       length: size(raw.length), beam: size(raw.beam),
-      course: typeof raw.courseGround === 'number' && raw.courseGround >= 0 && raw.courseGround < 360 ? raw.courseGround : 0,
+      course, heading: course,
+      centre: { ahead: (bow - stern) / 2, right: (starboard - port) / 2 },
       speed,
       moving: raw.isMoving === true || speed > 0.5,
       state: STATES[raw.navigationalStatus as number] ?? 'unknown',
@@ -102,3 +115,38 @@ export function parseVesselPage(payload: unknown, now: number): VesselPage {
 
 /** Légende d'un bateau sur la carte : sa longueur, à défaut « Bateau ». */
 export const vesselLabel = (vessel: Vessel): string => (vessel.length ? `${Math.round(vessel.length)} m` : 'Bateau');
+
+const DEG = Math.PI / 180;
+
+/**
+ * Tourne chaque coque dans le bon sens. Un bateau en route suit sa route. Un
+ * bateau à l'arrêt n'en annonce plus de fiable : il est couché le long de la
+ * voie d'eau où il se trouve — des deux sens possibles, celui qui s'accorde le
+ * mieux avec sa dernière route connue. Loin de toute voie, rien ne change.
+ */
+export function settleVessels(vessels: readonly Vessel[], ways: readonly Waterway[]): Vessel[] {
+  return vessels.map((vessel) => {
+    if (vessel.moving) return { ...vessel, heading: vessel.course };
+    const way = waterwayAt(ways, vessel.x, vessel.y);
+    if (!way) return { ...vessel, heading: vessel.course };
+    const turn = Math.abs(((vessel.course - way.bearing + 540) % 360) - 180);
+    return { ...vessel, heading: turn <= 90 ? way.bearing : way.bearing + 180, place: vessel.place ?? titleCase(way.name) };
+  });
+}
+
+/** Les noms de voies du SPW sont en capitales : « CANAL ALBERT » se lit mieux « Canal Albert ». */
+const titleCase = (name: string): string =>
+  name.toLowerCase().replace(/(^|[\s\-'’])(\p{L})/gu, (_, before: string, letter: string) => before + letter.toUpperCase())
+    .replace(/\b(De|Du|Des|La|Le|Les|Et|A|À|En|Au|Aux|D|L)\b(?!$)/g, (word, _w, at: number) => (at === 0 ? word : word.toLowerCase()))
+    // le SPW écrit sans accent la préposition : « Canal du Centre à grand gabarit »
+    .replace(/ a /g, ' à ');
+
+/** Milieu de la coque, en Lambert 2008 : le récepteur de position est rarement au centre du bateau. */
+export function vesselCentre(vessel: Vessel): { x: number; y: number } {
+  const sin = Math.sin(vessel.heading * DEG), cos = Math.cos(vessel.heading * DEG);
+  // vers l'avant : (sin, cos) ; vers tribord : (cos, −sin)
+  return {
+    x: vessel.x + vessel.centre.ahead * sin + vessel.centre.right * cos,
+    y: vessel.y + vessel.centre.ahead * cos - vessel.centre.right * sin,
+  };
+}

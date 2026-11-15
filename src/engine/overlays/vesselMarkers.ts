@@ -7,7 +7,7 @@
 import type { OverlayFeature, OverlayStyle } from '../OverlayLayer.ts';
 
 export interface VesselFeature extends OverlayFeature {
-  /** Route suivie, en degrés depuis le nord. */
+  /** Sens de la coque, en degrés depuis le nord. */
   course: number;
   /** Dimensions de la coque en volume, en mètres. */
   length: number;
