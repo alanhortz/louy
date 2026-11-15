@@ -27,6 +27,7 @@ import type { TelemetryBuffer } from '../services/telemetry.ts';
 import { acquisitionMachine } from './acquisition.machine.ts';
 import { activityMachine } from './activity.machine.ts';
 import { aircraftMachine, type AircraftEmitted } from './aircraft.machine.ts';
+import { vesselsMachine, type VesselsEmitted } from './vessels.machine.ts';
 import { camerasMachine, type CamerasEmitted } from './cameras.machine.ts';
 import { chromeMachine, type PanelId } from './chrome.machine.ts';
 import { compatibilityMachine } from './compatibility.machine.ts';
@@ -71,6 +72,7 @@ export type AppEvent =
   | LayersEmitted<Scan>
   | ObjectEmitted
   | AircraftEmitted
+  | VesselsEmitted
   | FilmsEmitted
   | TimelineEmitted
   | TrajectoryEmitted;
@@ -125,6 +127,7 @@ export const appMachine = setup({
       layers: 'layers';
       object: 'object';
       aircraft: 'aircraft';
+      vessels: 'vessels';
       films: 'films';
       timeline: 'timeline';
       trajectory: 'trajectory';
@@ -149,6 +152,7 @@ export const appMachine = setup({
     layers: createLayersMachine([aerialLayer, objectsLayer, artLayer, survivalLayer, funLayer]),
     object: objectMachine,
     aircraft: aircraftMachine,
+    vessels: vesselsMachine,
     films: filmsMachine,
     timeline: timelineMachine,
     trajectory: trajectoryMachine,
@@ -272,6 +276,7 @@ export const appMachine = setup({
         },
         { id: 'object', src: 'object' },
         { id: 'aircraft', src: 'aircraft', input: ({ context }) => ({ visible: context.view.overlays.aircraft }) },
+        { id: 'vessels', src: 'vessels', input: ({ context }) => ({ visible: context.view.overlays.vessels }) },
         { id: 'films', src: 'films' },
         { id: 'timeline', src: 'timeline' },
         { id: 'trajectory', src: 'trajectory' },
@@ -415,6 +420,10 @@ export const appMachine = setup({
           {
             guard: ({ event }) => event.layer === 'aircraft',
             actions: sendTo('aircraft', ({ event }) => ({ type: 'aircraft.picked', id: event.id })),
+          },
+          {
+            guard: ({ event }) => event.layer === 'vessels',
+            actions: sendTo('vessels', ({ event }) => ({ type: 'vessels.picked', id: event.id })),
           },
           {
             // imagerie aérienne ou objets scannés : le calque reçoit ce que le marqueur touché rassemble
@@ -564,6 +573,34 @@ export const appMachine = setup({
           ],
         },
 
+        /* ---- trafic fluvial : coques, sélection, fiche du bateau ---- */
+        'vessels.changed': {
+          actions: [
+            assign({
+              view: ({ context, event }) =>
+                ({ ...context.view, overlays: { ...context.view.overlays, vessels: event.visible } }),
+            }),
+            sendTo('viewer', ({ event }) =>
+              ({ type: 'viewer.overlayChanged', layer: 'vessels', features: event.features })),
+            'syncUrl',
+          ],
+        },
+        'vessels.selectionChanged': {
+          actions: [
+            sendTo('viewer', ({ event }) =>
+              ({ type: 'viewer.overlayActivated', layer: 'vessels', id: event.vessel?.id ?? null })),
+            sendTo('chrome', ({ event }) => (event.vessel
+              ? { type: 'chrome.revealed', panel: 'vessels' }
+              : { type: 'chrome.dismissed', panel: 'vessels' })),
+          ],
+        },
+        'vessels.flyRequested': {
+          actions: sendTo('viewer', ({ event }) => ({
+            type: 'viewer.flyoverRequested',
+            flyover: { x: event.x, y: event.y, height: event.height, orbit: false },
+          })),
+        },
+
         /* ---- avions en direct : marqueurs, sélection, poste de pilotage ---- */
         'aircraft.changed': {
           actions: [
@@ -634,6 +671,7 @@ export const appMachine = setup({
         'app.selectionDismissed': {
           actions: [
             sendTo('aircraft', { type: 'aircraft.dismissed' }),
+            sendTo('vessels', { type: 'vessels.dismissed' }),
             sendTo('cameras', { type: 'cameras.dismissed' }),
             sendTo('layers', { type: 'layers.dismissed', layer: AERIAL_LAYER }),
             sendTo('layers', { type: 'layers.dismissed', layer: OBJECTS_LAYER }),

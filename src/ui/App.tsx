@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useApp } from './actors.ts';
 import { AboutPanel } from './components/AboutPanel.tsx';
 import { AircraftPanel } from './components/AircraftPanel.tsx';
+import { VesselPanel } from './components/VesselPanel.tsx';
 import { ImageryPanel } from './components/ImageryPanel.tsx';
 import { CockpitExit } from './components/CockpitExit.tsx';
 import { Brand } from './components/Brand.tsx';
@@ -66,6 +67,7 @@ export function App() {
           <CameraPanel />
           <ImageryPanel />
           <AircraftPanel />
+          <VesselPanel />
           <AboutPanel />
         </aside>
       </div>

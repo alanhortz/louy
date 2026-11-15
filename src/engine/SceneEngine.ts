@@ -24,6 +24,7 @@ import { TileTree } from './core/TileTree.js';
 import mntLut from './lut/mnt.json';
 import mnsLut from './lut/mns.json';
 import { AircraftLayer, type AircraftModel } from './AircraftLayer.ts';
+import { VesselLayer, type VesselModel } from './VesselLayer.ts';
 import { TrajectoryLayer, type TrajectoryPoint } from './TrajectoryLayer.ts';
 import { OverlayLayer, type OverlayFeature, type OverlayStyle } from './OverlayLayer.ts';
 import type { ScanProgress, SplatLayer } from './SplatLayer.ts';
@@ -164,6 +165,7 @@ export class SceneEngine {
   #trajectory: TrajectoryLayer | null = null;
   /** Maquettes des avions ; créé au premier appareil à dessiner. */
   #aircraft: AircraftLayer | null = null;
+  #vessels: VesselLayer | null = null;
   #raf = 0;
   #last = performance.now();
   #idleFrames = IDLE_FRAMES;
@@ -331,6 +333,18 @@ export class SceneEngine {
     this.#wake();
   }
 
+  /** Bateaux à dessiner en volume, sur l'eau et sur leur route. */
+  setVesselModels(models: readonly VesselModel[]): void {
+    if (models.length > 0) this.#vessels ??= new VesselLayer(this.#renderer);
+    this.#vessels?.setModels(models);
+    this.#wake();
+  }
+
+  setVesselActive(id: string | null): void {
+    this.#vessels?.setActive(id);
+    this.#wake();
+  }
+
   /**
    * Photographie la vue telle qu'elle est rendue, sans les entités posées dessus.
    * `blank` signale une image presque entièrement blanche : la photo aérienne du
@@ -418,6 +432,7 @@ export class SceneEngine {
     this.#disposed = true;
     this.#splats?.dispose();
     this.#aircraft?.dispose();
+    this.#vessels?.dispose();
     this.#trajectory?.dispose();
     cancelAnimationFrame(this.#raf);
     this.#teardown.abort();
@@ -620,6 +635,9 @@ export class SceneEngine {
     });
     this.#edl.render(this.#scene, this.#camera);
     this.#splats?.render(this.#camera);
+    // les bateaux d'abord : un avion qui les survole se dessine par-dessus
+    this.#vessels?.render(this.#camera, this.#size.height,
+      (worldX, worldZ) => this.#groundAt(worldX, worldZ) ?? this.#controls.target.y);
     this.#aircraft?.render(this.#camera, this.#size.height, Date.now(),
       (worldX, worldZ) => this.#groundAt(worldX, worldZ) ?? this.#controls.target.y);
     // la trajectoire ensuite : elle se raccorde à l'appareil tel qu'il vient d'être dessiné

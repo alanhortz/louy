@@ -2,6 +2,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { AIRCRAFT_EDGE_PATH, aircraftFeedUrl } from './src/domain/aircraft.ts';
 import { routeUrl } from './src/domain/flightRoute.ts';
+import { vesselPageUrl } from './src/domain/vessels.ts';
 import { entropy } from './build/entropy/plugin.ts';
 import { supportGate } from './build/support-gate.ts';
 
@@ -37,6 +38,12 @@ export default defineConfig({
         target: new URL(aircraftFeedUrl()).origin,
         changeOrigin: true,
         rewrite: () => new URL(aircraftFeedUrl()).pathname,
+      },
+      // bateaux : même rôle, vers EuRIS, qui n'autorise pas non plus les appels d'un navigateur
+      '^/edge/v1/vessels/(0|100|200|300)\\.json$': {
+        target: new URL(vesselPageUrl(0)).origin,
+        changeOrigin: true,
+        rewrite: (path) => { const url = new URL(vesselPageUrl(Number(path.split('/').pop()!.replace('.json', '')))); return url.pathname + url.search; },
       },
       // liaison d'un vol : même rôle, vers la base adsbdb
       '^/edge/v1/aircraft/route/[A-Z0-9]{3,8}\\.json$': {
