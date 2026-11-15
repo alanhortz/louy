@@ -45,6 +45,8 @@ export class MapControls {
     this.onAutoRotateEnd = () => {};
     /** Appele a chaque geste de l'utilisateur (pointeur, molette, clavier). */
     this.onUserInput = () => {};
+    /** Faux quand une autre navigation tient la camera (balade au sol) : les gestes sont ignores. */
+    this.enabled = true;
 
     this._d = { pan: new Vector3(), dist: 0, az: 0, pol: 0 };
     this._ptr = new Map();
@@ -74,7 +76,7 @@ export class MapControls {
     // marqueur doit zoomer la carte.
     (d.parentElement ?? d).addEventListener('wheel', (e) => this.#wheel(e), { passive: false, signal });
     window.addEventListener('keydown', (e) => {
-      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+      if (!this.enabled || ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
       this._keys.add(e.key);
       if (NAV_KEYS.has(e.key)) this.onUserInput();
     }, { signal });
@@ -88,6 +90,7 @@ export class MapControls {
   }
 
   #down(e) {
+    if (!this.enabled) return;
     this.onUserInput();
     this.dom.setPointerCapture(e.pointerId);
     this._ptr.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -162,6 +165,7 @@ export class MapControls {
   }
 
   #wheel(e) {
+    if (!this.enabled) return;
     e.preventDefault();
     this.onUserInput();
     const unit = e.deltaMode === 1 ? 18 : e.deltaMode === 2 ? 380 : 1;

@@ -12,6 +12,7 @@ import { Panel } from './Panel.tsx';
  */
 export function ImageryPanel() {
   const layers = useChild('layers');
+  const walk = useChild('walk');
   const layer = useLayer<Scan>(AERIAL_LAYER);
   const feed = useSelector(layer, layerFeed);
   const scans = useSelector(layer, (snapshot) => snapshot.context.items);
@@ -69,6 +70,14 @@ export function ImageryPanel() {
             </button>
             <button type="button" className="scene-btn" onClick={() => send({ type: 'layers.picked', id: scan.id })}>
               Y RETOURNER
+            </button>
+            <button
+              type="button"
+              className="scene-btn"
+              title="Se poser au sol dans ce lieu et s'y promener"
+              onClick={() => walk.send({ type: 'walk.placed', scan, x: scan.x, y: scan.y })}
+            >
+              S’Y PROMENER
             </button>
           </div>
         </section>

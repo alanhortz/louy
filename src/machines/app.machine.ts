@@ -49,6 +49,8 @@ import { streetsMachine, type StreetsEmitted } from './streets.machine.ts';
 import { telemetryMachine } from './telemetry.machine.ts';
 import { timelineMachine, type TimelineEmitted } from './timeline.machine.ts';
 import { trajectoryMachine, type TrajectoryEmitted } from './trajectory.machine.ts';
+import { walkMachine, type WalkEmitted } from './walk.machine.ts';
+import { WALK_REACH, nearestPlace } from '../domain/walk.ts';
 
 /** Cadrage du film tourné qui remplit le mieux l'écran : debout sur un téléphone tenu droit. */
 const filmFraming = (): FilmFraming =>
@@ -75,7 +77,8 @@ export type AppEvent =
   | VesselsEmitted
   | FilmsEmitted
   | TimelineEmitted
-  | TrajectoryEmitted;
+  | TrajectoryEmitted
+  | WalkEmitted;
 
 export interface AppInput {
   /** Vue lue dans l'URL au chargement. */
@@ -89,6 +92,10 @@ interface AppContext extends AppInput {
   support: SupportReport | null;
   /** Imagerie aérienne à dessiner dans la carte : celle qui est sélectionnée, et celles que le visiteur garde affichées. */
   imagery: { selected: Scan | null; kept: Scan[] };
+  /** Tous les lieux filmés, que leur calque soit allumé ou non : la balade au sol y cherche où se poser. */
+  places: Scan[];
+  /** Lieu où le visiteur marche : dessiné lui aussi, quelle que soit la sélection. */
+  walk: Scan | null;
 }
 
 /** Hauteur de survol d'un site touristique, et d'une caméra routière. */
@@ -131,6 +138,7 @@ export const appMachine = setup({
       films: 'films';
       timeline: 'timeline';
       trajectory: 'trajectory';
+      walk: 'walk';
       acquisition: 'acquisition';
       activity: 'activity';
       share: 'share';
@@ -156,6 +164,7 @@ export const appMachine = setup({
     films: filmsMachine,
     timeline: timelineMachine,
     trajectory: trajectoryMachine,
+    walk: walkMachine,
     acquisition: acquisitionMachine,
     activity: activityMachine,
     share: shareMachine,
@@ -185,11 +194,14 @@ export const appMachine = setup({
     },
     /** Dessine dans la carte l'imagerie sélectionnée et celles que le visiteur garde affichées. */
     drawImagery: sendTo('viewer', ({ context }) =>
-      ({ type: 'viewer.scansChanged', scans: drawnScans(context.imagery.selected, context.imagery.kept) })),
+      ({
+        type: 'viewer.scansChanged',
+        scans: drawnScans(context.imagery.selected, context.walk ? [context.walk, ...context.imagery.kept.filter((scan) => scan !== context.walk)] : context.imagery.kept),
+      })),
   },
 }).createMachine({
   id: 'app',
-  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] } }),
+  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] }, places: [], walk: null }),
   initial: 'checking',
   states: {
     checking: {
@@ -280,6 +292,7 @@ export const appMachine = setup({
         { id: 'films', src: 'films' },
         { id: 'timeline', src: 'timeline' },
         { id: 'trajectory', src: 'trajectory' },
+        { id: 'walk', src: 'walk' },
         {
           id: 'acquisition',
           src: 'acquisition',
@@ -507,11 +520,17 @@ export const appMachine = setup({
 
         /* ---- calques à sélection (imagerie 3D) : leurs marqueurs, puis l'élément que l'on sélectionne ---- */
         // la liste de l'imagerie aérienne est connue : les lieux sont préparés d'avance, pour s'afficher sans attente
-        'layers.listed': {
-          // calque éteint, rien n'est préparé : ce serait télécharger ce que le visiteur a choisi de ne pas voir
-          guard: ({ context, event }) => event.layer === AERIAL_LAYER && context.view.overlays.scans,
-          actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.scansPreloaded', scans: event.items })),
-        },
+        'layers.listed': [
+          {
+            // calque éteint, rien n'est préparé : ce serait télécharger ce que le visiteur a choisi de ne pas voir
+            guard: ({ context, event }) => event.layer === AERIAL_LAYER && context.view.overlays.scans,
+            actions: [
+              assign({ places: ({ event }) => event.items }),
+              sendTo('viewer', ({ event }) => ({ type: 'viewer.scansPreloaded', scans: event.items })),
+            ],
+          },
+          { guard: ({ event }) => event.layer === AERIAL_LAYER, actions: assign({ places: ({ event }) => event.items }) },
+        ],
         'layers.changed': {
           actions: [
             assign({
@@ -572,6 +591,37 @@ export const appMachine = setup({
             sendTo('layers', { type: 'layers.dismissed', layer: ART_LAYER }),
           ],
         },
+
+        /* ---- balade au sol : un point désigné sur la carte, et l'on marche dans le lieu filmé qui s'y trouve ---- */
+        'walk.aimChanged': {
+          actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.pickArmed', armed: event.armed })),
+        },
+        'viewer.groundPicked': [
+          {
+            guard: ({ context, event }) => (nearestPlace(context.places, event.x, event.y)?.distance ?? Infinity) <= WALK_REACH,
+            actions: sendTo('walk', ({ context, event }) =>
+              ({ type: 'walk.placed', scan: nearestPlace(context.places, event.x, event.y)!.scan, x: event.x, y: event.y })),
+          },
+          {
+            actions: sendTo('walk', ({ context, event }) => {
+              const nearest = nearestPlace(context.places, event.x, event.y);
+              return { type: 'walk.missed', nearest: nearest && { name: nearest.scan.name, distance: nearest.distance } };
+            }),
+          },
+        ],
+        // le lieu est dessiné même si son calque est éteint ; la balade commence dès qu'il est arrivé
+        'walk.started': {
+          actions: [
+            assign({ walk: ({ event }) => event.scan }),
+            'drawImagery',
+            sendTo('viewer', ({ event }) => ({ type: 'viewer.walkRequested', scanId: event.scan.id, x: event.x, y: event.y })),
+          ],
+        },
+        'walk.ended': {
+          actions: [assign({ walk: null }), sendTo('viewer', { type: 'viewer.walkStopped' }), 'drawImagery'],
+        },
+        'viewer.walkEntered': { actions: sendTo('walk', { type: 'walk.entered' }) },
+        'viewer.walkFailed': { actions: sendTo('walk', { type: 'walk.failed' }) },
 
         /* ---- trafic fluvial : coques, sélection, fiche du bateau ---- */
         'vessels.changed': {

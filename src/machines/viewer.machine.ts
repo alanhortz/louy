@@ -28,6 +28,9 @@ export type ViewerEmitted =
   | { type: 'viewer.activityChanged'; loading: boolean; points: number }
   | { type: 'viewer.overlayPicked'; layer: OverlayName; id: string; members: string[] }
   | { type: 'viewer.followEnded' }
+  | { type: 'viewer.groundPicked'; x: number; y: number }
+  | { type: 'viewer.walkEntered' }
+  | { type: 'viewer.walkFailed' }
   | { type: 'viewer.captured'; blob: Blob | null; blank: boolean };
 
 interface ViewerContext extends Omit<EngineInput, 'mount'> {
@@ -127,6 +130,15 @@ export const viewerMachine = viewer.createMachine({
         'viewer.followChanged': { actions: 'command' },
         'engine.followEnded': { actions: sendParent((): ViewerEmitted => ({ type: 'viewer.followEnded' })) },
         'viewer.captureRequested': { actions: 'command' },
+        // la balade au sol n'a de sens que moteur présent, elle non plus
+        'viewer.pickArmed': { actions: 'command' },
+        'viewer.walkRequested': { actions: 'command' },
+        'viewer.walkStopped': { actions: 'command' },
+        'engine.groundPicked': {
+          actions: sendParent(({ event }): ViewerEmitted => ({ type: 'viewer.groundPicked', x: event.x, y: event.y })),
+        },
+        'engine.walkEntered': { actions: sendParent((): ViewerEmitted => ({ type: 'viewer.walkEntered' })) },
+        'engine.walkFailed': { actions: sendParent((): ViewerEmitted => ({ type: 'viewer.walkFailed' })) },
         'viewer.trajectoryChanged': { actions: 'command' },
         'engine.captured': {
           actions: sendParent(({ event }): ViewerEmitted =>

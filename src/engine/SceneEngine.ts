@@ -9,6 +9,9 @@
 
 import { Color, Group, PerspectiveCamera, Scene as ThreeScene, Vector3, WebGLRenderer } from 'three';
 
+import { castGround, nearestStand } from '../domain/walk.ts';
+import { WalkControls } from './WalkControls.ts';
+
 import { cockpitPose } from '../domain/aircraft.ts';
 import type { QualityProfile } from '../domain/quality.ts';
 import type { Scan } from '../domain/scans.ts';
@@ -48,6 +51,15 @@ const CAPTURE_PROBE = 32;
 const BLANK_SHARE = 0.75;
 /** Inclinaison adoptée pour survoler un lieu. */
 const FLYOVER_TILT = 58;
+/** Champ de la caméra : sur la carte, puis à pied, où l'on embrasse plus large. */
+const MAP_FOV = 55;
+const WALK_FOV = 68;
+/** Éloignement de la vue de carte rendue au visiteur qui quitte une balade — et tenue pour la sienne tant qu'il marche. */
+const WALK_MAP_DISTANCE = 170;
+/** À pied, distance en deçà de laquelle le relief n'est pas dessiné. */
+const WALK_RELIEF_NEAR = 90;
+/** Un clic qui a bougé de moins que cela désigne un point ; au-delà, c'est un déplacement de la carte. */
+const PICK_SLOP_PX = 6;
 
 export interface EngineActivity {
   loading: boolean;
@@ -65,6 +77,11 @@ export interface EngineListeners {
   onOverlayPicked(layer: string, id: string, members: string[]): void;
   /** Le visiteur a repris la main : la caméra ne suit plus rien. */
   onFollowEnded(): void;
+  /** Le visiteur a désigné un point de la carte (Lambert 2008) où se poser. */
+  onGroundPicked(x: number, y: number): void;
+  /** La balade demandée commence — ou n'a pas pu commencer : le lieu n'a pas de sol. */
+  onWalkEntered(): void;
+  onWalkFailed(): void;
   onContextLost(): void;
   onContextRestored(): void;
 }
@@ -143,7 +160,7 @@ export class SceneEngine {
   readonly #renderer: WebGLRenderer;
   readonly #scene = new ThreeScene();
   readonly #points = new Group();
-  readonly #camera = new PerspectiveCamera(55, 1, 10, 400000);
+  readonly #camera = new PerspectiveCamera(MAP_FOV, 1, 10, 400000);
   readonly #controls: MapControls;
   readonly #materials = new PointMaterialCache();
   readonly #edl: EyeDomeLighting;
@@ -166,6 +183,13 @@ export class SceneEngine {
   /** Maquettes des avions ; créé au premier appareil à dessiner. */
   #aircraft: AircraftLayer | null = null;
   #vessels: VesselLayer | null = null;
+  /** Écoute du prochain point désigné, tant que l'outil de balade est armé. */
+  #pick: AbortController | null = null;
+  /** Regard du dernier point désigné : il retrouve ce point sur le sol du lieu, plus juste que le relief. */
+  #pickRay: { origin: Vector3; direction: Vector3 } | null = null;
+  /** Balade demandée, en attente du lieu : ses splats doivent être là pour en déduire le sol. */
+  #walkRequest: { scanId: string; x: number; y: number } | null = null;
+  #walk: WalkControls | null = null;
   #raf = 0;
   #last = performance.now();
   #idleFrames = IDLE_FRAMES;
@@ -321,6 +345,96 @@ export class SceneEngine {
     this.#wake();
   }
 
+  /**
+   * Arme ou désarme la désignation d'un point : armée, un clic sans glisser sur la
+   * carte annonce le point du sol visé. La carte reste navigable entre-temps.
+   */
+  armPick(armed: boolean): void {
+    this.#pick?.abort();
+    this.#pick = null;
+    if (!armed) return;
+    this.#pick = new AbortController();
+    const { signal } = this.#pick;
+    let press: { x: number; y: number } | null = null;
+    this.#canvas.addEventListener('pointerdown', (event) => {
+      press = event.isPrimary ? { x: event.clientX, y: event.clientY } : null;
+    }, { signal });
+    this.#canvas.addEventListener('pointerup', (event) => {
+      if (!press || Math.hypot(event.clientX - press.x, event.clientY - press.y) > PICK_SLOP_PX) return;
+      press = null;
+      const rect = this.#canvas.getBoundingClientRect();
+      const direction = new Vector3(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1,
+        0.5,
+      ).unproject(this.#camera).sub(this.#camera.position).normalize();
+      // le ciel ne désigne rien
+      if (direction.y > -1e-3) return;
+      const origin = this.#camera.position.clone();
+      const reach = (this.#controls.target.y - origin.y) / direction.y;
+      this.#pickRay = { origin, direction };
+      this.#listeners.onGroundPicked(origin.x + direction.x * reach + T.ORIGIN.x, -(origin.z + direction.z * reach) + T.ORIGIN.y);
+    }, { signal });
+  }
+
+  /**
+   * Pose le visiteur au sol dans un lieu filmé, au point désigné. Le lieu doit
+   * être parmi les scans dessinés ; la balade commence dès qu'il est reçu.
+   */
+  startWalk(scanId: string, x: number, y: number): void {
+    this.#leaveWalk();
+    this.#walkRequest = { scanId, x, y };
+    this.#wake();
+  }
+
+  /** Rend la carte au visiteur, au-dessus de l'endroit où il se tenait. */
+  stopWalk(): void {
+    this.#walkRequest = null;
+    this.#leaveWalk();
+  }
+
+  #leaveWalk(): void {
+    const walk = this.#walk;
+    if (!walk) return;
+    this.#walk = null;
+    walk.dispose();
+    this.#camera.fov = MAP_FOV;
+    this.#controls.enabled = true;
+    this.#controls.goTo(walk.x, walk.z, WALK_MAP_DISTANCE, { azimuth: walk.yaw, polar: FLYOVER_TILT * DEG });
+    this.#wake();
+  }
+
+  /** Commence la balade demandée si le sol du lieu est connu. */
+  #enterWalk(): void {
+    const request = this.#walkRequest;
+    if (!request) return;
+    const ground = this.#splats?.ground(request.scanId);
+    if (ground === undefined) return;
+    this.#walkRequest = null;
+    const ray = this.#pickRay;
+    this.#pickRay = null;
+    const worldX = request.x - T.ORIGIN.x, worldZ = -(request.y - T.ORIGIN.y);
+    // le regard du clic rencontre le sol du lieu lui-même ; à défaut, on se pose au plus près du point annoncé
+    const start = ground && ((ray && castGround(ground, ray.origin, ray.direction, 20000)) ?? nearestStand(ground, worldX, worldZ));
+    if (!ground || !start) return this.#listeners.onWalkFailed();
+    this.#endOrbit();
+    this.#endFollow();
+    this.#controls.enabled = false;
+    this.#camera.fov = WALK_FOV;
+    this.#walk = new WalkControls(this.#camera, this.#canvas, ground, start, this.#controls.azimuth);
+    this.#listeners.onWalkEntered();
+  }
+
+  /** Fait avancer la balade et tient la vue de carte à son aplomb : le relief, les calques et le lien de partage la suivent. */
+  #stepWalk(walk: WalkControls, dt: number): boolean {
+    const moved = walk.update(dt);
+    this.#controls.target.set(walk.x, walk.groundY, walk.z);
+    this.#controls.azimuth = walk.yaw;
+    this.#controls.distance = WALK_MAP_DISTANCE;
+    this.#controls.polar = FLYOVER_TILT * DEG;
+    return moved;
+  }
+
   /** Avions à dessiner en volume, à leur altitude et dans leur assiette. */
   setAircraftModels(models: readonly AircraftModel[]): void {
     if (models.length > 0) this.#aircraft ??= new AircraftLayer(this.#renderer);
@@ -430,6 +544,8 @@ export class SceneEngine {
 
   dispose(): void {
     this.#disposed = true;
+    this.#pick?.abort();
+    this.#walk?.dispose();
     this.#splats?.dispose();
     this.#aircraft?.dispose();
     this.#vessels?.dispose();
@@ -590,7 +706,8 @@ export class SceneEngine {
     this.#last = now;
 
     this.#trackFollow();
-    const moved = this.#controls.update(dt);
+    if (this.#walkRequest) this.#enterWalk();
+    const moved = this.#walk ? this.#stepWalk(this.#walk, dt) : this.#controls.update(dt);
     if (moved) {
       this.#movedAt = now;
       this.#unsettled = true;
@@ -618,8 +735,9 @@ export class SceneEngine {
   #render(): void {
     // plans de coupe adaptés à l'altitude : indispensable sur 250 km d'étendue
     const distance = this.#controls.distance;
-    this.#camera.near = Math.max(1, distance * 0.008);
-    this.#camera.far = Math.max(distance * 6, 60000);
+    // à pied, le premier plan est à portée de main
+    this.#camera.near = this.#walk ? 0.3 : Math.max(1, distance * 0.008);
+    this.#camera.far = this.#walk ? 30000 : Math.max(distance * 6, 60000);
     this.#camera.updateProjectionMatrix();
     this.#camera.updateMatrixWorld();
 
@@ -633,7 +751,17 @@ export class SceneEngine {
       cachePoints: this.#quality.cachePoints,
       describe: (tile: TileLike) => this.#describe(tile),
     });
-    this.#edl.render(this.#scene, this.#camera);
+    if (this.#walk) {
+      // À pied, les points du relief tout proches seraient de gros carrés devant le lieu filmé :
+      // le relief n'est dessiné qu'au loin, comme paysage, et le lieu occupe seul le premier plan.
+      this.#camera.near = WALK_RELIEF_NEAR;
+      this.#camera.updateProjectionMatrix();
+      this.#edl.render(this.#scene, this.#camera);
+      this.#camera.near = 0.3;
+      this.#camera.updateProjectionMatrix();
+    } else {
+      this.#edl.render(this.#scene, this.#camera);
+    }
     this.#splats?.render(this.#camera);
     // les bateaux d'abord : un avion qui les survole se dessine par-dessus
     this.#vessels?.render(this.#camera, this.#size.height,

@@ -1,0 +1,54 @@
+/* Balade au sol : un bandeau au bas de l'écran, et tout le reste qui s'efface quand on marche. */
+
+.walk-bar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(26px + var(--safe-bottom));
+  z-index: 110;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 2 * var(--edge));
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 18px;
+  background: rgba(8, 10, 18, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 22px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: #e8eaed;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+.walk-bar-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.walk-bar-lead { color: var(--accent); font-weight: 600; }
+.walk-bar-hint { color: var(--text-secondary); font-size: 9px; letter-spacing: 1px; }
+.walk-bar-exit {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* cible de toucher de 44 px, comme le rail */
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  color: inherit;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.walk-bar-exit svg { width: 18px; height: 18px; stroke-width: 1.8; }
+.walk-bar-exit:hover, .walk-bar-exit:focus-visible, .walk-bar-exit:active { background: rgba(0, 212, 255, 0.18); border-color: var(--accent); outline: none; }
+
+/* L'outil armé : le pointeur vise. */
+body:has(.walk-aiming) .stage canvas { cursor: crosshair; }
+.top-actions button[aria-pressed='true'] { border-color: var(--accent); color: var(--accent); }
+
+/* À pied, rien ne doit couvrir ce que l'on voit : ni panneaux, ni marqueurs, ni instruments de carte. */
+body:has(.walk-arriving, .walk-walking) :is(.stacks, .rail, .top-actions, .chips, .indicator, .altimeter, .dock, .overlay-root) { display: none; }
+body:has(.walk-walking) .stage canvas { cursor: grab; }
+body:has(.walk-walking) .stage canvas:active { cursor: grabbing; }

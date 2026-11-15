@@ -16,6 +16,7 @@ import { SparkRenderer, SplatEdit, SplatEditRgbaBlendMode, SplatEditSdf, SplatEd
 import { Scene as ThreeScene, Vector3, type PerspectiveCamera, type WebGLRenderer } from 'three';
 import type { Scan } from '../domain/scans.ts';
 import * as T from '../domain/tiling.ts';
+import { buildGround, type WalkGround } from '../domain/walk.ts';
 
 /** Où en est l'arrivée d'un scan : son téléchargement, puis sa construction à l'écran. */
 export interface ScanProgress {
@@ -35,6 +36,10 @@ export class SplatLayer {
   readonly #scene = new ThreeScene();
   readonly #spark: SparkRenderer;
   readonly #meshes = new Map<string, SplatMesh>();
+  /** Scans reçus en entier : leurs splats peuvent être lus. */
+  readonly #loaded = new Set<string>();
+  /** Sol de chaque lieu, déduit de ses splats à la première balade ; `null` si l'on ne peut pas y marcher. */
+  readonly #grounds = new Map<string, WalkGround | null>();
   readonly #onDirty: () => void;
   readonly #onProgress: (progress: ScanProgress) => void;
 
@@ -54,6 +59,8 @@ export class SplatLayer {
       this.#scene.remove(mesh);
       mesh.dispose();
       this.#meshes.delete(id);
+      this.#loaded.delete(id);
+      this.#grounds.delete(id);
     }
     for (const scan of scans) {
       if (this.#meshes.has(scan.id)) continue;
@@ -86,6 +93,7 @@ export class SplatLayer {
    */
   #build(id: string, mesh: SplatMesh): void {
     if (this.#meshes.get(id) !== mesh) return;
+    this.#loaded.add(id);
     const box = mesh.getBoundingBox(true);
     const reach = box.getSize(new Vector3()).length() / 2;
     const veil = new SplatEditSdf({ type: SplatEditSdfType.SPHERE, radius: 0, opacity: 0 });
@@ -117,6 +125,25 @@ export class SplatLayer {
       this.#onDirty();
     };
     this.#onDirty();
+  }
+
+  /**
+   * Sol sur lequel marcher dans un lieu, dans le repère du viewer. `undefined` tant
+   * que le lieu n'est pas reçu en entier ; `null` s'il est trop pauvre pour y marcher.
+   */
+  ground(id: string): WalkGround | null | undefined {
+    const mesh = this.#meshes.get(id);
+    if (!mesh || !this.#loaded.has(id)) return undefined;
+    if (!this.#grounds.has(id)) {
+      const points: number[] = [];
+      const { x, y, z } = mesh.position;
+      // les splats presque transparents sont du brouillard de reconstruction, pas de la matière
+      mesh.forEachSplat((_index, center, _scales, _quaternion, opacity) => {
+        if (opacity >= 0.3) points.push(center.x + x, center.y + y, center.z + z);
+      });
+      this.#grounds.set(id, buildGround(new Float32Array(points)));
+    }
+    return this.#grounds.get(id);
   }
 
   /** À appeler après la passe du relief : dessine par-dessus, sans rien effacer. */
