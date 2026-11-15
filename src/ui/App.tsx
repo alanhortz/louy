@@ -6,6 +6,7 @@ import { AircraftPanel } from './components/AircraftPanel.tsx';
 import { VesselPanel } from './components/VesselPanel.tsx';
 import { ImageryPanel } from './components/ImageryPanel.tsx';
 import { CockpitExit } from './components/CockpitExit.tsx';
+import { WalkBar } from './components/WalkBar.tsx';
 import { Brand } from './components/Brand.tsx';
 import { CameraPanel } from './components/CameraPanel.tsx';
 import { ControlsPanel } from './components/ControlsPanel.tsx';
@@ -38,6 +39,9 @@ export function App() {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       if (event.target instanceof Element && event.target.closest('input, textarea, select, [role="dialog"]')) return;
       if (document.querySelector('[aria-modal="true"]')) return;
+      // à pied, ou l'outil de balade armé, la touche ramène d'abord à la carte
+      const walk = app.getSnapshot().children.walk;
+      if (walk && !walk.getSnapshot().matches('idle')) return walk.send({ type: 'walk.left' });
       app.send({ type: 'app.selectionDismissed' });
     };
     window.addEventListener('keydown', onKey);
@@ -58,6 +62,7 @@ export function App() {
       <StatusChips />
       <Rail />
       <CockpitExit />
+      <WalkBar />
       <div className="stacks">
         <aside className="stack stack-left">
           <LayersPanel />

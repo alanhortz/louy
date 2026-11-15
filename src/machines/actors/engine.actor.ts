@@ -47,6 +47,10 @@ export type EngineCommand =
   | { type: 'viewer.followChanged'; target: FollowTarget | null }
   | { type: 'viewer.poseCaptureRequested' }
   | { type: 'viewer.captureRequested' }
+  /** Balade au sol : armer la désignation d'un point, se poser dans un lieu filmé, revenir à la carte. */
+  | { type: 'viewer.pickArmed'; armed: boolean }
+  | { type: 'viewer.walkRequested'; scanId: string; x: number; y: number }
+  | { type: 'viewer.walkStopped' }
   /** Trajectoire du vol sélectionné : chemin parcouru, estimation, instant désigné. */
   | { type: 'viewer.trajectoryChanged'; past: TrajectoryPoint[]; future: TrajectoryPoint[]; cursor: TrajectoryPoint | null };
 
@@ -61,6 +65,9 @@ export type EngineReport =
   | { type: 'engine.orbitEnded' }
   | { type: 'engine.scanProgressed'; id: string; phase: ScanProgress['phase']; fraction: number }
   | { type: 'engine.followEnded' }
+  | { type: 'engine.groundPicked'; x: number; y: number }
+  | { type: 'engine.walkEntered' }
+  | { type: 'engine.walkFailed' }
   | { type: 'engine.overlayPicked'; layer: OverlayName; id: string; members: string[] }
   | { type: 'engine.contextLost' }
   | { type: 'engine.contextRestored' };
@@ -99,6 +106,9 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
           onOrbitEnded: () => sendBack({ type: 'engine.orbitEnded' }),
           onScanProgress: (progress) => sendBack({ type: 'engine.scanProgressed', ...progress }),
           onFollowEnded: () => sendBack({ type: 'engine.followEnded' }),
+          onGroundPicked: (x, y) => sendBack({ type: 'engine.groundPicked', x, y }),
+          onWalkEntered: () => sendBack({ type: 'engine.walkEntered' }),
+          onWalkFailed: () => sendBack({ type: 'engine.walkFailed' }),
           onOverlayPicked: (layer, id, members) =>
             sendBack({ type: 'engine.overlayPicked', layer: layer as OverlayName, id, members }),
           onContextLost: () => sendBack({ type: 'engine.contextLost' }),
@@ -151,6 +161,9 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
         case 'viewer.flyoverRequested': return engine.flyOver(command.flyover);
         case 'viewer.orbitStopped': return engine.stopOrbit();
         case 'viewer.followChanged': return engine.follow(command.target);
+        case 'viewer.pickArmed': return engine.armPick(command.armed);
+        case 'viewer.walkRequested': return engine.startWalk(command.scanId, command.x, command.y);
+        case 'viewer.walkStopped': return engine.stopWalk();
         case 'viewer.poseCaptureRequested':
           return sendBack({ type: 'engine.poseCaptured', pose: engine.getPose() });
         case 'viewer.trajectoryChanged': return engine.setTrajectory(command.past, command.future, command.cursor);

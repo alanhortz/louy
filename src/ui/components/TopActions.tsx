@@ -1,13 +1,16 @@
 import { useSelector } from '@xstate/react';
+import { walkPhase } from '../../machines/walk.machine.ts';
 import { useApp, useChild } from '../actors.ts';
 
-/** Actions rondes : chercher un site ou une rue, partager la vue, revenir à la vue d'accueil. */
+/** Actions rondes : chercher un site ou une rue, se poser au sol dans un lieu filmé, partager la vue, revenir à la vue d'accueil. */
 export function TopActions() {
   const app = useApp();
   const sites = useChild('sites');
   const streetSearch = useChild('streetSearch');
   const share = useChild('share');
   const sharing = useSelector(share, (snapshot) => snapshot.matches('delivering'));
+  const walk = useChild('walk');
+  const aiming = useSelector(walk, (snapshot) => walkPhase(snapshot) === 'aiming');
 
   return (
     <nav className="top-actions" aria-label="Actions">
@@ -21,6 +24,19 @@ export function TopActions() {
         }}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
+      </button>
+      <button
+        type="button"
+        title="Se promener au sol dans un lieu filmé"
+        aria-label="Se promener au sol dans un lieu filmé"
+        aria-pressed={aiming}
+        onClick={() => walk.send({ type: 'walk.toggled' })}
+      >
+        {/* un promeneur : la tête, le buste, le pas */}
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12.5" cy="4.5" r="1.8" />
+          <path d="M12 8.5 9.5 14l2.5 2 .5 5M12 8.5l3 2.5 2.5.5M12 8.5 8.5 10 7.5 13M9.5 14 7 20.5" />
+        </svg>
       </button>
       <button
         type="button"
