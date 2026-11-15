@@ -110,18 +110,25 @@ export function streetCellsAround(x: number, y: number): StreetCell[] {
 
 /**
  * Une étiquette de rue, posée sur la carte. `rank` : 3 = grand axe, 0 = desserte.
- * `bearing` : direction de la rue à cet endroit, en degrés depuis l'est, dans le sens trigonométrique.
+ * `curve` : le tracé de la rue de part et d'autre de l'étiquette, en mètres
+ * relatifs à son point (x, y, x, y…) — la ligne que le nom doit épouser.
  */
-export interface StreetLabel { id: string; label: string; x: number; y: number; rank: number; bearing: number; maxDistance: number }
+export interface StreetLabel { id: string; label: string; x: number; y: number; rank: number; curve: number[]; maxDistance: number }
 
-/** Lit une dalle telle que le relais la sert : une ligne par rue — nom, position, importance, direction. */
+/** Tracé d'une étiquette : des paires de mètres ; abîmé ou absent, il se réduit à un trait horizontal. */
+function parseCurve(text: string | undefined): number[] {
+  const values = (text ?? '').split(/[ ,]/).map(Number);
+  return values.length >= 4 && values.length % 2 === 0 && values.every(Number.isFinite) ? values : [-CURVE_REACH, 0, CURVE_REACH, 0];
+}
+
+/** Lit une dalle telle que le relais la sert : une ligne par rue — nom, position, importance, tracé. */
 export function parseStreetCell(tsv: string, cell: StreetCell): StreetLabel[] {
   const labels: StreetLabel[] = [];
   for (const line of tsv.split('\n')) {
-    const [name, x, y, rank, bearing] = line.split('\t');
+    const [name, x, y, rank, curve] = line.split('\t');
     if (!name) continue;
     const label = {
-      id: `${streetCellKey(cell)}:${name}`, label: name, x: Number(x), y: Number(y), rank: Number(rank) || 0, bearing: Number(bearing) || 0,
+      id: `${streetCellKey(cell)}:${name}`, label: name, x: Number(x), y: Number(y), rank: Number(rank) || 0, curve: parseCurve(curve),
       maxDistance: STREET_MAX_DISTANCE,
     };
     if (Number.isFinite(label.x) && Number.isFinite(label.y)) labels.push(label);
@@ -162,15 +169,37 @@ export const STREET_CELL_CACHE = 'public, max-age=86400, s-maxage=2592000, stale
 const RANK_LENGTHS = [250, 600, 1200];
 /** Pas de découpe d'un tracé, en mètres. */
 const TRACE_STEP = 100;
+/** Tracé gardé pour une étiquette : cette longueur de part et d'autre de son point, un sommet tous les `CURVE_STEP` mètres. */
+const CURVE_REACH = 250;
+const CURVE_STEP = 50;
 
-interface Trace { length: number; points: { x: number; y: number; bearing: number }[] }
+/** Un point du tracé d'une rue : où, sur quel chemin, et à quelle abscisse le long de ce chemin. */
+interface Sample { x: number; y: number; path: number[][]; arc: number }
+interface Trace { length: number; samples: Sample[] }
+
+/** Le point d'un chemin à une abscisse donnée ; au-delà de ses bouts, le chemin est prolongé tout droit. */
+function alongPath(path: number[][], arc: number): [number, number] {
+  let from = 0;
+  for (let at = 1; at < path.length; at++) {
+    const [ax, ay] = path[at - 1]!, [bx, by] = path[at]!;
+    const length = Math.hypot(bx! - ax!, by! - ay!);
+    // le dernier segment sert aussi à prolonger au-delà de la fin ; le premier, en deçà du début
+    if (length > 0 && (arc <= from + length || at === path.length - 1)) {
+      const t = (arc - from) / length;
+      return [ax! + (bx! - ax!) * t, ay! + (by! - ay!) * t];
+    }
+    from += length;
+  }
+  return [path[0]![0]!, path[0]![1]!];
+}
 
 /**
  * Réduit la réponse d'ICAR à la dalle telle que le calque la lit : une ligne par
- * rue — nom, position, importance, direction. L'étiquette se pose sur le tracé,
- * au plus près du milieu de ce que la dalle en contient, et s'y couche dans le sens de la rue ; l'importance se déduit de la
- * longueur de ce tracé, ICAR ne classant pas ses rues. `null` si la réponse
- * n'est pas celle attendue.
+ * rue — nom, position, importance, tracé. L'étiquette se pose sur le tracé, au
+ * plus près du milieu de ce que la dalle en contient, et garde le bout de rue
+ * qui l'entoure pour que le nom puisse en suivre la courbe. L'importance se
+ * déduit de la longueur du tracé, ICAR ne classant pas ses rues. `null` si la
+ * réponse n'est pas celle attendue.
  */
 export function buildStreetCell(payload: unknown, cell: StreetCell): string | null {
   const features = (payload as { features?: unknown } | null)?.features;
@@ -183,33 +212,40 @@ export function buildStreetCell(payload: unknown, cell: StreetCell): string | nu
     const name = typeof feature?.attributes?.RUE_NM === 'string' ? feature.attributes.RUE_NM.replace(/\s+/g, ' ').trim() : '';
     const paths = feature?.geometry?.paths;
     if (!name || !Array.isArray(paths)) continue;
-    const trace = streets.get(name) ?? { length: 0, points: [] };
+    const trace = streets.get(name) ?? { length: 0, samples: [] };
     for (const path of paths as number[][][]) {
+      let arc = 0;
       for (let at = 1; at < path.length; at++) {
         const [ax, ay] = path[at - 1]!, [bx, by] = path[at]!;
         const length = Math.hypot(bx! - ax!, by! - ay!);
         // découpé en pas courts : seule la part du tracé qui est dans la dalle compte,
         // même pour un long segment dont les deux bouts sont dehors
         const steps = Math.max(1, Math.ceil(length / TRACE_STEP));
-        const bearing = (Math.atan2(by! - ay!, bx! - ax!) * 180) / Math.PI;
         for (let step = 0; step < steps; step++) {
           const t = (step + 0.5) / steps;
           const x = ax! + (bx! - ax!) * t, y = ay! + (by! - ay!) * t;
           if (!inside(x, y)) continue;
           trace.length += length / steps;
-          trace.points.push({ x, y, bearing });
+          trace.samples.push({ x, y, path, arc: arc + length * t });
         }
+        arc += length;
       }
     }
-    if (trace.points.length > 0) streets.set(name, trace);
+    if (trace.samples.length > 0) streets.set(name, trace);
   }
 
-  const rows = [...streets].map(([name, { length, points }]) => {
-    const mx = points.reduce((sum, p) => sum + p.x, 0) / points.length;
-    const my = points.reduce((sum, p) => sum + p.y, 0) / points.length;
-    const at = points.reduce((best, p) => ((p.x - mx) ** 2 + (p.y - my) ** 2 < (best.x - mx) ** 2 + (best.y - my) ** 2 ? p : best));
+  const rows = [...streets].map(([name, { length, samples }]) => {
+    const mx = samples.reduce((sum, p) => sum + p.x, 0) / samples.length;
+    const my = samples.reduce((sum, p) => sum + p.y, 0) / samples.length;
+    const at = samples.reduce((best, p) => ((p.x - mx) ** 2 + (p.y - my) ** 2 < (best.x - mx) ** 2 + (best.y - my) ** 2 ? p : best));
+    const x = Math.round(at.x), y = Math.round(at.y);
+    const curve: string[] = [];
+    for (let offset = -CURVE_REACH; offset <= CURVE_REACH; offset += CURVE_STEP) {
+      const [px, py] = alongPath(at.path, at.arc + offset);
+      curve.push(`${Math.round(px - x)},${Math.round(py - y)}`);
+    }
     const rank = RANK_LENGTHS.filter((limit) => length >= limit).length;
-    return `${name}\t${Math.round(at.x)}\t${Math.round(at.y)}\t${rank}\t${Math.round(at.bearing)}`;
+    return `${name}\t${x}\t${y}\t${rank}\t${curve.join(' ')}`;
   }).sort((a, b) => a.localeCompare(b, 'fr'));
   return rows.length === 0 ? '' : `${rows.join('\n')}\n`;
 }
