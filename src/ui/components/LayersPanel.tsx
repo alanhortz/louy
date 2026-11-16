@@ -199,9 +199,9 @@ function MotorwaysRow() {
       <LayerRow
         icon={<ViewColumnsIcon aria-hidden="true" />}
         name="Autoroutes"
-        count={legend.length}
+        count={new Set((trace.labels ?? []).map((label) => label.text)).size}
         feed={feed}
-        meta={`${trace.credit.author} · tracé posé sur le relief, une couleur par route`}
+        meta={`${trace.credit.author} · tracé posé sur le relief, numéros le long des routes`}
         onToggle={() => motorways.send({ type: 'motorways.toggled' })}
       />
       {feed !== 'off' && legend.length > 0 && (

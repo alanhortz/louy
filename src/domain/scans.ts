@@ -51,6 +51,8 @@ export interface Scan {
    * au-delà de `beyond` mètres, pour que le tracé reste lisible de loin.
    */
   levels?: { splats: string; beyond: number }[];
+  /** Noms à poser le long d'un tracé (le numéro d'une route), en Lambert 2008 ; `rank` : les plus importants d'abord. */
+  labels?: { text: string; x: number; y: number; rank: number }[];
   /** Ce que disent les couleurs d'un tracé : une ligne par couleur, montrée dans sa fiche. */
   legend?: { label: string; colour: string }[];
   /** Séquences de la vidéo d'origine, replacées dans le lieu là où la caméra les a tournées. */
@@ -147,6 +149,8 @@ const isScan = (value: unknown): value is Scan => {
     && (scan.trace === undefined || (typeof scan.splats === 'string' && typeof scan.trace === 'boolean'))
     && (scan.legend === undefined || (Array.isArray(scan.legend)
       && scan.legend.every((entry) => typeof entry?.label === 'string' && /^#[0-9a-f]{6}$/i.test(entry.colour ?? ''))))
+    && (scan.labels === undefined || (scan.trace === true && Array.isArray(scan.labels)
+      && scan.labels.every((label) => typeof label?.text === 'string' && [label.x, label.y, label.rank].every(Number.isFinite))))
     && (scan.levels === undefined || (scan.trace === true && Array.isArray(scan.levels)
       && scan.levels.every((level) => typeof level?.splats === 'string' && /^\/(?!\/)/.test(level.splats) && Number.isFinite(level.beyond) && level.beyond > 0)))
     // des photos n'accompagnent qu'un objet : c'est sa visionneuse qui les montre
