@@ -34,6 +34,8 @@ const kilometres = new Intl.NumberFormat('fr-BE', { minimumFractionDigits: 1, ma
 export const positionLabel = (camera: RoadCamera): string =>
   (camera.km === undefined ? 'position approx.' : `BK ${kilometres.format(camera.km)}`);
 
+import { cameraEdgePath, type CameraPose } from '../domain/cameraView.ts';
+
 export const CAMERA_SOURCE = 'SPW Trafiroutes';
 
 /** La source renouvelle l'image toutes les six minutes ; on redemande deux fois plus souvent. */
@@ -46,6 +48,24 @@ export const thumbnailUrl = (id: string): string => `${IMAGES}/${id}_mini.jpg`;
 /** Le paramètre `t` ne sert qu'à contourner le cache du navigateur à chaque période. */
 export const frameUrl = (id: string, now = Date.now()): string =>
   `${IMAGES}/${id}.jpg?t=${Math.floor(now / FRAME_REFRESH_MS)}`;
+
+/**
+ * La même image, par le relais du site : la source ne permet pas à un navigateur d'en
+ * lire les pixels, ce qu'il faut pour la poser sur le relief.
+ */
+export const framePixelsUrl = (id: string, now = Date.now()): string =>
+  `/edge/v1${cameraEdgePath(id)}?t=${Math.floor(now / FRAME_REFRESH_MS)}`;
+
+/**
+ * Poses retrouvées hors ligne, par numéro de caméra. Toutes les caméras n'en ont pas :
+ * sans elle, une caméra se regarde et se cadre, mais son image ne se pose pas sur la carte.
+ */
+export async function loadCameraPoses(signal: AbortSignal): Promise<Record<string, CameraPose>> {
+  try {
+    const response = await fetch('/data/camera-poses.json', { signal });
+    return response.ok ? ((await response.json()) as Record<string, CameraPose>) : {};
+  } catch { return {}; }
+}
 
 export async function loadCameras(signal: AbortSignal): Promise<RoadCamera[]> {
   const response = await fetch('/data/cameras.json', { signal });

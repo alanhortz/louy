@@ -127,7 +127,7 @@ describe('machine des caméras', () => {
     { id: '2', label: 'A15 Daussoulx', route: 'A15', place: 'Daussoulx', x: 5000, y: 0, approximate: true },
   ];
   const machine = (frame: () => Promise<string>) => camerasMachine.provide({
-    actors: { loadList: fromPromise(async () => cameras), loadFrame: fromPromise(frame) },
+    actors: { loadList: fromPromise(async () => cameras), loadPoses: fromPromise(async () => ({})), loadFrame: fromPromise(frame) },
   });
 
   it('restaure la caméra d’un lien partagé et affiche son image', async () => {
@@ -151,6 +151,24 @@ describe('machine des caméras', () => {
 
     send({ type: 'cameras.dismissed' });
     expect(announced.at(-1)).toEqual({ type: 'cameras.selectionChanged', camera: null });
+  });
+
+  it('se tient à la place d’une caméra dont la pose est connue et pose son image sur le relief', async () => {
+    const pose = { x: 5010, y: 3, altitude: 210, height: 8, azimuth: 90, pitch: -11, roll: 0, focal: 900, bend: 0.2 };
+    const posed = machine(async () => 'blob:image').provide({ actors: { loadPoses: fromPromise<Record<string, typeof pose>>(async () => ({ 2: pose })) } });
+    const { actor, send, announced } = underParent(posed, { visible: true, selectedId: '2', focus: { x: 0, y: 0 } });
+    await waitFor(actor, (snapshot) => frameState(snapshot) === 'ready' && Object.keys(snapshot.context.poses).length > 0);
+    expect(announced.findLast((event) => event.type === 'cameras.projectionChanged')?.projection)
+      .toMatchObject({ id: '2', pose, src: expect.stringContaining('/edge/v1/cameras/2.jpg') });
+
+    send({ type: 'cameras.focusRequested' });
+    expect(announced.at(-1)).toEqual({ type: 'cameras.viewRequested', pose });
+
+    // une caméra sans pose se survole seulement, et l'image de la précédente est retirée
+    send({ type: 'cameras.picked', id: '1' });
+    expect(announced.findLast((event) => event.type === 'cameras.projectionChanged')?.projection).toBeNull();
+    send({ type: 'cameras.focusRequested' });
+    expect(announced.at(-1)).toMatchObject({ type: 'cameras.flyRequested' });
   });
 
   it('ré-annonce la caméra active quand on la touche de nouveau, pour rouvrir son panneau', async () => {

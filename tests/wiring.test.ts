@@ -12,7 +12,7 @@ const ANNOUNCEMENTS = [
   'viewer.viewSettled', 'viewer.activityChanged', 'viewer.overlayPicked', 'viewer.poseCaptured', 'viewer.followEnded', 'viewer.captured',
   // calques
   'places.changed',
-  'cameras.changed', 'cameras.selectionChanged', 'cameras.flyRequested',
+  'cameras.changed', 'cameras.selectionChanged', 'cameras.flyRequested', 'cameras.viewRequested', 'cameras.projectionChanged',
   'sites.chosen',
   'streets.changed', 'streetSearch.chosen', 'recents.chosen',
   // avions en direct

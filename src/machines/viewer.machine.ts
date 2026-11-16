@@ -67,13 +67,14 @@ function remembered(context: ViewerContext, event: ViewerEvent): Partial<ViewerC
       return { active: { ...context.active, [event.layer]: event.id } };
     case 'viewer.scansChanged': return { scans: event.scans };
     case 'viewer.scansPreloaded': return { preload: event.scans };
+    case 'viewer.cameraProjected': return { cameraProjection: event.projection };
     default: return {};
   }
 }
 
 const COMMANDS = [
   'viewer.sceneChanged', 'viewer.overlayChanged', 'viewer.overlayActivated', 'viewer.scansChanged',
-  'viewer.scansPreloaded',
+  'viewer.scansPreloaded', 'viewer.cameraProjected',
   'viewer.poseApplied',
 ] as const;
 
@@ -103,6 +104,7 @@ export const viewerMachine = viewer.createMachine({
     active: { streets: null, places: null, cameras: null, scans: null, objects: null, survival: null, fun: null, art: null, vessels: null, aircraft: null, films: null, location: null, motorways: null },
     scans: [],
     preload: [],
+    cameraProjection: null,
     scanBuild: null,
     immersive: false,
     loading: true,

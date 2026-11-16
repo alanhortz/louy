@@ -28,6 +28,7 @@ import { acquisitionMachine } from './acquisition.machine.ts';
 import { activityMachine } from './activity.machine.ts';
 import { aircraftMachine, type AircraftEmitted } from './aircraft.machine.ts';
 import { vesselsMachine, type VesselsEmitted } from './vessels.machine.ts';
+import { cameraViewPose } from '../domain/cameraView.ts';
 import { camerasMachine, type CamerasEmitted } from './cameras.machine.ts';
 import { chromeMachine, type PanelId } from './chrome.machine.ts';
 import { compatibilityMachine } from './compatibility.machine.ts';
@@ -494,6 +495,12 @@ export const appMachine = setup({
               : { type: 'chrome.dismissed', panel: 'camera' })),
             'syncUrl',
           ],
+        },
+        'cameras.viewRequested': {
+          actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.poseApplied', pose: cameraViewPose(event.pose) })),
+        },
+        'cameras.projectionChanged': {
+          actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.cameraProjected', projection: event.projection })),
         },
         'cameras.flyRequested': {
           actions: sendTo('viewer', ({ event }) => ({

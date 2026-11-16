@@ -25,6 +25,7 @@ import { filmMarkerStyle } from '../../engine/overlays/filmMarkers.ts';
 import { locationMarkerStyle } from '../../engine/overlays/locationMarker.ts';
 import { roadShieldStyle } from '../../engine/overlays/roadShields.ts';
 import { aerialMarkerStyle, artMarkerStyle, funMarkerStyle, objectMarkerStyle, survivalMarkerStyle } from '../../engine/overlays/scanMarkers.ts';
+import type { CameraProjection } from '../../engine/CameraViewLayer.ts';
 import { SceneEngine, type Altimeter, type Flyover, type FollowTarget } from '../../engine/SceneEngine.ts';
 
 export type OverlayName = 'streets' | 'places' | 'cameras' | 'scans' | 'objects' | 'survival' | 'fun' | 'art' | 'vessels' | 'aircraft' | 'films' | 'location' | 'motorways';
@@ -45,6 +46,8 @@ export type EngineCommand =
   | { type: 'viewer.scansPreloaded'; scans: Scan[] }
   | { type: 'viewer.poseApplied'; pose: Pose; sharpen?: boolean }
   | { type: 'viewer.flyoverRequested'; flyover: Flyover }
+  /** Dernière image d'une caméra routière à poser sur le relief ; `null` pour la retirer. */
+  | { type: 'viewer.cameraProjected'; projection: CameraProjection | null }
   | { type: 'viewer.orbitStopped' }
   | { type: 'viewer.followChanged'; target: FollowTarget | null }
   | { type: 'viewer.poseCaptureRequested' }
@@ -91,6 +94,7 @@ export interface EngineInput {
   active: Record<OverlayName, string | null>;
   scans: Scan[];
   preload: Scan[];
+  cameraProjection: CameraProjection | null;
 }
 
 const OVERLAYS: readonly OverlayName[] = ['streets', 'places', 'cameras', 'scans', 'objects', 'survival', 'fun', 'art', 'vessels', 'aircraft', 'films', 'location', 'motorways'];
@@ -156,6 +160,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
     engine.setVesselActive(input.active.vessels);
     engine.setScans(input.scans);
     engine.preloadScans(input.preload);
+    engine.setCameraProjection(input.cameraProjection);
 
     receive((command) => {
       switch (command.type) {
@@ -173,6 +178,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
         case 'viewer.scansPreloaded': return engine.preloadScans(command.scans);
         case 'viewer.poseApplied': return engine.setPose(command.pose, { sharpen: command.sharpen });
         case 'viewer.flyoverRequested': return engine.flyOver(command.flyover);
+        case 'viewer.cameraProjected': return engine.setCameraProjection(command.projection);
         case 'viewer.orbitStopped': return engine.stopOrbit();
         case 'viewer.followChanged': return engine.follow(command.target);
         case 'viewer.pickArmed': return engine.armPick(command.armed);
