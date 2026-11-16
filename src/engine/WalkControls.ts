@@ -18,7 +18,7 @@
  */
 
 import {
-  DoubleSide, Euler, Group, MathUtils, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, RingGeometry, Scene as ThreeScene, Vector3,
+  BufferGeometry, DoubleSide, Euler, Float32BufferAttribute, Group, MathUtils, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, RingGeometry, Scene as ThreeScene, Vector3,
   type PerspectiveCamera, type WebGLRenderer,
 } from 'three';
 import { EYE_HEIGHT, canStep, castGround, groundAt, type WalkGround } from '../domain/walk.ts';
@@ -113,6 +113,10 @@ export class WalkControls {
     flat.rotation.x = -Math.PI / 2;
     // de loin, un anneau à plat se réduit à un trait : une tige dressée en son centre le signale encore
     this.#stem.position.y = 0.9;
+    // un petit drapeau en haut de la tige : un triangle, qui tourne avec elle pour rester de face
+    const flag = new BufferGeometry();
+    flag.setAttribute('position', new Float32BufferAttribute([0.035, 0.9, 0, 0.035, 0.46, 0, 0.62, 0.68, 0], 3));
+    this.#stem.add(new Mesh(flag, material(0.95)));
     this.#pointer.add(flat, this.#stem);
     this.#pointer.visible = false;
     this.#pointerScene.add(this.#pointer);
