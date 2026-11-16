@@ -678,6 +678,13 @@ export const appMachine = setup({
                 ({ ...context.view, overlays: { ...context.view.overlays, motorways: event.visible } }),
             }),
             'drawImagery',
+            // les numéros des routes, posés le long du tracé
+            sendTo('viewer', ({ event }) => ({
+              type: 'viewer.overlayChanged',
+              layer: 'motorways',
+              features: event.traces.flatMap((trace) => (trace.labels ?? []).map((label, at) =>
+                ({ id: `${trace.id}-${at}`, x: label.x, y: label.y, label: label.text, rank: label.rank }))),
+            })),
             'syncUrl',
           ],
         },

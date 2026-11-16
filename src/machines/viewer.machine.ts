@@ -96,8 +96,8 @@ export const viewerMachine = viewer.createMachine({
   context: ({ input }) => ({
     ...input,
     mount: null,
-    overlays: { streets: [], places: [], cameras: [], scans: [], objects: [], survival: [], fun: [], art: [], vessels: [], aircraft: [], films: [], location: [] },
-    active: { streets: null, places: null, cameras: null, scans: null, objects: null, survival: null, fun: null, art: null, vessels: null, aircraft: null, films: null, location: null },
+    overlays: { streets: [], places: [], cameras: [], scans: [], objects: [], survival: [], fun: [], art: [], vessels: [], aircraft: [], films: [], location: [], motorways: [] },
+    active: { streets: null, places: null, cameras: null, scans: null, objects: null, survival: null, fun: null, art: null, vessels: null, aircraft: null, films: null, location: null, motorways: null },
     scans: [],
     preload: [],
     scanBuild: null,
