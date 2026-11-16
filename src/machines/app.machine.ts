@@ -52,6 +52,7 @@ import { trajectoryMachine, type TrajectoryEmitted } from './trajectory.machine.
 import { walkMachine, type WalkEmitted } from './walk.machine.ts';
 import { coordinatesMachine } from './coordinates.machine.ts';
 import { locationMachine, type LocationEmitted } from './location.machine.ts';
+import { motorwaysMachine, type MotorwaysEmitted } from './motorways.machine.ts';
 import { locationHeight, nearDevice, type DevicePosition } from '../domain/whereabouts.ts';
 import { WALK_REACH, nearestPlace } from '../domain/walk.ts';
 import { clipViewPose, type ScanClip } from '../domain/clips.ts';
@@ -87,7 +88,8 @@ export type AppEvent =
   | TimelineEmitted
   | TrajectoryEmitted
   | WalkEmitted
-  | LocationEmitted;
+  | LocationEmitted
+  | MotorwaysEmitted;
 
 export interface AppInput {
   /** Vue lue dans l'URL au chargement. */
@@ -107,6 +109,8 @@ interface AppContext extends AppInput {
   walk: Scan | null;
   /** Position de l'appareil, si le visiteur l'a demandée : en mémoire seulement, pour ne jamais l'écrire dans l'adresse. */
   device: DevicePosition | null;
+  /** Tracés dessinés par le calque « Autoroutes » : aucun quand il est éteint. */
+  traces: Scan[];
 }
 
 /** Hauteur de survol d'un site touristique, et d'une caméra routière. */
@@ -152,6 +156,7 @@ export const appMachine = setup({
       walk: 'walk';
       coordinates: 'coordinates';
       location: 'location';
+      motorways: 'motorways';
       acquisition: 'acquisition';
       activity: 'activity';
       share: 'share';
@@ -180,6 +185,7 @@ export const appMachine = setup({
     walk: walkMachine,
     coordinates: coordinatesMachine,
     location: locationMachine,
+    motorways: motorwaysMachine,
     acquisition: acquisitionMachine,
     activity: activityMachine,
     share: shareMachine,
@@ -213,12 +219,15 @@ export const appMachine = setup({
     drawImagery: sendTo('viewer', ({ context }) =>
       ({
         type: 'viewer.scansChanged',
-        scans: drawnScans(context.imagery.selected, context.walk ? [context.walk, ...context.imagery.kept.filter((scan) => scan !== context.walk)] : context.imagery.kept),
+        scans: [
+          ...drawnScans(context.imagery.selected, context.walk ? [context.walk, ...context.imagery.kept.filter((scan) => scan !== context.walk)] : context.imagery.kept),
+          ...context.traces,
+        ],
       })),
   },
 }).createMachine({
   id: 'app',
-  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] }, places: [], walk: null, device: null }),
+  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] }, places: [], walk: null, device: null, traces: [] }),
   initial: 'checking',
   states: {
     checking: {
@@ -314,6 +323,7 @@ export const appMachine = setup({
         { id: 'walk', src: 'walk' },
         { id: 'coordinates', src: 'coordinates' },
         { id: 'location', src: 'location' },
+        { id: 'motorways', src: 'motorways', input: ({ context }) => ({ visible: context.view.overlays.motorways }) },
         {
           id: 'acquisition',
           src: 'acquisition',
@@ -657,6 +667,23 @@ export const appMachine = setup({
             sendTo('viewer', { type: 'viewer.orbitStopped' }),
             sendTo('viewer', ({ event }) => ({ type: 'viewer.poseApplied', pose: clipViewPose(event.clip) })),
           ],
+        },
+
+        /* ---- autoroutes : un tracé à l'échelle du territoire, dessiné tout entier quand son calque est allumé ---- */
+        'motorways.changed': {
+          actions: [
+            assign({
+              traces: ({ event }) => event.traces,
+              view: ({ context, event }) =>
+                ({ ...context.view, overlays: { ...context.view.overlays, motorways: event.visible } }),
+            }),
+            'drawImagery',
+            'syncUrl',
+          ],
+        },
+        'motorways.flyRequested': {
+          actions: sendTo('viewer', ({ event }) =>
+            ({ type: 'viewer.flyoverRequested', flyover: { ...scanFlyover(event.trace), orbit: false } })),
         },
 
         /* ---- coordonnées du point visé, et position de l'appareil du visiteur ---- */

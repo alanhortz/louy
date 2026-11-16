@@ -199,7 +199,10 @@ export const scanFlyover = (scan: Scan) => ({
 export const walkStart = (scan: Scan): { x: number; y: number; azimuth?: number } => scan.walk ?? { x: scan.x, y: scan.y };
 
 /** Scans dessinés dans la carte. */
-export const placeScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined);
+export const placeScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined && !scan.trace);
+
+/** Tracés à l'échelle du territoire : ils ne sont pas des lieux filmés, et ont leur propre calque. */
+export const traceScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined && scan.trace === true);
 
 /** L'objet est un équipement de survie, signalé sur son propre calque. */
 export const isSurvivalScan = (scan: Scan): boolean => scan.survival !== undefined;

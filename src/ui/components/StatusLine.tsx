@@ -8,7 +8,8 @@ export function StatusLine() {
   const label = useSelector(useChild('acquisition'), acquisitionLabel);
   // les lieux dessinés dans la carte sont à l'écran : leurs auteurs sont crédités
   const imagery = useSelector(useApp(), (snapshot) => snapshot.context.imagery);
-  const scans = drawnScans(imagery.selected, imagery.kept);
+  const traces = useSelector(useApp(), (snapshot) => snapshot.context.traces);
+  const scans = [...drawnScans(imagery.selected, imagery.kept), ...traces];
   return (
     <footer className="status-line">
       <span>{label}</span>

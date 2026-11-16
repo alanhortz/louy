@@ -1,5 +1,5 @@
 import {
-  ClockIcon, CubeTransparentIcon, HeartIcon, LifebuoyIcon, MapIcon, PaintBrushIcon, PaperAirplaneIcon, PhotoIcon, PuzzlePieceIcon, TagIcon, VideoCameraIcon,
+  ClockIcon, CubeTransparentIcon, HeartIcon, LifebuoyIcon, MapIcon, PaintBrushIcon, PaperAirplaneIcon, PhotoIcon, PuzzlePieceIcon, TagIcon, VideoCameraIcon, ViewColumnsIcon,
 } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import type { ReactNode } from 'react';
@@ -9,6 +9,7 @@ import { VESSEL_SOURCE } from '../../domain/vessels.ts';
 import { aircraftFeed } from '../../machines/aircraft.machine.ts';
 import { camerasFeed } from '../../machines/cameras.machine.ts';
 import { placesStatus, type LayerFeed } from '../../machines/places.machine.ts';
+import { motorwaysAvailable, motorwaysFeed } from '../../machines/motorways.machine.ts';
 import { AERIAL_LAYER, ART_LAYER, FUN_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER } from '../../machines/scans.layer.ts';
 import { layerAvailable, layerFeed } from '../../machines/selectionLayer.machine.ts';
 import { streetsCount, streetsFeed, streetsOutOfRange } from '../../machines/streets.machine.ts';
@@ -184,6 +185,39 @@ function ScanLayerRow({ layer, name, icon, meta }: { layer: string; name: string
   );
 }
 
+/** Autoroutes : le tracé posé sur le relief, et ce que disent ses couleurs. */
+function MotorwaysRow() {
+  const motorways = useChild('motorways');
+  const available = useSelector(motorways, motorwaysAvailable);
+  const feed = useSelector(motorways, motorwaysFeed);
+  const trace = useSelector(motorways, (snapshot) => snapshot.context.traces[0] ?? null);
+  if (!available || !trace) return null;
+  const legend = trace.legend ?? [];
+
+  return (
+    <>
+      <LayerRow
+        icon={<ViewColumnsIcon aria-hidden="true" />}
+        name="Autoroutes"
+        count={legend.length}
+        feed={feed}
+        meta={`${trace.credit.author} · tracé posé sur le relief, une couleur par route`}
+        onToggle={() => motorways.send({ type: 'motorways.toggled' })}
+      />
+      {feed !== 'off' && legend.length > 0 && (
+        <ul className="imagery-legend layers-legend" aria-label="Couleurs des autoroutes">
+          {legend.map((entry) => (
+            <li key={entry.label}>
+              <span className="imagery-swatch" style={{ background: entry.colour }} aria-hidden="true" />
+              {entry.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 /** Films du temps : les lieux dont l'évolution, d'une photo aérienne à l'autre, vaut d'être regardée. */
 function FilmsRow() {
   const films = useChild('films');
@@ -212,6 +246,7 @@ export function LayersPanel() {
         <CamerasRow />
         <AircraftRow />
         <VesselsRow />
+        <MotorwaysRow />
         <ScanLayerRow layer={AERIAL_LAYER} name={AERIAL_LABEL} icon={<PhotoIcon aria-hidden="true" />} meta="Lieux filmés au drone, reconstruits en volume" />
         <ScanLayerRow layer={OBJECTS_LAYER} name={OBJECTS_LABEL} icon={<CubeTransparentIcon aria-hidden="true" />} meta="Relevés sur place, au téléphone" />
         <ScanLayerRow layer={ART_LAYER} name={ART_LABEL} icon={<PaintBrushIcon aria-hidden="true" />} meta="Fresques, lettrages et détails peints, relevés dans la rue" />

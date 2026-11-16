@@ -174,3 +174,6 @@
 .imagery-legend li { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .imagery-swatch { flex: none; width: 14px; height: 4px; border-radius: 2px; transform: translateY(-2px); }
 @media (max-width: 720px) { .imagery-legend { grid-template-columns: 1fr; } }
+
+/* la même légende, sous la ligne du calque « Autoroutes » */
+.layers-legend { margin: -2px 0 6px; padding: 0 4px 0 30px; }
