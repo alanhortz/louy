@@ -8,9 +8,11 @@
  */
 
 import { assign, fromPromise, sendParent, setup, type SnapshotFrom } from 'xstate';
+import type { CameraPose } from '../domain/cameraView.ts';
+import type { CameraProjection } from '../engine/CameraViewLayer.ts';
 import type { CameraFeature } from '../engine/overlays/cameraMarkers.ts';
 import {
-  FRAME_REFRESH_MS, frameUrl, loadCameras, loadFrame, nearestCamera, thumbnailUrl,
+  FRAME_REFRESH_MS, framePixelsUrl, frameUrl, loadCameraPoses, loadCameras, loadFrame, nearestCamera, thumbnailUrl,
   type RoadCamera,
 } from '../services/cameras.ts';
 import type { LayerFeed } from './places.machine.ts';
@@ -27,7 +29,11 @@ export type CamerasEvent =
 export type CamerasEmitted =
   | { type: 'cameras.changed'; visible: boolean; features: CameraFeature[] }
   | { type: 'cameras.selectionChanged'; camera: RoadCamera | null }
-  | { type: 'cameras.flyRequested'; x: number; y: number };
+  | { type: 'cameras.flyRequested'; x: number; y: number }
+  /** Se tenir à la place de la caméra, dans son axe. */
+  | { type: 'cameras.viewRequested'; pose: CameraPose }
+  /** La dernière image de la caméra regardée, à poser sur le relief ; `null` quand il n'y a rien à poser. */
+  | { type: 'cameras.projectionChanged'; projection: CameraProjection | null };
 
 export interface CameraFrame {
   url: string;
@@ -37,6 +43,8 @@ export interface CameraFrame {
 interface CamerasContext {
   startsVisible: boolean;
   cameras: RoadCamera[];
+  /** Poses connues, par numéro de caméra. */
+  poses: Record<string, CameraPose>;
   selectedId: string | null;
   frame: CameraFrame | null;
   /** Point visé par la vue, pour « la plus proche ». */
@@ -50,6 +58,10 @@ const MARKER_RANGE = 90_000;
 
 const selected = (context: CamerasContext): RoadCamera | null =>
   context.cameras.find((camera) => camera.id === context.selectedId) ?? null;
+
+/** Pose de la caméra regardée, si elle a été retrouvée. */
+const selectedPose = (context: CamerasContext): CameraPose | null =>
+  (context.selectedId ? context.poses[context.selectedId] ?? null : null);
 
 const toFeature = (camera: RoadCamera): CameraFeature => ({
   id: camera.id,
@@ -77,12 +89,14 @@ export const camerasMachine = setup({
   },
   actors: {
     loadList: fromPromise<RoadCamera[]>(({ signal }) => loadCameras(signal)),
+    loadPoses: fromPromise<Record<string, CameraPose>>(({ signal }) => loadCameraPoses(signal)),
     loadFrame: fromPromise<string, string>(({ input, signal }) => loadFrame(frameUrl(input), signal)),
   },
   guards: {
     startsVisible: ({ context }) => context.startsVisible,
     hasList: ({ context }) => context.cameras.length > 0,
     hasSelection: ({ context }) => selected(context) !== null,
+    hasPose: ({ context }) => selectedPose(context) !== null,
     picksAnother: ({ context, event }) => event.type === 'cameras.picked' && event.id !== context.selectedId,
   },
   actions: {
@@ -110,6 +124,17 @@ export const camerasMachine = setup({
     withdraw: sendParent((): CamerasEmitted => ({ type: 'cameras.changed', visible: false, features: [] })),
     announceSelection: sendParent(({ context }): CamerasEmitted =>
       ({ type: 'cameras.selectionChanged', camera: selected(context) })),
+    requestView: sendParent(({ context }): CamerasEmitted =>
+      ({ type: 'cameras.viewRequested', pose: selectedPose(context)! })),
+    announceProjection: sendParent(({ context }): CamerasEmitted => {
+      const pose = selectedPose(context);
+      return {
+        type: 'cameras.projectionChanged',
+        projection: pose && context.frame && context.selectedId
+          ? { id: context.selectedId, pose, src: framePixelsUrl(context.selectedId, context.frame.loadedAt) }
+          : null,
+      };
+    }),
     requestFly: sendParent(({ context }): CamerasEmitted => {
       const camera = selected(context)!;
       return { type: 'cameras.flyRequested', x: camera.x, y: camera.y };
@@ -120,6 +145,7 @@ export const camerasMachine = setup({
   context: ({ input }) => ({
     startsVisible: input.visible,
     cameras: [],
+    poses: {},
     selectedId: input.selectedId,
     frame: null,
     focus: input.focus,
@@ -138,7 +164,13 @@ export const camerasMachine = setup({
     },
     visible: {
       initial: 'pending',
-      exit: ['deselect', 'announceSelection', 'withdraw'],
+      invoke: {
+        id: 'cameras.poses',
+        src: 'loadPoses',
+        // les poses peuvent arriver après la première image : elle est alors posée à ce moment
+        onDone: { actions: [assign({ poses: ({ event }) => event.output }), 'announceProjection'] },
+      },
+      exit: ['deselect', 'announceSelection', 'announceProjection', 'withdraw'],
       on: { 'cameras.toggled': 'hidden' },
       states: {
         pending: {
@@ -179,11 +211,15 @@ export const camerasMachine = setup({
             /** Aucune caméra regardée. */
             standby: {},
             watching: {
-              entry: 'announceSelection',
+              entry: ['announceSelection', 'announceProjection'],
               initial: 'acquiring',
               on: {
-                'cameras.dismissed': { target: 'standby', actions: ['deselect', 'announceSelection'] },
-                'cameras.focusRequested': { actions: 'requestFly' },
+                'cameras.dismissed': { target: 'standby', actions: ['deselect', 'announceProjection', 'announceSelection'] },
+                'cameras.focusRequested': [
+                  // pose connue : on se tient à la place de la caméra ; sinon, on la survole seulement
+                  { guard: 'hasPose', actions: 'requestView' },
+                  { actions: 'requestFly' },
+                ],
               },
               states: {
                 /** Première image d'une caméra : rien à montrer en attendant. */
@@ -197,6 +233,7 @@ export const camerasMachine = setup({
                   },
                 },
                 live: {
+                  entry: 'announceProjection',
                   after: { [FRAME_REFRESH_MS]: 'refreshing' },
                 },
                 /** L'image précédente reste affichée pendant le rechargement. */
@@ -226,6 +263,9 @@ export const camerasMachine = setup({
 export type CamerasSnapshot = SnapshotFrom<typeof camerasMachine>;
 
 export type FrameState = 'idle' | 'loading' | 'ready' | 'error';
+
+/** La caméra regardée a une pose : « Vue caméra » est possible. */
+export const hasCameraView = (snapshot: CamerasSnapshot): boolean => selectedPose(snapshot.context) !== null;
 
 export const selectedCamera = (snapshot: CamerasSnapshot): RoadCamera | null => selected(snapshot.context);
 

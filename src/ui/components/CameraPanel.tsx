@@ -1,6 +1,6 @@
 import { useSelector } from '@xstate/react';
 import { useEffect, useState } from 'react';
-import { frameState, selectedCamera, type FrameState } from '../../machines/cameras.machine.ts';
+import { frameState, hasCameraView, selectedCamera, type FrameState } from '../../machines/cameras.machine.ts';
 import { CAMERA_SOURCE, FRAME_REFRESH_MS, positionLabel, type RoadCamera } from '../../services/cameras.ts';
 import { useChild } from '../actors.ts';
 import { time } from '../format.ts';
@@ -29,7 +29,7 @@ function useTypewriter(text: string): string {
   return text.slice(0, length);
 }
 
-function summary(camera: RoadCamera | null, total: number, loadedAt: number | null): string {
+function summary(camera: RoadCamera | null, total: number, loadedAt: number | null, posed: boolean): string {
   if (!camera) {
     return total > 0
       ? `${total} CAMÉRAS EN VEILLE · AUCUNE SÉLECTIONNÉE · CLIQUEZ UNE CAMÉRA POUR L’ACTIVER`
@@ -41,6 +41,7 @@ function summary(camera: RoadCamera | null, total: number, loadedAt: number | nu
     loadedAt ? `IMAGE DE ${time(loadedAt)}` : 'IMAGE EN ATTENTE',
     `REDEMANDÉE TOUTES LES ${REFRESH_MINUTES} MIN`,
     camera.approximate ? 'POSITION = LOCALITÉ, PAS LE MÂT' : `POSITION AU ${positionLabel(camera)}`,
+    ...(posed ? ['IMAGE POSÉE SUR LE RELIEF'] : []),
   ].join(' · ');
 }
 
@@ -52,7 +53,8 @@ export function CameraPanel() {
   const camera = useSelector(actor, selectedCamera);
   const frame = useSelector(actor, (snapshot) => snapshot.context.frame);
   const state = useSelector(actor, frameState);
-  const typed = useTypewriter(summary(camera, enabled ? cameras.length : 0, frame?.loadedAt ?? null));
+  const posed = useSelector(actor, hasCameraView);
+  const typed = useTypewriter(summary(camera, enabled ? cameras.length : 0, frame?.loadedAt ?? null, posed));
 
   const navigable = enabled && cameras.length > 0;
   const meta = camera
@@ -132,9 +134,12 @@ export function CameraPanel() {
           type="button"
           className="scene-btn"
           disabled={!camera}
+          title={posed
+            ? 'Se tenir à la place de la caméra, dans son axe ; son image est posée sur le relief'
+            : 'Survoler l’emplacement de la caméra'}
           onClick={() => actor.send({ type: 'cameras.focusRequested' })}
         >
-          CADRER
+          {posed ? 'VUE CAMÉRA' : 'CADRER'}
         </button>
         <button
           type="button"

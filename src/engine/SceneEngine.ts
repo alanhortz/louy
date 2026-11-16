@@ -31,6 +31,7 @@ import { VesselLayer, type VesselModel } from './VesselLayer.ts';
 import { TrajectoryLayer, type TrajectoryPoint } from './TrajectoryLayer.ts';
 import { OverlayLayer, type OverlayFeature, type OverlayStyle } from './OverlayLayer.ts';
 import type { ScanProgress, SplatLayer } from './SplatLayer.ts';
+import { CameraViewLayer, type CameraProjection } from './CameraViewLayer.ts';
 import { VideoCardLayer } from './VideoCardLayer.ts';
 
 const DEG = Math.PI / 180;
@@ -196,6 +197,9 @@ export class SceneEngine {
   #vessels: VesselLayer | null = null;
   /** Séquences filmées des lieux dessinés ; créé à la première séquence. */
   #clips: VideoCardLayer | null = null;
+  #cameraView: CameraViewLayer | null = null;
+  /** Des tuiles du relief étaient encore attendues à l'image précédente. */
+  #wasLoading = false;
   /** Écoute du prochain point désigné, tant que l'outil de balade est armé. */
   #pick: AbortController | null = null;
   /** Regard du dernier point désigné : il retrouve ce point sur le sol du lieu, plus juste que le relief. */
@@ -655,6 +659,13 @@ export class SceneEngine {
     }
   }
 
+  /** Pose sur le relief la dernière image d'une caméra routière ; `null` la retire. */
+  setCameraProjection(projection: CameraProjection | null): void {
+    if (projection) this.#cameraView ??= new CameraViewLayer(this.#renderer, () => this.#wake());
+    this.#cameraView?.set(projection);
+    this.#wake();
+  }
+
   setScans(scans: readonly Scan[]): void {
     this.#scans = scans;
     // un lieu dessiné amène ses séquences filmées, chacune à l'endroit où elle a été tournée
@@ -678,6 +689,7 @@ export class SceneEngine {
     this.#walk?.dispose();
     this.#splats?.dispose();
     this.#clips?.dispose();
+    this.#cameraView?.dispose();
     this.#aircraft?.dispose();
     this.#vessels?.dispose();
     this.#trajectory?.dispose();
@@ -846,6 +858,16 @@ export class SceneEngine {
       this.#unsettled = true;
     }
 
+    // L'image d'une caméra se pose sur le relief tel qu'il est chargé, tout de suite ;
+    // quand ses tuiles finissent d'arriver, on la repose, plus juste.
+    const loading = this.#loader.pending > 0;
+    if (this.#wasLoading && !loading) this.#cameraView?.invalidate();
+    this.#wasLoading = loading;
+    if (this.#cameraView?.stale) {
+      this.#cameraView.cast((worldX, worldZ) => this.#groundAt(worldX, worldZ));
+      this.#idleFrames = 0;
+    }
+
     // Rendu à la demande : une vue immobile dont toutes les tuiles sont arrivées
     // ne coûte plus rien — ni GPU, ni batterie.
     // des maquettes d'avions à l'écran avancent et s'inclinent à chaque image
@@ -899,6 +921,7 @@ export class SceneEngine {
     this.#splats?.render(this.#camera, this.#controls.distance, this.#size.height);
     this.#walk?.renderPointer(this.#renderer);
     this.#clips?.render(this.#camera);
+    this.#cameraView?.render(this.#camera);
     // les bateaux d'abord : un avion qui les survole se dessine par-dessus
     this.#vessels?.render(this.#camera, this.#size.height,
       (worldX, worldZ) => this.#groundAt(worldX, worldZ) ?? this.#controls.target.y);

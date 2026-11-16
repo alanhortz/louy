@@ -10,6 +10,7 @@
  *   /edge/v1/flights/<cx>/<cy>.json
  *   /edge/v1/streets/<cx>/<cy>.tsv
  *   /edge/v1/streets/search/<saisie>.json
+ *   /edge/v1/cameras/<identifiant>.jpg
  *
  * — que ce Worker traduit en requête ArcGIS, puis rend avec une durée de vie
  * longue. Une campagne LiDAR datée ne change plus : sa tuile est immuable.
@@ -29,12 +30,17 @@
  * arrière-plan : quand le navigateur y arrive, elles sont déjà là. Le SPW ne
  * reçoit rien de plus que ce que le film lui aurait demandé — seulement plus tôt.
  *
+ * Enfin `/edge/v1/cameras/<identifiant>.jpg`, l'image d'une caméra routière : Trafiroutes
+ * ne permet pas à un navigateur d'en lire les pixels, or le viewer en a besoin pour la
+ * poser sur le relief. Elle est gardée deux minutes, la source la renouvelant toutes les six.
+ *
  * Ce n'est pas un proxy ouvert : seuls les services, tailles et adresses de
  * tuiles que le viewer utilise réellement sont acceptés.
  */
 
 import { FLIGHT_CELL, flightDatesUrl } from '../src/domain/acquisition.ts';
 import { AIRCRAFT_CACHE_SECONDS, AIRCRAFT_EDGE_PATH, aircraftFeedUrl } from '../src/domain/aircraft.ts';
+import { CAMERA_EDGE_ROUTE, CAMERA_IMAGE_CACHE_SECONDS, cameraSourceUrl } from '../src/domain/cameraView.ts';
 import { LATEST_VINTAGE, VINTAGES } from '../src/domain/catalog.ts';
 import { VESSEL_CACHE_SECONDS, VESSEL_ROUTE, vesselPageUrl } from '../src/domain/vessels.ts';
 import { ROUTE_CACHE_SECONDS, ROUTE_ROUTE, routeUrl } from '../src/domain/flightRoute.ts';
@@ -132,6 +138,17 @@ function vesselsUpstream(path: string): Upstream | null {
   };
 }
 
+/** Image d'une caméra routière : seul son numéro entre dans l'adresse demandée. */
+function cameraUpstream(path: string): Upstream | null {
+  const match = CAMERA_EDGE_ROUTE.exec(path);
+  if (!match) return null;
+  return {
+    url: cameraSourceUrl(match[1]!),
+    contentType: 'image/jpeg',
+    cacheControl: `public, max-age=${CAMERA_IMAGE_CACHE_SECONDS}, s-maxage=${CAMERA_IMAGE_CACHE_SECONDS}`,
+  };
+}
+
 /** Noms de rues d'une dalle : la couche « Rues » d'ICAR, réduite à une ligne par rue. Hors de Wallonie, rien. */
 function streetCellUpstream(path: string): Upstream | null {
   const match = STREET_EDGE_ROUTE.exec(path);
@@ -212,7 +229,7 @@ async function relay(request: Request, context: ExecutionContext): Promise<Respo
   const { origin, pathname, searchParams } = new URL(request.url);
   const route = pathname.slice(PREFIX.length);
   const upstream = tileUpstream(route) ?? flightsUpstream(route) ?? aircraftUpstream(route) ?? routeUpstream(route)
-    ?? streetCellUpstream(route) ?? streetSearchUpstream(route) ?? vesselsUpstream(route);
+    ?? streetCellUpstream(route) ?? streetSearchUpstream(route) ?? vesselsUpstream(route) ?? cameraUpstream(route);
   if (!upstream) return refusal(404, 'Ressource inconnue');
 
   // la clef ignore la chaîne de requête : impossible de fragmenter le cache par des paramètres
