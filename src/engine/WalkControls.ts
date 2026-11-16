@@ -26,8 +26,10 @@ const TAP_SLOP_PX = 6;
 const TAP_MS = 450;
 /** Portée du toucher : au-delà, on ne s'y rend pas d'une traite. */
 const TAP_REACH = 250;
-/** On entre dans la visite depuis cette hauteur au-dessus du point visé, en mètres. */
-const ENTRY_HEIGHT = 10;
+/** On entre dans la visite à cette distance du point visé, en mètres, sur la ligne qui mène de la caméra à lui. */
+const ENTRY_DISTANCE = 10;
+/** Silence de la molette ou du pincement après lequel ces gestes redeviennent des ordres de marche, en millisecondes. */
+const ZOOM_QUIET_MS = 400;
 /** Durée de la descente jusqu'à hauteur d'yeux. */
 const ARRIVAL_S = 1.8;
 const FORWARD_KEYS = ['KeyW', 'ArrowUp'];
@@ -55,6 +57,8 @@ export class WalkControls {
   /** Mètres encore à parcourir vers l'avant (molette, pincement) ; négatif pour reculer. */
   #advance = 0;
   #arrival = 0;
+  /** Dernier geste de zoom ignoré à l'entrée ; `null` une fois que le zoom s'est tu. */
+  #zoomHeardAt: number | null = performance.now();
   #press: { x: number; y: number; at: number; moved: number } | null = null;
   #pinch = 0;
   #changed = true;
@@ -66,8 +70,12 @@ export class WalkControls {
     this.#yaw = yaw;
     this.#position.set(start.x, 0, start.z);
     this.#eye = (groundAt(ground, start.x, start.z) ?? 0) + EYE_HEIGHT;
-    // la caméra entre à l'aplomb du point visé, dix mètres au-dessus de lui, et descend à hauteur d'yeux
-    this.#from.position.set(start.x, this.#eye - EYE_HEIGHT + ENTRY_HEIGHT, start.z);
+    // La visite commence dix mètres avant le point visé, sur la ligne de visée : de plus loin, la caméra
+    // y est amenée d'un coup ; déjà plus près, elle part d'où elle est. Puis elle descend à hauteur d'yeux.
+    const aim = new Vector3(start.x, this.#eye - EYE_HEIGHT, start.z);
+    const back = camera.position.clone().sub(aim);
+    if (back.length() > ENTRY_DISTANCE) back.setLength(ENTRY_DISTANCE);
+    this.#from.position.copy(aim).add(back);
     this.#from.quaternion.copy(camera.quaternion);
     this.#bind();
   }
@@ -75,7 +83,7 @@ export class WalkControls {
   get x(): number { return this.#position.x; }
   get z(): number { return this.#position.z; }
   get yaw(): number { return this.#yaw; }
-  /** Avancement de l'entrée, de 0 (dix mètres au-dessus du point) à 1 (à hauteur d'yeux). */
+  /** Avancement de l'entrée, de 0 (dix mètres avant le point visé) à 1 (à hauteur d'yeux). */
   get arrival(): number { return this.#arrival; }
   /** Altitude du sol sous le promeneur. */
   get groundY(): number { return this.#eye - EYE_HEIGHT; }
@@ -102,7 +110,7 @@ export class WalkControls {
       this.#pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (this.#pointers.size === 2) {
         const distance = this.#pinchDistance();
-        if (this.#pinch > 0) this.#advance += Math.log(distance / this.#pinch) * 30;
+        if (this.#pinch > 0 && !this.#stillZooming()) this.#advance += Math.log(distance / this.#pinch) * 30;
         this.#pinch = distance;
         return;
       }
@@ -124,6 +132,7 @@ export class WalkControls {
     dom.addEventListener('pointercancel', release, { signal });
     (dom.parentElement ?? dom).addEventListener('wheel', (event) => {
       event.preventDefault();
+      if (this.#stillZooming()) return;
       this.#goal = null;
       this.#advance -= Math.sign(event.deltaY) * 3;
     }, { passive: false, signal });
@@ -137,6 +146,18 @@ export class WalkControls {
     }, { signal });
     window.addEventListener('keyup', (event) => this.#keys.delete(event.code), { signal });
     window.addEventListener('blur', () => this.#keys.clear(), { signal });
+  }
+
+  /**
+   * Le geste de zoom qui a fait entrer dans la visite n'est pas un ordre de marche : tant qu'il dure
+   * — pendant la descente, puis jusqu'à ce que la molette ou les doigts se soient tus un instant —
+   * il est ignoré. Sans cela, on partirait en avant sur l'élan du zoom.
+   */
+  #stillZooming(): boolean {
+    const now = performance.now();
+    const carried = this.#arrival < 1 || (this.#zoomHeardAt !== null && now - this.#zoomHeardAt < ZOOM_QUIET_MS);
+    this.#zoomHeardAt = carried ? now : null;
+    return carried;
   }
 
   #pinchDistance(): number {

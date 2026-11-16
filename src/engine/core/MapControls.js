@@ -17,8 +17,11 @@
 import { MathUtils, Vector3 } from 'three';
 
 const DEG = Math.PI / 180;
-/** Zoom excedentaire qui vaut une demande d'entree : trois ou quatre crans de molette, un pincement franc. */
-const ZOOM_THROUGH = 1.2;
+/**
+ * Distance a laquelle le zoom fait entrer dans ce que l'on regarde, en metres : la vue s'arrete
+ * un peu plus loin (minDistance), et demander a s'approcher jusque-la vaut une demande d'entree.
+ */
+const ENTRY_DISTANCE = 10;
 const NAV_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', '+', '=', '-', '_']);
 
 export class MapControls {
@@ -255,7 +258,7 @@ export class MapControls {
         // au plus pres, le zoom qui ne peut plus rapprocher s'accumule : passe un seuil, on « traverse »
         if (step < 0 && this.distance <= this.minDistance * 1.02) {
           this._through -= step;
-          if (this._through > ZOOM_THROUGH) {
+          if (this._through > Math.log(this.minDistance / ENTRY_DISTANCE)) {
             this._through = 0;
             this._d.dist = 0;
             this.onZoomThrough();
