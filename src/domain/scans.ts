@@ -40,9 +40,22 @@ export interface Scan {
    * arrivant (cap en degrés) ; à défaut, à son ancrage, dans le cap de la carte.
    */
   walk?: { x: number; y: number; azimuth?: number };
+  /**
+   * Le lieu n'est pas filmé mais tracé : des splats fabriqués à partir de données (un réseau routier…),
+   * à l'échelle du territoire. Ses positions demandent toute la précision disponible, il descend se
+   * poser sur le relief à son arrivée, et l'on ne s'y promène pas à pied.
+   */
+  trace?: boolean;
+  /**
+   * Finesses plus grossières d'un tracé : chacune remplace la précédente quand la vue s'éloigne
+   * au-delà de `beyond` mètres, pour que le tracé reste lisible de loin.
+   */
+  levels?: { splats: string; beyond: number }[];
+  /** Ce que disent les couleurs d'un tracé : une ligne par couleur, montrée dans sa fiche. */
+  legend?: { label: string; colour: string }[];
   /** Séquences de la vidéo d'origine, replacées dans le lieu là où la caméra les a tournées. */
   clips?: ScanClip[];
-  /** Ce qu'il y a à savoir de l'objet, en une phrase ou deux : affiché dans sa visionneuse. */
+  /** Ce qu'il y a à savoir de l'objet ou du lieu, en une phrase ou deux : affiché dans sa visionneuse ou sa fiche. */
   note?: string;
   /** Photos de l'objet tel qu'on le trouve sur place, consultées dans sa visionneuse. */
   photos?: ScanPhoto[];
@@ -130,7 +143,12 @@ const isScan = (value: unknown): value is Scan => {
     // on ne se promène que dans un lieu
     && (scan.walk === undefined || (typeof scan.splats === 'string' && Number.isFinite(scan.walk?.x) && Number.isFinite(scan.walk?.y)
       && (scan.walk?.azimuth === undefined || Number.isFinite(scan.walk.azimuth))))
-    && (scan.note === undefined || (typeof scan.mesh === 'string' && typeof scan.note === 'string'))
+    && (scan.note === undefined || typeof scan.note === 'string')
+    && (scan.trace === undefined || (typeof scan.splats === 'string' && typeof scan.trace === 'boolean'))
+    && (scan.legend === undefined || (Array.isArray(scan.legend)
+      && scan.legend.every((entry) => typeof entry?.label === 'string' && /^#[0-9a-f]{6}$/i.test(entry.colour ?? ''))))
+    && (scan.levels === undefined || (scan.trace === true && Array.isArray(scan.levels)
+      && scan.levels.every((level) => typeof level?.splats === 'string' && /^\/(?!\/)/.test(level.splats) && Number.isFinite(level.beyond) && level.beyond > 0)))
     // des photos n'accompagnent qu'un objet : c'est sa visionneuse qui les montre
     && (scan.photos === undefined || (typeof scan.mesh === 'string' && Array.isArray(scan.photos) && scan.photos.every(isPhoto)))
     // un équipement de survie est toujours un objet, d'un genre connu

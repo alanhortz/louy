@@ -51,14 +51,14 @@ export function ImageryPanel() {
             </button>
           </header>
           <dl className="aircraft-telemetry imagery-details">
-            <div><dt>Images</dt><dd>{scan.credit.author}</dd></div>
+            <div><dt>{scan.trace ? 'Données' : 'Images'}</dt><dd>{scan.credit.author}</dd></div>
             <div><dt>Licence</dt><dd>{scan.credit.licence}</dd></div>
             <div className="imagery-source">
               <dt>Source</dt>
               <dd><a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.title}</a></dd>
             </div>
           </dl>
-          <p className="imagery-note">Vue reconstruite en volume à partir de la vidéo, puis calée sur le relief LiDAR.</p>
+          <p className="imagery-note">{scan.note ?? 'Vue reconstruite en volume à partir de la vidéo, puis calée sur le relief LiDAR.'}</p>
           <div className="cctv-controls">
             <button
               type="button"
@@ -80,15 +80,25 @@ export function ImageryPanel() {
             >
               RETOUR
             </button>
-            <button
+            {!scan.trace && <button
               type="button"
               className="scene-btn"
               title="Se poser au sol dans ce lieu et s'y promener"
               onClick={() => walk.send({ type: 'walk.placed', scan, ...walkStart(scan) })}
             >
               VISITER
-            </button>
+            </button>}
           </div>
+          {scan.legend && scan.legend.length > 0 && (
+            <ul className="imagery-legend" aria-label="Couleurs du tracé">
+              {scan.legend.map((entry) => (
+                <li key={entry.label}>
+                  <span className="imagery-swatch" style={{ background: entry.colour }} aria-hidden="true" />
+                  {entry.label}
+                </li>
+              ))}
+            </ul>
+          )}
           {scan.clips && scan.clips.length > 0 && (
             <div className="imagery-clips">
               <span className="imagery-kicker">Séquences filmées sur place</span>

@@ -61,9 +61,10 @@ describe('photos d’un objet', () => {
     expect(parseScans([{ ...letters, photos: [{ src: 'https://ailleurs.example/a.jpg' }] }])).toEqual([]);
     expect(parseScans([{ ...letters, photos: [{ src: '//ailleurs.example/a.jpg' }] }])).toEqual([]);
     expect(parseScans([{ ...citadel, photos }])).toEqual([]);
-    // une note, elle aussi, n'accompagne qu'un objet
+    // une note accompagne un objet comme un lieu ; un tracé, lui, est toujours un lieu
     expect(parseScans([{ ...letters, note: 'Posées en 2020.' }])).toHaveLength(1);
-    expect(parseScans([{ ...citadel, note: 'x' }])).toEqual([]);
+    expect(parseScans([{ ...citadel, note: 'Tracé des autoroutes.', trace: true }])).toHaveLength(1);
+    expect(parseScans([{ ...letters, trace: true }])).toEqual([]);
   });
 
   it('ouvre une photo, feuillette sans dépasser les bouts, puis revient à l’objet', () => {

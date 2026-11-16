@@ -56,6 +56,7 @@ AGPL du code : les réutiliser demande son accord.
 | Imagerie 3D du CrossFit Hawks Nest (`public/scans/crossfit-hawks-nest.spz`) | Prises de vue au drone réalisées par Alan Hortz le 14 novembre 2026, reconstruites en « gaussian splats », recadrées et calées sur le LiDAR | © 2026 Alan Hortz — imagerie non couverte par la licence AGPL du code |
 | Imagerie 3D des lettres « NAMUR », esplanade de la Confluence (`public/scans/lettres-namur.glb`) | Relevé photogrammétrique réalisé par Alan Hortz avec Polycam, le 13 novembre 2026 ; l'œuvre photographiée est installée à demeure dans l'espace public | © 2026 Alan Hortz — relevé non couvert par la licence AGPL du code |
 | Séquence filmée de la citadelle de Namur (`public/scans/clips/namur-telepherique.mp4`) | Extrait (8:04 à 8:16, sans le son, redimensionné) de la vidéo [« Namur in 4K \| Walking + Drone Tour of Belgium’s Hidden Gem »](https://www.youtube.com/watch?v=hbZ72BQ3Q78) de Joeys Journeys | CC BY |
+| Tracé des autoroutes de Wallonie (`public/scans/autoroutes-wallonie*.spz`) | Fabriqué à partir du réseau routier régional et du relief LiDAR du Service public de Wallonie — [Géoportail de la Wallonie](https://geoportail.wallonie.be) | CC-BY 4.0 |
 | Photos attachées aux objets scannés (`public/scans/photos/`) | Photos prises sur place par Alan Hortz, redimensionnées | © 2026 Alan Hortz — images non couvertes par la licence AGPL du code |
 
 ## Bibliothèques
