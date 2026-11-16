@@ -21,14 +21,16 @@ export function WalkBar() {
   const notice = useSelector(walk, (snapshot) => snapshot.context.notice);
   if (phase === 'idle') return null;
 
-  const leaving = phase === 'aiming' ? 'Annuler' : 'Quitter la balade';
+  const leaving = phase === 'aiming' ? 'Annuler' : phase === 'declined' ? 'Fermer' : 'Quitter la balade';
   return (
     <div className={`walk-bar walk-${phase}`} role="status">
       <div className="walk-bar-text">
         {phase === 'aiming' && <span className="walk-bar-lead">Touchez l’endroit où vous poser</span>}
         {phase === 'aiming' && <span className="walk-bar-hint">{notice ?? 'dans un lieu de l’imagerie aérienne'}</span>}
-        {phase !== 'aiming' && <span className="walk-bar-lead">{place}</span>}
-        {phase === 'arriving' && <span className="walk-bar-hint">Arrivée sur place…</span>}
+        {phase === 'declined' && <span className="walk-bar-lead">Pas de visite ici</span>}
+        {phase === 'declined' && <span className="walk-bar-hint">{notice}</span>}
+        {phase !== 'aiming' && phase !== 'declined' && <span className="walk-bar-lead">{place}</span>}
+        {(phase === 'arriving' || phase === 'checking') && <span className="walk-bar-hint">Arrivée sur place…</span>}
         {phase === 'walking' && (
           <span className="walk-bar-hint" aria-live="polite">
             {/* sans clavier, on ne parle pas de ses flèches : le texte tient sur un téléphone */}

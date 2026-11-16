@@ -37,6 +37,9 @@ interface WalkContext {
   byZoom: boolean;
 }
 
+/** Durée d'affichage de l'explication, quand le zoom n'a mené dans aucun lieu. */
+const DECLINED_MS = 4200;
+
 const KILOMETRES = new Intl.NumberFormat('fr-BE', { maximumFractionDigits: 1 });
 const farAway = (distance: number): string =>
   (distance < 1000 ? `${Math.round(distance / 10) * 10} m` : `${KILOMETRES.format(distance / 1000)} km`);
@@ -66,6 +69,7 @@ export const walkMachine = setup({
       },
     }),
     explainFailure: assign({ notice: 'Ce lieu ne se visite pas à pied' }),
+    explainNearby: assign({ notice: ({ context }) => `Rien de filmé à cet endroit — visez ${context.scan?.name ?? 'un lieu de l’imagerie aérienne'}` }),
     forget: assign({ scan: null, notice: null, byZoom: false }),
   },
 }).createMachine({
@@ -91,6 +95,15 @@ export const walkMachine = setup({
         'walk.missed': { actions: 'explainMiss' },
       },
     },
+    /** Le zoom a mené à côté d'un lieu filmé : on le dit un instant, sans rien changer à la carte. */
+    declined: {
+      after: { [DECLINED_MS]: 'idle' },
+      on: {
+        'walk.toggled': 'aiming',
+        'walk.left': 'idle',
+        'walk.placed': { target: 'placed', actions: ['keepScan', 'start'] },
+      },
+    },
     placed: {
       initial: 'arriving',
       exit: 'end',
@@ -104,8 +117,8 @@ export const walkMachine = setup({
           on: {
             'walk.entered': 'walking',
             'walk.failed': [
-              // zoomer au bout hors d'un lieu n'est pas une erreur : la carte reste la carte
-              { guard: ({ context }) => context.byZoom, target: '#walk.idle' },
+              // zoomer au bout à côté d'un lieu n'est pas une erreur : la carte reste la carte, et dit où est le lieu
+              { guard: ({ context }) => context.byZoom, target: '#walk.declined', actions: 'explainNearby' },
               { target: '#walk.aiming', actions: 'explainFailure' },
             ],
           },
@@ -120,9 +133,11 @@ export const walkMachine = setup({
 
 type WalkSnapshot = SnapshotFrom<typeof walkMachine>;
 
-export type WalkPhase = 'idle' | 'aiming' | 'arriving' | 'walking';
+/** `checking` : entrée demandée par le zoom, pas encore acquise — l'interface de la carte reste en place. */
+export type WalkPhase = 'idle' | 'aiming' | 'checking' | 'arriving' | 'walking' | 'declined';
 
 export const walkPhase = (snapshot: WalkSnapshot): WalkPhase =>
   (snapshot.matches('aiming') ? 'aiming'
-    : snapshot.matches({ placed: 'arriving' }) ? 'arriving'
+    : snapshot.matches('declined') ? 'declined'
+    : snapshot.matches({ placed: 'arriving' }) ? (snapshot.context.byZoom ? 'checking' : 'arriving')
       : snapshot.matches({ placed: 'walking' }) ? 'walking' : 'idle');

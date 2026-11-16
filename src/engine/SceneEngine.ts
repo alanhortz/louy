@@ -60,7 +60,7 @@ const WALK_MAP_DISTANCE = 170;
 /** À pied, distance en deçà de laquelle le relief n'est pas dessiné. */
 const WALK_RELIEF_NEAR = 90;
 /** Entré par le zoom, écart toléré entre le point regardé et le sol du lieu où l'on se pose, en mètres. */
-const ZOOM_ENTRY_SLACK = 15;
+const ZOOM_ENTRY_SLACK = 60;
 /** Un clic qui a bougé de moins que cela désigne un point ; au-delà, c'est un déplacement de la carte. */
 const PICK_SLOP_PX = 6;
 
@@ -431,7 +431,7 @@ export class SceneEngine {
     // le regard du clic rencontre le sol du lieu lui-même ; à défaut, on se pose au plus près du point annoncé
     const start = ground && ((ray && castGround(ground, ray.origin, ray.direction, 20000)) ?? nearestStand(ground, worldX, worldZ));
     if (!ground || !start) return this.#listeners.onWalkFailed();
-    // entré par le zoom, on ne se pose que là où l'on regardait : pas question d'être emmené plus loin
+    // entré par le zoom, on se pose là où l'on regardait, ou tout près : pas question d'être emmené à l'autre bout du lieu
     if (request.strict && Math.hypot(start.x - worldX, start.z - worldZ) > ZOOM_ENTRY_SLACK) return this.#listeners.onWalkFailed();
     this.#endOrbit();
     this.#endFollow();
