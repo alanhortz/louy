@@ -787,6 +787,7 @@ export class SceneEngine {
       this.#edl.render(this.#scene, this.#camera);
     }
     this.#splats?.render(this.#camera);
+    this.#walk?.renderPointer(this.#renderer);
     this.#clips?.render(this.#camera);
     // les bateaux d'abord : un avion qui les survole se dessine par-dessus
     this.#vessels?.render(this.#camera, this.#size.height,

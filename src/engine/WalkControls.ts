@@ -9,11 +9,18 @@
  *   Q/D                        : pas de côté           Maj : presser le pas
  *   molette / pincement        : avancer, reculer
  *
+ * À la souris, un repère posé sur le sol suit le pointeur : il montre où un clic mènerait.
+ * Une fois le clic donné, il reste sur la destination jusqu'à ce qu'on y soit. Au doigt,
+ * il n'y a pas de pointeur à suivre, donc pas de repère.
+ *
  * Les touches sont lues par leur position sur le clavier : Z, Q, S, D sur un
  * clavier belge sont W, A, S, D sur un clavier américain.
  */
 
-import { Euler, MathUtils, Quaternion, Vector3, type PerspectiveCamera } from 'three';
+import {
+  DoubleSide, Euler, Group, MathUtils, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, RingGeometry, Scene as ThreeScene, Vector3,
+  type PerspectiveCamera, type WebGLRenderer,
+} from 'three';
 import { EYE_HEIGHT, canStep, castGround, groundAt, type WalkGround } from '../domain/walk.ts';
 
 const WALK_SPEED = 5;
@@ -28,6 +35,11 @@ const TAP_MS = 450;
 const TAP_REACH = 250;
 /** On entre dans la visite à cette distance du point visé, en mètres, sur la ligne qui mène de la caméra à lui. */
 const ENTRY_DISTANCE = 10;
+/** Repère au sol : sa couleur, son rayon selon l'éloignement (il doit rester lisible de loin sans devenir énorme de près). */
+const POINTER_COLOUR = 0x00d4ff;
+const POINTER_RADIUS = { perMetre: 0.035, min: 0.45, max: 4 };
+/** Hauteur du repère au-dessus du sol déduit : assez pour ne pas se noyer dans les splats du sol. */
+const POINTER_LIFT = 0.08;
 /** Silence de la molette ou du pincement après lequel ces gestes redeviennent des ordres de marche, en millisecondes. */
 const ZOOM_QUIET_MS = 400;
 /** Durée de la descente jusqu'à hauteur d'yeux. */
@@ -62,6 +74,14 @@ export class WalkControls {
   #press: { x: number; y: number; at: number; moved: number } | null = null;
   #pinch = 0;
   #changed = true;
+  /** Point du sol que survole la souris ; `null` au doigt, hors du lieu, ou quand on tourne la tête. */
+  #hover: { x: number; z: number } | null = null;
+  readonly #pointerScene = new ThreeScene();
+  readonly #pointer = new Group();
+  readonly #stem = new Mesh(
+    new PlaneGeometry(0.07, 1.8),
+    new MeshBasicMaterial({ color: POINTER_COLOUR, transparent: true, opacity: 0.75, side: DoubleSide, depthTest: false }),
+  );
 
   constructor(camera: PerspectiveCamera, dom: HTMLElement, ground: WalkGround, start: { x: number; z: number }, yaw: number) {
     this.#camera = camera;
@@ -78,6 +98,54 @@ export class WalkControls {
     this.#from.position.copy(aim).add(back);
     this.#from.quaternion.copy(camera.quaternion);
     this.#bind();
+    this.#buildPointer();
+  }
+
+  /** Un anneau et son centre, à plat sur le sol. */
+  #buildPointer(): void {
+    const material = (opacity: number) =>
+      new MeshBasicMaterial({ color: POINTER_COLOUR, transparent: true, opacity, side: DoubleSide, depthTest: false });
+    const ring = new Mesh(new RingGeometry(0.78, 1, 48), material(0.95));
+    const disc = new Mesh(new RingGeometry(0, 0.78, 48), material(0.22));
+    const centre = new Mesh(new RingGeometry(0, 0.16, 24), material(0.95));
+    const flat = new Group();
+    for (const mesh of [disc, ring, centre]) flat.add(mesh);
+    flat.rotation.x = -Math.PI / 2;
+    // de loin, un anneau à plat se réduit à un trait : une tige dressée en son centre le signale encore
+    this.#stem.position.y = 0.9;
+    this.#pointer.add(flat, this.#stem);
+    this.#pointer.visible = false;
+    this.#pointerScene.add(this.#pointer);
+  }
+
+  /** Dessine le repère au sol par-dessus le lieu ; à appeler après lui. */
+  renderPointer(renderer: WebGLRenderer): void {
+    // la destination d'un clic prime sur le survol ; rien pendant l'entrée dans la visite
+    const at = this.#arrival < 1 ? null : this.#goal ?? this.#hover;
+    const ground = at && groundAt(this.#ground, at.x, at.z);
+    this.#pointer.visible = at !== null && ground !== null && ground !== undefined;
+    if (!this.#pointer.visible || !at) return;
+    this.#pointer.position.set(at.x, (ground as number) + POINTER_LIFT, at.z);
+    const range = this.#pointer.position.distanceTo(this.#camera.position);
+    this.#pointer.scale.setScalar(MathUtils.clamp(range * POINTER_RADIUS.perMetre, POINTER_RADIUS.min, POINTER_RADIUS.max));
+    // la tige fait toujours face au promeneur
+    this.#stem.rotation.y = Math.atan2(this.#camera.position.x - at.x, this.#camera.position.z - at.z);
+    const autoClear = renderer.autoClear;
+    renderer.autoClear = false;
+    renderer.setRenderTarget(null);
+    renderer.render(this.#pointerScene, this.#camera);
+    renderer.autoClear = autoClear;
+  }
+
+  /** Le sol que vise un pixel de l'écran, à portée de clic ; `null` s'il n'y en a pas. */
+  #groundUnder(clientX: number, clientY: number): { x: number; z: number } | null {
+    const rect = this.#dom.getBoundingClientRect();
+    const direction = new Vector3(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+      0.5,
+    ).unproject(this.#camera).sub(this.#camera.position).normalize();
+    return castGround(this.#ground, this.#camera.position, direction, TAP_REACH);
   }
 
   get x(): number { return this.#position.x; }
@@ -90,6 +158,11 @@ export class WalkControls {
 
   dispose(): void {
     this.#listeners.abort();
+    this.#pointer.traverse((node) => {
+      const mesh = node as Mesh;
+      mesh.geometry?.dispose();
+      (mesh.material as MeshBasicMaterial | undefined)?.dispose();
+    });
   }
 
   #bind(): void {
@@ -105,7 +178,13 @@ export class WalkControls {
     }, { signal });
     dom.addEventListener('pointermove', (event) => {
       const last = this.#pointers.get(event.pointerId);
-      if (!last) return;
+      if (!last) {
+        // la souris survole le lieu sans rien presser : le repère la suit sur le sol
+        if (event.pointerType === 'mouse') { this.#hover = this.#groundUnder(event.clientX, event.clientY); this.#changed = true; }
+        return;
+      }
+      // on tourne la tête : le repère s'efface le temps du geste
+      this.#hover = null;
       const dx = event.clientX - last.x, dy = event.clientY - last.y;
       this.#pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (this.#pointers.size === 2) {
@@ -129,6 +208,7 @@ export class WalkControls {
       }
     };
     dom.addEventListener('pointerup', release, { signal });
+    dom.addEventListener('pointerleave', () => { this.#hover = null; this.#changed = true; }, { signal });
     dom.addEventListener('pointercancel', release, { signal });
     (dom.parentElement ?? dom).addEventListener('wheel', (event) => {
       event.preventDefault();
@@ -167,13 +247,7 @@ export class WalkControls {
 
   /** Le visiteur a touché l'écran : s'il a touché le sol, le promeneur s'y rend. */
   #walkTo(clientX: number, clientY: number): void {
-    const rect = this.#dom.getBoundingClientRect();
-    const direction = new Vector3(
-      ((clientX - rect.left) / rect.width) * 2 - 1,
-      -((clientY - rect.top) / rect.height) * 2 + 1,
-      0.5,
-    ).unproject(this.#camera).sub(this.#camera.position).normalize();
-    this.#goal = castGround(this.#ground, this.#camera.position, direction, TAP_REACH);
+    this.#goal = this.#groundUnder(clientX, clientY);
   }
 
   /** Avance d'un pas si le sol le permet ; à défaut, glisse le long de l'obstacle. */
