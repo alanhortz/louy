@@ -32,6 +32,8 @@ export type LayersEmitted<T extends LayerItem = LayerItem> =
 export interface LayersInput {
   /** Calques allumés à l'ouverture, par nom ; un calque absent d'ici est allumé. */
   visible?: Record<string, boolean>;
+  /** Éléments gardés affichés dès l'ouverture, par nom de calque. */
+  kept?: Record<string, readonly string[]>;
   distance?: number;
 }
 
@@ -67,7 +69,7 @@ export function createLayersMachine(specs: readonly SelectionLayerSpec<any>[]) {
     id: 'layers',
     context: ({ spawn, input }) => ({
       layers: Object.fromEntries(specs.map((spec) => {
-        const settings: LayerInput = { visible: input?.visible?.[spec.name], distance: input?.distance };
+        const settings: LayerInput = { visible: input?.visible?.[spec.name], distance: input?.distance, kept: input?.kept?.[spec.name] };
         // les calques sont créés à la volée : leur type échappe au registre d'acteurs de `setup`, d'où la conversion
         const born = (spawn as unknown as (logic: AnyActorLogic, options: { id: string; input: LayerInput }) => unknown)(
           createSelectionLayer(spec as SelectionLayerSpec), { id: spec.name, input: settings });

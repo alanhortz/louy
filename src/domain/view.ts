@@ -49,6 +49,12 @@ export const DEFAULT_VIEW: View = {
   cameraId: null,
 };
 
+/**
+ * Imagerie aérienne dessinée d'emblée à la vue d'accueil : la citadelle de Namur, autour de
+ * laquelle cette vue tourne. Un lien partagé, lui, ne montre que ce que son auteur regardait.
+ */
+export const HOME_IMAGERY: readonly string[] = ['namur'];
+
 const OVERLAY_CODES: Record<OverlayId, string> = { places: 'p', cameras: 'c', aircraft: 'a', scans: 'i', objects: 'o', survival: 'd', fun: 'f', art: 't', streets: 'r', vessels: 'b' };
 /**
  * L'imagerie aérienne, les objets scannés et les équipements de survie sont nés après les premiers liens

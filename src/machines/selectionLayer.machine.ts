@@ -75,7 +75,8 @@ export interface LayerContext<T extends LayerItem = LayerItem> {
   distance: number;
 }
 
-export interface LayerInput { visible?: boolean; distance?: number }
+/** `kept` : éléments gardés affichés dès l'ouverture, par identifiant. */
+export interface LayerInput { visible?: boolean; distance?: number; kept?: readonly string[] }
 
 /** Dérive la machine d'un calque à partir de sa description. */
 export function createSelectionLayer<T extends LayerItem>(spec: SelectionLayerSpec<T>) {
@@ -176,7 +177,7 @@ export function createSelectionLayer<T extends LayerItem>(spec: SelectionLayerSp
       items: [],
       selectedId: null,
       siblingIds: [],
-      keptIds: [],
+      keptIds: [...(input?.kept ?? [])],
       distance: input?.distance ?? 1800,
     }),
     initial: 'probing',
