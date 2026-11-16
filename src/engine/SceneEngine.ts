@@ -786,7 +786,7 @@ export class SceneEngine {
     } else {
       this.#edl.render(this.#scene, this.#camera);
     }
-    this.#splats?.render(this.#camera, this.#controls.distance);
+    this.#splats?.render(this.#camera, this.#controls.distance, this.#size.height);
     this.#walk?.renderPointer(this.#renderer);
     this.#clips?.render(this.#camera);
     // les bateaux d'abord : un avion qui les survole se dessine par-dessus

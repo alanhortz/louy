@@ -12,7 +12,7 @@
  * les splats apparaissent du centre vers les bords, en quelques secondes.
  */
 
-import { SparkRenderer, SplatEdit, SplatEditRgbaBlendMode, SplatEditSdf, SplatEditSdfType, SplatMesh } from '@sparkjsdev/spark';
+import { dyno, SparkRenderer, SplatEdit, SplatEditRgbaBlendMode, SplatEditSdf, SplatEditSdfType, SplatMesh } from '@sparkjsdev/spark';
 import { Scene as ThreeScene, Vector3, type PerspectiveCamera, type WebGLRenderer } from 'three';
 import type { Scan } from '../domain/scans.ts';
 import * as T from '../domain/tiling.ts';
@@ -28,6 +28,8 @@ export interface ScanProgress {
 
 /** Durée de la construction à l'écran, une fois le scan reçu. */
 const BUILD_MS = 4500;
+/** Demi-largeur à l'écran du trait d'un tracé, en pixels (écart-type de ses taches, en travers de la route). */
+const STROKE_PIXELS = 1.5;
 /** Hauteur d'où un tracé descend se poser sur le relief, en mètres. */
 const LANDING_HEIGHT = 6000;
 /** L'avancement est annoncé par pas de 5 % : assez pour le lire, sans noyer le journal. */
@@ -42,6 +44,11 @@ export class SplatLayer {
   readonly #loaded = new Set<string>();
   /** Sol de chaque lieu, déduit de ses splats à la première balade ; `null` si l'on ne peut pas y marcher. */
   readonly #grounds = new Map<string, WalkGround | null>();
+  /**
+   * Tracés dont le trait garde la même épaisseur à l'écran, comme sur une carte routière : pour chacun de
+   * leurs fichiers, la demi-largeur du trait tel qu'il est fabriqué, et le facteur appliqué à ses taches.
+   */
+  readonly #strokes = new Map<SplatMesh, { width: number; floor: number; factor: ReturnType<typeof dyno.dynoFloat> }>();
   /** Finesses plus grossières des tracés, à montrer à mesure que l'on s'éloigne. */
   readonly #levels = new Map<string, { mesh: SplatMesh; beyond: number }[]>();
   readonly #onDirty: () => void;
@@ -68,7 +75,8 @@ export class SplatLayer {
       this.#meshes.delete(id);
       this.#loaded.delete(id);
       this.#grounds.delete(id);
-      for (const level of this.#levels.get(id) ?? []) { this.#scene.remove(level.mesh); level.mesh.dispose(); }
+      this.#strokes.delete(mesh);
+      for (const level of this.#levels.get(id) ?? []) { this.#scene.remove(level.mesh); level.mesh.dispose(); this.#strokes.delete(level.mesh); }
       this.#levels.delete(id);
     }
     for (const scan of scans) {
@@ -89,6 +97,8 @@ export class SplatLayer {
         },
         onLoad: (loaded) => this.#build(scan.id, loaded, scan.trace === true),
       });
+      // de près, le trait n'est jamais plus fin que la route elle-même
+      if (scan.trace && scan.width) this.#followZoom(mesh, scan.width, 1);
       this.#addLevels(scan);
       this.#onProgress({ id: scan.id, phase: 'loading', fraction: 0 });
       // le fichier est déjà dans le repère du viewer : il ne reste qu'à le poser sur son ancrage
@@ -168,13 +178,37 @@ export class SplatLayer {
    */
   #addLevels(scan: Scan): void {
     if (!scan.levels) return;
-    this.#levels.set(scan.id, scan.levels.map(({ splats, beyond }) => {
+    this.#levels.set(scan.id, scan.levels.map(({ splats, beyond, width }) => {
       const mesh = new SplatMesh({ url: splats, extSplats: true, onLoad: (loaded) => this.#build(scan.id, loaded, true, true) });
+      if (width) this.#followZoom(mesh, width, 0);
       mesh.position.set(scan.x - T.ORIGIN.x, 0, -(scan.y - T.ORIGIN.y));
       mesh.visible = false;
       this.#scene.add(mesh);
       return { mesh, beyond };
     }));
+  }
+
+  /** Fait dépendre la taille des taches d'un fichier d'un facteur, que la vue règle à chaque image. */
+  #followZoom(mesh: SplatMesh, width: number, floor: number): void {
+    const factor = dyno.dynoFloat(1);
+    mesh.objectModifier = dyno.dynoBlock({ gsplat: dyno.Gsplat }, { gsplat: dyno.Gsplat }, ({ gsplat }) => {
+      if (!gsplat) throw new Error('tache absente');
+      const { scales } = dyno.splitGsplat(gsplat).outputs;
+      return { gsplat: dyno.combineGsplat({ gsplat, scales: dyno.mul(scales, factor) }) };
+    });
+    mesh.updateGenerator();
+    this.#strokes.set(mesh, { width, floor, factor });
+  }
+
+  /** Règle l'épaisseur des traits sur l'éloignement de la vue : `metresPerPixel` au point visé. */
+  #sizeStrokes(metresPerPixel: number): void {
+    for (const [mesh, stroke] of this.#strokes) {
+      const wanted = Math.max(stroke.floor, (STROKE_PIXELS * metresPerPixel) / stroke.width);
+      // le moteur recalcule tout le tracé à chaque changement : on ne le dérange que pour un écart visible
+      if (Math.abs(wanted - stroke.factor.value) < stroke.factor.value * 0.02) continue;
+      stroke.factor.value = wanted;
+      mesh.updateVersion();
+    }
   }
 
   /** Ne montre, de chaque tracé, que la finesse qui convient à l'éloignement de la vue. */
@@ -189,9 +223,10 @@ export class SplatLayer {
   }
 
   /** À appeler après la passe du relief : dessine par-dessus, sans rien effacer. `distance` : éloignement de la vue. */
-  render(camera: PerspectiveCamera, distance = 0): void {
+  render(camera: PerspectiveCamera, distance = 0, viewportHeight = 1): void {
     if (this.#meshes.size === 0) return;
     this.#pickLevels(distance);
+    this.#sizeStrokes((2 * distance * Math.tan((camera.fov * Math.PI) / 360)) / viewportHeight);
     const autoClear = this.#renderer.autoClear;
     this.#renderer.autoClear = false;
     this.#renderer.setRenderTarget(null);

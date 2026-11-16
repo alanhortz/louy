@@ -50,7 +50,12 @@ export interface Scan {
    * Finesses plus grossières d'un tracé : chacune remplace la précédente quand la vue s'éloigne
    * au-delà de `beyond` mètres, pour que le tracé reste lisible de loin.
    */
-  levels?: { splats: string; beyond: number }[];
+  levels?: { splats: string; beyond: number; width?: number }[];
+  /**
+   * Demi-largeur du trait d'un tracé tel qu'il est fabriqué, en mètres (pour le fichier principal, et `width`
+   * de chaque finesse) : le viewer s'en sert pour garder au trait la même épaisseur à l'écran quand la vue recule.
+   */
+  width?: number;
   /** Noms à poser le long d'un tracé (le numéro d'une route), en Lambert 2008 ; `rank` : les plus importants d'abord. */
   labels?: { text: string; x: number; y: number; rank: number }[];
   /** Ce que disent les couleurs d'un tracé : une ligne par couleur, montrée dans sa fiche. */
@@ -151,8 +156,10 @@ const isScan = (value: unknown): value is Scan => {
       && scan.legend.every((entry) => typeof entry?.label === 'string' && /^#[0-9a-f]{6}$/i.test(entry.colour ?? ''))))
     && (scan.labels === undefined || (scan.trace === true && Array.isArray(scan.labels)
       && scan.labels.every((label) => typeof label?.text === 'string' && [label.x, label.y, label.rank].every(Number.isFinite))))
+    && (scan.width === undefined || (scan.trace === true && Number.isFinite(scan.width) && scan.width > 0))
     && (scan.levels === undefined || (scan.trace === true && Array.isArray(scan.levels)
-      && scan.levels.every((level) => typeof level?.splats === 'string' && /^\/(?!\/)/.test(level.splats) && Number.isFinite(level.beyond) && level.beyond > 0)))
+      && scan.levels.every((level) => typeof level?.splats === 'string' && /^\/(?!\/)/.test(level.splats) && Number.isFinite(level.beyond) && level.beyond > 0
+        && (level.width === undefined || (Number.isFinite(level.width) && level.width > 0)))))
     // des photos n'accompagnent qu'un objet : c'est sa visionneuse qui les montre
     && (scan.photos === undefined || (typeof scan.mesh === 'string' && Array.isArray(scan.photos) && scan.photos.every(isPhoto)))
     // un équipement de survie est toujours un objet, d'un genre connu
