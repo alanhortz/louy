@@ -17,7 +17,7 @@ export function StatusLine() {
         {' · '}© contributeurs <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>
         {scans.map((scan) => (
           <span key={scan.id}>
-            {' · '}images drone <a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.author}</a> {scan.credit.licence}
+            {' · '}{scan.trace ? 'tracé' : 'images drone'} <a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.author}</a> {scan.credit.licence}
           </span>
         ))}
       </span>

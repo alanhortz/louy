@@ -202,5 +202,49 @@
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     }
+  },
+  {
+    "id": "autoroutes-wallonie",
+    "name": "Autoroutes de Wallonie",
+    "x": 676000,
+    "y": 595000,
+    "splats": "/scans/autoroutes-wallonie.spz",
+    "trace": true,
+    "note": "Le tracé des autoroutes et des rings de Wallonie, une couleur par route, posé sur le relief LiDAR. Ce ne sont pas des images : chaque tache est fabriquée à partir du réseau routier régional.",
+    "credit": {
+      "author": "Service public de Wallonie",
+      "title": "Réseau routier régional — autoroutes et rings",
+      "url": "https://geoportail.wallonie.be",
+      "licence": "CC-BY 4.0"
+    },
+    "view": {
+      "x": 676000,
+      "y": 595000,
+      "height": 100000,
+      "azimuth": 0
+    },
+    "levels": [
+      { "splats": "/scans/autoroutes-wallonie-moyen.spz", "beyond": 5000 },
+      { "splats": "/scans/autoroutes-wallonie-large.spz", "beyond": 25000 },
+      { "splats": "/scans/autoroutes-wallonie-region.spz", "beyond": 110000 }
+    ],
+    "legend": [
+      { "label": "A4 · Bruxelles – Namur – Arlon", "colour": "#ff4026" },
+      { "label": "A15 · Liège – Namur – Mons", "colour": "#264bff" },
+      { "label": "A26 · Liège – Bastogne – Neufchâteau", "colour": "#8bff26" },
+      { "label": "A3 · Bruxelles – Liège – Aachen", "colour": "#ff26ca" },
+      { "label": "A8 · Bruxelles – Tournai – Lille", "colour": "#26fff5" },
+      { "label": "A7 · Haut-Ittre – Mons – Valenciennes", "colour": "#ffb626" },
+      { "label": "A27 · Battice – Verviers – Allemagne", "colour": "#7626ff" },
+      { "label": "R3 · Grande ceinture de Charleroi", "colour": "#8cff95" },
+      { "label": "A16 · Mons – Tournai", "colour": "#ff2655" },
+      { "label": "A54 · Nivelles – Charleroi", "colour": "#2694ff" },
+      { "label": "R0 · Ring de Bruxelles", "colour": "#e8ff8c" },
+      { "label": "R5 · Ring de Mons", "colour": "#f58cff" },
+      { "label": "A17 · Tournai – Courtrai – Bruges", "colour": "#26ffac" },
+      { "label": "A602 · Liège, Angleur – Loncin", "colour": "#ff6d26" },
+      { "label": "A25 · Liège – Maastricht", "colour": "#2e26ff" },
+      { "label": "A13 · Liège – Hasselt – Anvers", "colour": "#5eff26" }
+    ]
   }
 ]

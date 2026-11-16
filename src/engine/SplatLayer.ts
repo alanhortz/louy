@@ -28,6 +28,8 @@ export interface ScanProgress {
 
 /** Durée de la construction à l'écran, une fois le scan reçu. */
 const BUILD_MS = 4500;
+/** Hauteur d'où un tracé descend se poser sur le relief, en mètres. */
+const LANDING_HEIGHT = 6000;
 /** L'avancement est annoncé par pas de 5 % : assez pour le lire, sans noyer le journal. */
 const PROGRESS_STEPS = 20;
 
@@ -40,6 +42,8 @@ export class SplatLayer {
   readonly #loaded = new Set<string>();
   /** Sol de chaque lieu, déduit de ses splats à la première balade ; `null` si l'on ne peut pas y marcher. */
   readonly #grounds = new Map<string, WalkGround | null>();
+  /** Finesses plus grossières des tracés, à montrer à mesure que l'on s'éloigne. */
+  readonly #levels = new Map<string, { mesh: SplatMesh; beyond: number }[]>();
   readonly #onDirty: () => void;
   readonly #onProgress: (progress: ScanProgress) => void;
 
@@ -47,7 +51,10 @@ export class SplatLayer {
   constructor(renderer: WebGLRenderer, onDirty: () => void, onProgress: (progress: ScanProgress) => void = () => {}) {
     this.#onProgress = onProgress;
     this.#renderer = renderer;
-    this.#spark = new SparkRenderer({ renderer, onDirty });
+    // Le moteur rassemble ce qu'il dessine dans un encodage compact, où une position ne dépasse pas 65 km :
+    // un tracé large de deux cents kilomètres y disparaîtrait par morceaux. On lui demande donc l'encodage
+    // étendu, dès sa création — c'est le seul moment où ce choix est pris en compte.
+    this.#spark = new SparkRenderer({ renderer, onDirty, accumExtSplats: true });
     this.#scene.add(this.#spark);
     this.#onDirty = onDirty;
   }
@@ -61,6 +68,8 @@ export class SplatLayer {
       this.#meshes.delete(id);
       this.#loaded.delete(id);
       this.#grounds.delete(id);
+      for (const level of this.#levels.get(id) ?? []) { this.#scene.remove(level.mesh); level.mesh.dispose(); }
+      this.#levels.delete(id);
     }
     for (const scan of scans) {
       if (this.#meshes.has(scan.id)) continue;
@@ -68,6 +77,8 @@ export class SplatLayer {
       let step = -1;
       const mesh = new SplatMesh({
         url: scan.splats,
+        // un tracé couvre des centaines de kilomètres : ses positions ne tiennent pas dans l'encodage compact
+        ...(scan.trace ? { extSplats: true } : {}),
         onProgress: (event) => {
           if (!event.lengthComputable || !this.#meshes.has(scan.id)) return;
           const fraction = event.loaded / event.total;
@@ -76,8 +87,9 @@ export class SplatLayer {
           step = reached;
           this.#onProgress({ id: scan.id, phase: 'loading', fraction });
         },
-        onLoad: (loaded) => this.#build(scan.id, loaded),
+        onLoad: (loaded) => this.#build(scan.id, loaded, scan.trace === true),
       });
+      this.#addLevels(scan);
       this.#onProgress({ id: scan.id, phase: 'loading', fraction: 0 });
       // le fichier est déjà dans le repère du viewer : il ne reste qu'à le poser sur son ancrage
       mesh.position.set(scan.x - T.ORIGIN.x, 0, -(scan.y - T.ORIGIN.y));
@@ -91,9 +103,11 @@ export class SplatLayer {
    * et seuls les splats qu'elle a atteints sont visibles. Son bord est flou, pour
    * que le lieu semble se déposer plutôt que se découper.
    */
-  #build(id: string, mesh: SplatMesh): void {
-    if (this.#meshes.get(id) !== mesh) return;
-    this.#loaded.add(id);
+  #build(id: string, mesh: SplatMesh, lands = false, level = false): void {
+    // une finesse d'un tracé se dévoile comme lui, mais sans rien annoncer : c'est le tracé qui parle
+    const announce = level ? () => {} : this.#onProgress;
+    if (level ? !this.#levels.get(id)?.some((other) => other.mesh === mesh) : this.#meshes.get(id) !== mesh) return;
+    if (!level) this.#loaded.add(id);
     const box = mesh.getBoundingBox(true);
     const reach = box.getSize(new Vector3()).length() / 2;
     const veil = new SplatEditSdf({ type: SplatEditSdfType.SPHERE, radius: 0, opacity: 0 });
@@ -113,13 +127,15 @@ export class SplatLayer {
       // occupe qu'un tiers. La sphère part donc lentement, pour que ce cœur se construise
       // pendant la première moitié du temps, puis accélère vers les abords.
       veil.radius = elapsed ** 1.6 * reach * 1.2;
+      // un tracé descend du ciel se poser sur le relief, en ralentissant
+      if (lands) mesh.position.y = LANDING_HEIGHT * (1 - elapsed) ** 3;
       if (elapsed >= 1) {
         mesh.remove(edit);
         mesh.onFrame = undefined;
-        this.#onProgress({ id, phase: 'ready', fraction: 1 });
+        announce({ id, phase: 'ready', fraction: 1 });
       } else {
         const reached = Math.floor(elapsed * PROGRESS_STEPS);
-        if (reached !== step) { step = reached; this.#onProgress({ id, phase: 'building', fraction: elapsed }); }
+        if (reached !== step) { step = reached; announce({ id, phase: 'building', fraction: elapsed }); }
       }
       // tant que la construction dure, chaque image en appelle une autre
       this.#onDirty();
@@ -146,9 +162,36 @@ export class SplatLayer {
     return this.#grounds.get(id);
   }
 
-  /** À appeler après la passe du relief : dessine par-dessus, sans rien effacer. */
-  render(camera: PerspectiveCamera): void {
+  /**
+   * Un tracé se regarde du bord de la route comme de toute la Wallonie : un ruban large de quelques
+   * mètres ferait, de loin, moins d'un pixel. Il vient donc en plusieurs finesses, chacune dans son fichier.
+   */
+  #addLevels(scan: Scan): void {
+    if (!scan.levels) return;
+    this.#levels.set(scan.id, scan.levels.map(({ splats, beyond }) => {
+      const mesh = new SplatMesh({ url: splats, extSplats: true, onLoad: (loaded) => this.#build(scan.id, loaded, true, true) });
+      mesh.position.set(scan.x - T.ORIGIN.x, 0, -(scan.y - T.ORIGIN.y));
+      mesh.visible = false;
+      this.#scene.add(mesh);
+      return { mesh, beyond };
+    }));
+  }
+
+  /** Ne montre, de chaque tracé, que la finesse qui convient à l'éloignement de la vue. */
+  #pickLevels(distance: number): void {
+    for (const [id, levels] of this.#levels) {
+      const base = this.#meshes.get(id);
+      let shown = -1;
+      levels.forEach((level, at) => { if (distance >= level.beyond && (shown < 0 || level.beyond >= levels[shown]!.beyond)) shown = at; });
+      if (base) base.visible = shown < 0;
+      levels.forEach((level, at) => { level.mesh.visible = at === shown; });
+    }
+  }
+
+  /** À appeler après la passe du relief : dessine par-dessus, sans rien effacer. `distance` : éloignement de la vue. */
+  render(camera: PerspectiveCamera, distance = 0): void {
     if (this.#meshes.size === 0) return;
+    this.#pickLevels(distance);
     const autoClear = this.#renderer.autoClear;
     this.#renderer.autoClear = false;
     this.#renderer.setRenderTarget(null);

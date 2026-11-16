@@ -168,7 +168,8 @@ export function nearestStand(ground: WalkGround, x: number, z: number): { x: num
 export function nearestPlace(places: readonly Scan[], x: number, y: number): { scan: Scan; distance: number } | null {
   let best: { scan: Scan; distance: number } | null = null;
   for (const scan of places) {
-    if (!scan.splats) continue;
+    // on ne marche que dans un lieu filmé : un tracé à l'échelle du territoire n'a pas de sol où se tenir
+    if (!scan.splats || scan.trace) continue;
     const distance = Math.hypot(scan.x - x, scan.y - y);
     if (!best || distance < best.distance) best = { scan, distance };
   }

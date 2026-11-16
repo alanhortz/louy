@@ -85,6 +85,8 @@ describe('lieu filmé le plus proche', () => {
     expect(nearest.scan.id).toBe('a');
     expect(nearest.distance).toBe(500);
     expect(nearestPlace([object], 0, 0)).toBeNull();
+    // un tracé à l'échelle du territoire n'est pas un lieu où marcher
+    expect(nearestPlace([{ ...place('reseau', 1, 1), trace: true }], 0, 0)).toBeNull();
   });
 });
 

@@ -168,3 +168,9 @@
 /* séquences filmées d'un lieu : un bouton par séquence, sur toute la largeur de la fiche */
 .imagery-clips { display: flex; flex-direction: column; gap: 6px; }
 .imagery-clips .scene-btn { text-align: left; text-transform: uppercase; }
+
+/* légende d'un tracé : une pastille de couleur par route, sur deux colonnes */
+.imagery-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin: 0; padding: 0; list-style: none; font-size: 11px; line-height: 1.3; color: var(--text-secondary); }
+.imagery-legend li { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.imagery-swatch { flex: none; width: 14px; height: 4px; border-radius: 2px; transform: translateY(-2px); }
+@media (max-width: 720px) { .imagery-legend { grid-template-columns: 1fr; } }
