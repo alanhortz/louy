@@ -7,6 +7,7 @@ import { VesselPanel } from './components/VesselPanel.tsx';
 import { ImageryPanel } from './components/ImageryPanel.tsx';
 import { CockpitExit } from './components/CockpitExit.tsx';
 import { WalkBar } from './components/WalkBar.tsx';
+import { Cinema } from './components/Cinema.tsx';
 import { Brand } from './components/Brand.tsx';
 import { CameraPanel } from './components/CameraPanel.tsx';
 import { ControlsPanel } from './components/ControlsPanel.tsx';
@@ -82,6 +83,7 @@ export function App() {
       <ManualShare />
       <ObjectViewer />
       <TimeFilm />
+      <Cinema />
     </>
   );
 }

@@ -236,3 +236,22 @@ describe('séquences filmées replacées dans la carte', () => {
     expect(parseScans([{ ...place, splats: undefined, mesh: '/scans/p.glb', clips: [clip] }])).toEqual([]);
   });
 });
+
+describe('vue cinéma', () => {
+  it('s’ouvre sur une séquence, en change, et se referme', async () => {
+    const { cinemaMachine, cinemaOpen } = await import('../src/machines/cinema.machine.ts');
+    const cinema = createActor(cinemaMachine).start();
+    const clip = (id: string) => ({ id, name: id, src: `/scans/clips/${id}.mp4`, fov: 20, aspect: 16 / 9, track: [{ t: 0, x: 0, y: 0, altitude: 0, q: [0, 0, 0, 1] as [number, number, number, number] }] });
+    const credit = { author: 'a', title: 't', url: 'https://example.org', licence: 'CC BY' };
+    // fermer sans séance ouverte ne fait rien
+    cinema.send({ type: 'cinema.closed', by: 'escape' });
+    expect(cinemaOpen(cinema.getSnapshot())).toBe(false);
+    cinema.send({ type: 'cinema.opened', clip: clip('a'), credit });
+    expect(cinema.getSnapshot().context.clip?.id).toBe('a');
+    cinema.send({ type: 'cinema.opened', clip: clip('b'), credit });
+    expect(cinema.getSnapshot().context.clip?.id).toBe('b');
+    cinema.send({ type: 'cinema.closed', by: 'button' });
+    expect(cinemaOpen(cinema.getSnapshot())).toBe(false);
+    expect(cinema.getSnapshot().context.clip).toBeNull();
+  });
+});

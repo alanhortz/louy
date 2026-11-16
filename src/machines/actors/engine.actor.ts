@@ -75,6 +75,7 @@ export type EngineReport =
   | { type: 'engine.walkEntered' }
   | { type: 'engine.walkFailed' }
   | { type: 'engine.immersiveChanged'; immersive: boolean }
+  | { type: 'engine.clipPicked'; clipId: string }
   | { type: 'engine.overlayPicked'; layer: OverlayName; id: string; members: string[] }
   | { type: 'engine.contextLost' }
   | { type: 'engine.contextRestored' };
@@ -118,6 +119,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
           onWalkEntered: () => sendBack({ type: 'engine.walkEntered' }),
           onWalkFailed: () => sendBack({ type: 'engine.walkFailed' }),
           onImmersiveChanged: (immersive) => sendBack({ type: 'engine.immersiveChanged', immersive }),
+          onClipPicked: (clipId) => sendBack({ type: 'engine.clipPicked', clipId }),
           onOverlayPicked: (layer, id, members) =>
             sendBack({ type: 'engine.overlayPicked', layer: layer as OverlayName, id, members }),
           onContextLost: () => sendBack({ type: 'engine.contextLost' }),

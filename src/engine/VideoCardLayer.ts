@@ -10,7 +10,7 @@
 
 import {
   BufferGeometry, DoubleSide, Float32BufferAttribute, Group, LineBasicMaterial, LineSegments, Mesh,
-  MeshBasicMaterial, PlaneGeometry, Scene as ThreeScene, SRGBColorSpace, VideoTexture,
+  MeshBasicMaterial, PlaneGeometry, Raycaster, Scene as ThreeScene, SRGBColorSpace, Vector2, VideoTexture,
   type PerspectiveCamera, type WebGLRenderer,
 } from 'three';
 import { CLIP_SCREEN_WIDTH, clipPose, clipScreenDistance, type ScanClip } from '../domain/clips.ts';
@@ -24,6 +24,8 @@ export class VideoCardLayer {
   readonly #renderer: WebGLRenderer;
   readonly #scene = new ThreeScene();
   readonly #cards = new Map<string, Card>();
+  readonly #ray = new Raycaster();
+  readonly #pointer = new Vector2();
   readonly #edges = new LineBasicMaterial({ color: EDGE_COLOUR, transparent: true, opacity: 0.9, depthTest: false });
 
   constructor(renderer: WebGLRenderer) {
@@ -94,6 +96,22 @@ export class VideoCardLayer {
       mesh.geometry?.dispose();
       if (mesh.material && mesh.material !== this.#edges) (mesh.material as MeshBasicMaterial).dispose();
     });
+  }
+
+  /**
+   * Séquence dont l'écran est sous un point de l'image (coordonnées de −1 à 1, y vers le haut) ;
+   * `null` si le point n'en touche aucun.
+   */
+  pick(camera: PerspectiveCamera, x: number, y: number): string | null {
+    if (this.#cards.size === 0) return null;
+    this.#scene.updateMatrixWorld(true);
+    this.#ray.setFromCamera(this.#pointer.set(x, y), camera);
+    let nearest: { id: string; distance: number } | null = null;
+    for (const [id, card] of this.#cards) {
+      const hit = this.#ray.intersectObject(card.group.children[0]!, false)[0];
+      if (hit && (!nearest || hit.distance < nearest.distance)) nearest = { id, distance: hit.distance };
+    }
+    return nearest?.id ?? null;
   }
 
   /** À appeler après les autres passes : dessine par-dessus, sans rien effacer. */

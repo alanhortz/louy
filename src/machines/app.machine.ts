@@ -53,6 +53,7 @@ import { walkMachine, type WalkEmitted } from './walk.machine.ts';
 import { coordinatesMachine } from './coordinates.machine.ts';
 import { locationMachine, type LocationEmitted } from './location.machine.ts';
 import { motorwaysMachine, type MotorwaysEmitted } from './motorways.machine.ts';
+import { cinemaMachine } from './cinema.machine.ts';
 import { locationHeight, nearDevice, type DevicePosition } from '../domain/whereabouts.ts';
 import { WALK_REACH, nearestPlace } from '../domain/walk.ts';
 import { clipViewPose, type ScanClip } from '../domain/clips.ts';
@@ -157,6 +158,7 @@ export const appMachine = setup({
       coordinates: 'coordinates';
       location: 'location';
       motorways: 'motorways';
+      cinema: 'cinema';
       acquisition: 'acquisition';
       activity: 'activity';
       share: 'share';
@@ -186,6 +188,7 @@ export const appMachine = setup({
     coordinates: coordinatesMachine,
     location: locationMachine,
     motorways: motorwaysMachine,
+    cinema: cinemaMachine,
     acquisition: acquisitionMachine,
     activity: activityMachine,
     share: shareMachine,
@@ -323,6 +326,7 @@ export const appMachine = setup({
         { id: 'walk', src: 'walk' },
         { id: 'coordinates', src: 'coordinates' },
         { id: 'location', src: 'location' },
+        { id: 'cinema', src: 'cinema' },
         { id: 'motorways', src: 'motorways', input: ({ context }) => ({ visible: context.view.overlays.motorways }) },
         {
           id: 'acquisition',
@@ -660,6 +664,18 @@ export const appMachine = setup({
         },
         'viewer.walkEntered': { actions: sendTo('walk', { type: 'walk.entered' }) },
         'viewer.walkFailed': { actions: sendTo('walk', { type: 'walk.failed' }) },
+
+        /* ---- séquence filmée touchée dans la carte : elle s'ouvre en grand, la carte ne bouge pas ---- */
+        'viewer.clipPicked': {
+          actions: sendTo('cinema', ({ context, event }) => {
+            // la séquence appartient à l'un des lieux dessinés : c'est lui qui en porte le crédit
+            const scans = drawnScans(context.imagery.selected, context.imagery.kept);
+            const scan = scans.find((candidate) => candidate.clips?.some((clip) => clip.id === event.clipId));
+            const clip = scan?.clips?.find((candidate) => candidate.id === event.clipId);
+            // sans séquence retrouvée, un événement que la machine ignore
+            return scan && clip ? { type: 'cinema.opened', clip, credit: scan.credit } : { type: 'cinema.closed', by: 'button' };
+          }),
+        },
 
         /* ---- séquence filmée : la vue se place derrière la caméra qui l'a tournée ---- */
         'app.clipRequested': {
