@@ -91,6 +91,8 @@ export interface EngineListeners {
   onWalkFailed(): void;
   /** La visite passe en réalité virtuelle, ou en revient. */
   onImmersiveChanged(immersive: boolean): void;
+  /** Le visiteur a touché, dans la carte, l'écran d'une séquence filmée. */
+  onClipPicked(clipId: string): void;
   onContextLost(): void;
   onContextRestored(): void;
 }
@@ -265,6 +267,21 @@ export class SceneEngine {
       this.#wake();
       this.#loop();
       this.#listeners.onContextRestored();
+    }, { signal });
+
+    // Toucher l'écran d'une séquence, sans glisser, l'ouvre en grand. À pied ou en visée, le toucher a déjà un sens.
+    let press: { x: number; y: number } | null = null;
+    this.#canvas.addEventListener('pointerdown', (event) => {
+      press = event.isPrimary ? { x: event.clientX, y: event.clientY } : null;
+    }, { signal });
+    this.#canvas.addEventListener('pointerup', (event) => {
+      const from = press;
+      press = null;
+      if (!from || this.#walk || this.#pick || Math.hypot(event.clientX - from.x, event.clientY - from.y) > PICK_SLOP_PX) return;
+      const rect = this.#canvas.getBoundingClientRect();
+      const clip = this.#clips?.pick(this.#camera,
+        ((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
+      if (clip) this.#listeners.onClipPicked(clip);
     }, { signal });
 
     this.#resizeObserver = new ResizeObserver(() => this.#resize());

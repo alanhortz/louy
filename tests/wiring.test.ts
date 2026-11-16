@@ -26,7 +26,7 @@ const ANNOUNCEMENTS = [
   // coordonnées et position du visiteur
   'app.coordinatesRequested', 'location.changed', 'location.flyRequested',
   // séquences filmées
-  'app.clipRequested',
+  'app.clipRequested', 'viewer.clipPicked',
   // autoroutes
   'motorways.changed', 'motorways.flyRequested',
   // balade au sol

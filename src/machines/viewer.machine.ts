@@ -32,6 +32,7 @@ export type ViewerEmitted =
   | { type: 'viewer.zoomedThrough'; x: number; y: number }
   | { type: 'viewer.walkEntered' }
   | { type: 'viewer.walkFailed' }
+  | { type: 'viewer.clipPicked'; clipId: string }
   | { type: 'viewer.captured'; blob: Blob | null; blank: boolean };
 
 interface ViewerContext extends Omit<EngineInput, 'mount'> {
@@ -139,6 +140,7 @@ export const viewerMachine = viewer.createMachine({
         'viewer.walkRequested': { actions: 'command' },
         'viewer.walkStopped': { actions: 'command' },
         'viewer.vrRequested': { actions: 'command' },
+        'engine.clipPicked': { actions: sendParent(({ event }): ViewerEmitted => ({ type: 'viewer.clipPicked', clipId: event.clipId })) },
         'engine.immersiveChanged': { actions: assign({ immersive: ({ event }) => event.immersive }) },
         'engine.groundPicked': {
           actions: sendParent(({ event }): ViewerEmitted => ({ type: 'viewer.groundPicked', x: event.x, y: event.y })),
