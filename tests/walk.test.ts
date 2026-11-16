@@ -57,7 +57,7 @@ const place = (id: string, x: number, y: number): Scan => ({
 });
 
 describe('entrer dans un lieu en zoomant', () => {
-  it('demande une pose stricte, et se tait si le sol n’est pas là', () => {
+  it('demande une pose stricte, et explique si le sol n’est pas là', () => {
     const heard: AnyEventObject[] = [];
     const parent = createActor(createMachine({
       invoke: { id: 'walk', src: walkMachine },
@@ -67,10 +67,14 @@ describe('entrer dans un lieu en zoomant', () => {
     const scan = place('esplanade', 10, 20);
     walk.send({ type: 'walk.placed', scan, x: 11, y: 21, byZoom: true });
     expect(heard.at(-1)).toMatchObject({ type: 'walk.started', strict: true });
+    expect(walkPhase(walk.getSnapshot())).toBe('checking');
     walk.send({ type: 'walk.failed' });
-    expect(walkPhase(walk.getSnapshot())).toBe('idle');
-    expect(walk.getSnapshot().context.notice).toBeNull();
+    // à côté du lieu : la carte reste la carte, et dit où viser
+    expect(walkPhase(walk.getSnapshot())).toBe('declined');
+    expect(walk.getSnapshot().context.notice).toBe('Rien de filmé à cet endroit — visez esplanade');
     expect(heard.at(-1)).toEqual({ type: 'walk.ended' });
+    walk.send({ type: 'walk.left' });
+    expect(walkPhase(walk.getSnapshot())).toBe('idle');
   });
 });
 
