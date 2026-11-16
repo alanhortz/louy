@@ -41,6 +41,8 @@ interface ViewerContext extends Omit<EngineInput, 'mount'> {
   failure: string | null;
   /** Scan 3D en cours d'arrivée (téléchargement ou construction à l'écran) ; `null` quand tout est là. */
   scanBuild: { id: string; phase: 'loading' | 'building'; fraction: number } | null;
+  /** La visite se regarde dans un casque de réalité virtuelle. */
+  immersive: boolean;
 }
 
 export interface ViewerInput {
@@ -101,6 +103,7 @@ export const viewerMachine = viewer.createMachine({
     scans: [],
     preload: [],
     scanBuild: null,
+    immersive: false,
     loading: true,
     points: 0,
     failure: null,
@@ -135,6 +138,8 @@ export const viewerMachine = viewer.createMachine({
         'viewer.pickArmed': { actions: 'command' },
         'viewer.walkRequested': { actions: 'command' },
         'viewer.walkStopped': { actions: 'command' },
+        'viewer.vrRequested': { actions: 'command' },
+        'engine.immersiveChanged': { actions: assign({ immersive: ({ event }) => event.immersive }) },
         'engine.groundPicked': {
           actions: sendParent(({ event }): ViewerEmitted => ({ type: 'viewer.groundPicked', x: event.x, y: event.y })),
         },

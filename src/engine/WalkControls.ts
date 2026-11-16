@@ -152,6 +152,25 @@ export class WalkControls {
     return castGround(this.#ground, this.#camera.position, direction, TAP_REACH);
   }
 
+  /** Vrai en réalité virtuelle : la tête du visiteur oriente la vue, la marche ne touche plus à la caméra. */
+  immersive = false;
+
+  /**
+   * Marche commandée de l'extérieur (les manettes d'un casque) : `forward` et `side` de −1 à 1,
+   * dans le cap `heading` du regard, pendant `dt` secondes.
+   */
+  stride(forward: number, side: number, heading: number, dt: number): void {
+    const sin = Math.sin(heading), cos = Math.cos(heading);
+    const step = WALK_SPEED * dt;
+    this.#goal = null;
+    this.#move((-sin * forward + cos * side) * step, (-cos * forward - sin * side) * step);
+  }
+
+  /** Fait pivoter le promeneur d'un angle, en radians (positif vers la gauche). */
+  turnBy(angle: number): void {
+    this.#yaw += angle;
+  }
+
   get x(): number { return this.#position.x; }
   get z(): number { return this.#position.z; }
   get yaw(): number { return this.#yaw; }
@@ -317,6 +336,9 @@ export class WalkControls {
     }
     this.#position.y = this.#eye;
     this.#look.setFromEuler(this.#euler.set(this.#pitch, this.#yaw, 0));
+
+    // casque sur la tête, c'est lui qui tient la caméra : on ne fait que marcher
+    if (this.immersive) { this.#arrival = 1; return true; }
 
     if (this.#arrival < 1) {
       this.#arrival = Math.min(1, this.#arrival + dt / ARRIVAL_S);
