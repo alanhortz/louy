@@ -59,6 +59,8 @@ export class MapControls {
     this.onZoomThrough = () => {};
     /** Zoom demande au-dela du plus pres, cumule (logarithme du rapport de distance). */
     this._through = 0;
+    /** Vrai tant que le zoom en cours vient de la molette ou d'un pincement : le clavier, lui, ne fait jamais entrer. */
+    this._throughArmed = false;
 
     this._d = { pan: new Vector3(), dist: 0, az: 0, pol: 0 };
     this._ptr = new Map();
@@ -133,7 +135,7 @@ export class MapControls {
 
     if (this._mode === 'pinch' && this._ptr.size === 2) {
       const d = this.#pinchDistance();
-      if (this._pinch > 0) this._d.dist += Math.log(this._pinch / d) * 1.6;
+      if (this._pinch > 0) { this._d.dist += Math.log(this._pinch / d) * 1.6; this._throughArmed = true; }
       this._pinch = d;
 
       // tourner les deux doigts fait pivoter, les glisser ensemble incline
@@ -182,6 +184,7 @@ export class MapControls {
     this.onUserInput();
     const unit = e.deltaMode === 1 ? 18 : e.deltaMode === 2 ? 380 : 1;
     this._d.dist += Math.sign(e.deltaY) * Math.min(1.6, Math.abs(e.deltaY * unit) / 260);
+    this._throughArmed = true;
     const r = this.dom.getBoundingClientRect();
     this._zoomTo = {
       x: ((e.clientX - r.left) / r.width) * 2 - 1,
@@ -218,8 +221,9 @@ export class MapControls {
       if (k.has('ArrowDown'))  { this._d.pan.x += step * sin; this._d.pan.z += step * cos; }
       if (k.has('ArrowLeft'))  { this._d.pan.x -= step * cos; this._d.pan.z += step * sin; }
       if (k.has('ArrowRight')) { this._d.pan.x += step * cos; this._d.pan.z -= step * sin; }
-      if (k.has('+') || k.has('=')) this._d.dist -= 0.06;
-      if (k.has('-') || k.has('_')) this._d.dist += 0.06;
+      // au clavier, on navigue : zoomer au plus pres ne vaut pas demande d'entree
+      if (k.has('+') || k.has('=')) { this._d.dist -= 0.06; this._throughArmed = false; }
+      if (k.has('-') || k.has('_')) { this._d.dist += 0.06; this._throughArmed = false; }
     }
 
     const orbiting = this.autoRotate !== 0 && dt > 0;
@@ -256,7 +260,7 @@ export class MapControls {
         const next = MathUtils.clamp(this.distance * Math.exp(step),
           this.minDistance, this.maxDistance);
         // au plus pres, le zoom qui ne peut plus rapprocher s'accumule : passe un seuil, on « traverse »
-        if (step < 0 && this.distance <= this.minDistance * 1.02) {
+        if (step < 0 && this._throughArmed && this.distance <= this.minDistance * 1.02) {
           this._through -= step;
           if (this._through > Math.log(this.minDistance / ENTRY_DISTANCE)) {
             this._through = 0;
