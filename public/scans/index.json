@@ -224,9 +224,9 @@
       "azimuth": 0
     },
     "levels": [
-      { "splats": "/scans/autoroutes-wallonie-moyen.spz", "beyond": 5000 },
-      { "splats": "/scans/autoroutes-wallonie-large.spz", "beyond": 25000 },
-      { "splats": "/scans/autoroutes-wallonie-region.spz", "beyond": 110000 }
+      { "splats": "/scans/autoroutes-wallonie-moyen.spz", "beyond": 5000, "width": 18 },
+      { "splats": "/scans/autoroutes-wallonie-large.spz", "beyond": 25000, "width": 75 },
+      { "splats": "/scans/autoroutes-wallonie-region.spz", "beyond": 110000, "width": 300 }
     ],
     "labels": [
       { "text": "E25 - A25", "x": 740945, "y": 652748, "rank": 36 },
@@ -276,6 +276,7 @@
       { "text": "R3", "x": 647286, "y": 625550, "rank": 110 },
       { "text": "R0", "x": 653159, "y": 653398, "rank": 58 },
       { "text": "R5", "x": 621254, "y": 621609, "rank": 42 }
-    ]
+    ],
+    "width": 4.5
   }
 ]
