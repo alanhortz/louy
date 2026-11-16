@@ -248,13 +248,14 @@ export class SplatLayer {
   }
 
   /** À appeler après la passe du relief : dessine par-dessus, sans rien effacer. `distance` : éloignement de la vue. */
-  render(camera: PerspectiveCamera, distance = 0, viewportHeight = 1): void {
+  render(camera: PerspectiveCamera, distance = 0, viewportHeight = 1, { immersive = false } = {}): void {
     if (this.#meshes.size === 0) return;
     this.#pickLevels(distance);
     this.#sizeStrokes((2 * distance * Math.tan((camera.fov * Math.PI) / 360)) / viewportHeight);
     const autoClear = this.#renderer.autoClear;
     this.#renderer.autoClear = false;
-    this.#renderer.setRenderTarget(null);
+    // dans un casque, la cible du rendu est celle de la séance : on ne la remplace pas par l'écran
+    if (!immersive) this.#renderer.setRenderTarget(null);
     // les tracés d'abord : un lieu filmé posé sur une route passe par-dessus
     if (this.#traces) this.#renderer.render(this.#traces.scene, camera);
     this.#renderer.render(this.#scene, camera);

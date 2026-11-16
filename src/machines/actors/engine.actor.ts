@@ -54,6 +54,8 @@ export type EngineCommand =
   /** `strict` : ne se poser que sur le point demandé, sans être emmené au sol le plus proche. */
   | { type: 'viewer.walkRequested'; scanId: string; x: number; y: number; azimuth?: number; strict?: boolean }
   | { type: 'viewer.walkStopped' }
+  /** Passer la visite en réalité virtuelle : à demander dans le geste même du visiteur. */
+  | { type: 'viewer.vrRequested' }
   /** Trajectoire du vol sélectionné : chemin parcouru, estimation, instant désigné. */
   | { type: 'viewer.trajectoryChanged'; past: TrajectoryPoint[]; future: TrajectoryPoint[]; cursor: TrajectoryPoint | null };
 
@@ -72,6 +74,7 @@ export type EngineReport =
   | { type: 'engine.zoomedThrough'; x: number; y: number }
   | { type: 'engine.walkEntered' }
   | { type: 'engine.walkFailed' }
+  | { type: 'engine.immersiveChanged'; immersive: boolean }
   | { type: 'engine.overlayPicked'; layer: OverlayName; id: string; members: string[] }
   | { type: 'engine.contextLost' }
   | { type: 'engine.contextRestored' };
@@ -114,6 +117,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
           onZoomedThrough: (x, y) => sendBack({ type: 'engine.zoomedThrough', x, y }),
           onWalkEntered: () => sendBack({ type: 'engine.walkEntered' }),
           onWalkFailed: () => sendBack({ type: 'engine.walkFailed' }),
+          onImmersiveChanged: (immersive) => sendBack({ type: 'engine.immersiveChanged', immersive }),
           onOverlayPicked: (layer, id, members) =>
             sendBack({ type: 'engine.overlayPicked', layer: layer as OverlayName, id, members }),
           onContextLost: () => sendBack({ type: 'engine.contextLost' }),
@@ -172,6 +176,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
         case 'viewer.pickArmed': return engine.armPick(command.armed);
         case 'viewer.walkRequested': return engine.startWalk(command.scanId, command.x, command.y, command.azimuth, command.strict);
         case 'viewer.walkStopped': return engine.stopWalk();
+        case 'viewer.vrRequested': return void engine.enterVr();
         case 'viewer.poseCaptureRequested':
           return sendBack({ type: 'engine.poseCaptured', pose: engine.getPose() });
         case 'viewer.trajectoryChanged': return engine.setTrajectory(command.past, command.future, command.cursor);

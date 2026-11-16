@@ -61,6 +61,8 @@ const WALK_MAP_DISTANCE = 170;
 const WALK_RELIEF_NEAR = 90;
 /** Entré par le zoom, écart toléré entre le point regardé et le sol du lieu où l'on se pose, en mètres. */
 const ZOOM_ENTRY_SLACK = 60;
+/** Angle d'une rotation par à-coup aux manettes, en radians. */
+const VR_SNAP_TURN = Math.PI / 6;
 /** Un clic qui a bougé de moins que cela désigne un point ; au-delà, c'est un déplacement de la carte. */
 const PICK_SLOP_PX = 6;
 
@@ -87,6 +89,8 @@ export interface EngineListeners {
   /** La balade demandée commence — ou n'a pas pu commencer : le lieu n'a pas de sol. */
   onWalkEntered(): void;
   onWalkFailed(): void;
+  /** La visite passe en réalité virtuelle, ou en revient. */
+  onImmersiveChanged(immersive: boolean): void;
   onContextLost(): void;
   onContextRestored(): void;
 }
@@ -197,6 +201,8 @@ export class SceneEngine {
   /** Balade demandée, en attente du lieu : ses splats doivent être là pour en déduire le sol. */
   #walkRequest: { scanId: string; x: number; y: number; azimuth?: number; strict?: boolean } | null = null;
   #walk: WalkControls | null = null;
+  /** Séance de réalité virtuelle en cours : le casque, et le socle qui porte la caméra dans le lieu. */
+  #vr: { session: XRSession; rig: Group; turned: boolean } | null = null;
   #raf = 0;
   #last = performance.now();
   #idleFrames = IDLE_FRAMES;
@@ -403,7 +409,91 @@ export class SceneEngine {
   /** Rend la carte au visiteur, au-dessus de l'endroit où il se tenait. */
   stopWalk(): void {
     this.#walkRequest = null;
+    // quitter la visite, c'est aussi ôter le casque
+    void this.#vr?.session.end().catch(() => {});
     this.#leaveWalk();
+  }
+
+  /**
+   * Passe la visite en réalité virtuelle : le lieu est vu en relief, à taille réelle, et la tête du
+   * visiteur oriente le regard. À appeler dans le geste du visiteur — le navigateur l'exige.
+   * Le relief LiDAR, lui, n'y est pas dessiné : son éclairage se calcule sur un écran plat.
+   */
+  async enterVr(): Promise<void> {
+    const xr = (navigator as Navigator & { xr?: XRSystem }).xr;
+    if (!xr || !this.#walk || this.#vr) return;
+    let session: XRSession;
+    try {
+      session = await xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor'] });
+    } catch {
+      return;                        // refusé, ou pas de casque : la visite continue à l'écran
+    }
+    if (!this.#walk || this.#disposed) return void session.end().catch(() => {});
+    this.#renderer.xr.enabled = true;
+    this.#renderer.xr.setReferenceSpaceType('local-floor');
+    await this.#renderer.xr.setSession(session);
+    // la caméra est posée sur un socle : le casque la déplace dessus, la marche déplace le socle
+    const rig = new Group();
+    this.#camera.position.set(0, 0, 0);
+    this.#camera.quaternion.identity();
+    rig.add(this.#camera);
+    this.#vr = { session, rig, turned: false };
+    this.#walk.immersive = true;
+    session.addEventListener('end', () => this.#leaveVr(), { once: true });
+    // dans un casque, c'est lui qui donne le rythme des images
+    cancelAnimationFrame(this.#raf);
+    this.#last = performance.now();
+    this.#renderer.setAnimationLoop(() => this.#vrFrame());
+    this.#listeners.onImmersiveChanged(true);
+  }
+
+  #leaveVr(): void {
+    const vr = this.#vr;
+    if (!vr) return;
+    this.#vr = null;
+    this.#renderer.setAnimationLoop(null);
+    this.#renderer.xr.enabled = false;
+    vr.rig.remove(this.#camera);
+    if (this.#walk) this.#walk.immersive = false;
+    this.#listeners.onImmersiveChanged(false);
+    if (this.#disposed) return;
+    this.#resize();
+    this.#loop();
+  }
+
+  /** Une image dans le casque : on marche aux manettes, le socle suit, le lieu se dessine pour chaque œil. */
+  #vrFrame(): void {
+    const vr = this.#vr, walk = this.#walk;
+    if (!vr || !walk) return;
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - this.#last) / 1000);
+    this.#last = now;
+
+    // cap du regard : là où le casque est tourné, à plat
+    const gaze = this.#renderer.xr.getCamera().getWorldDirection(this.#probe);
+    const heading = Math.atan2(-gaze.x, -gaze.z);
+    for (const source of vr.session.inputSources) {
+      const axes = source.gamepad?.axes;
+      if (!axes || axes.length < 4) continue;
+      const x = axes[2] ?? 0, y = axes[3] ?? 0;
+      if (source.handedness === 'right') {
+        // manette droite : un quart de huitième de tour par poussée franche, pour ne pas donner le tournis
+        if (Math.abs(x) > 0.7 && !vr.turned) { walk.turnBy(-Math.sign(x) * VR_SNAP_TURN); vr.turned = true; }
+        if (Math.abs(x) < 0.3) vr.turned = false;
+      } else if (Math.hypot(x, y) > 0.15) {
+        walk.stride(-y, x, heading, dt);
+      }
+    }
+    walk.update(dt);
+    vr.rig.position.set(walk.x, walk.groundY, walk.z);
+    vr.rig.rotation.y = walk.yaw;
+    vr.rig.updateMatrixWorld(true);
+    this.#controls.target.set(walk.x, walk.groundY, walk.z);
+
+    this.#camera.near = 0.1;
+    this.#camera.far = 4000;
+    this.#renderer.clear();
+    this.#splats?.render(this.#camera, WALK_MAP_DISTANCE, this.#size.height, { immersive: true });
   }
 
   #leaveWalk(): void {
@@ -566,6 +656,7 @@ export class SceneEngine {
 
   dispose(): void {
     this.#disposed = true;
+    void this.#vr?.session.end().catch(() => {});
     this.#pick?.abort();
     this.#walk?.dispose();
     this.#splats?.dispose();
@@ -664,6 +755,8 @@ export class SceneEngine {
   }
 
   #resize(): void {
+    // casque sur la tête, la taille de l'image est celle de la séance
+    if (this.#vr) return;
     const width = this.#canvas.clientWidth || window.innerWidth;
     const height = this.#canvas.clientHeight || window.innerHeight;
     this.#size = { width, height };
