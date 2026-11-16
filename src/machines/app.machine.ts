@@ -19,7 +19,7 @@ import { QUALITY_PROFILES } from '../domain/quality.ts';
 import { fitFlyover, scanFlyover, type Scan } from '../domain/scans.ts';
 import { resolveScene } from '../domain/scene.ts';
 import { timelineSteps, timelineTint, type FilmFraming } from '../domain/timeline.ts';
-import { DEFAULT_VIEW, encodeView, viewUrl, type View } from '../domain/view.ts';
+import { DEFAULT_VIEW, HOME_IMAGERY, encodeView, viewUrl, type View } from '../domain/view.ts';
 import type { SupportReport } from '../services/capabilities.ts';
 import { isAcknowledged } from '../services/preferences.ts';
 import { readRecentSearches } from '../services/recentSearches.ts';
@@ -300,6 +300,8 @@ export const appMachine = setup({
               [FUN_LAYER]: context.view.overlays.fun,
               [ART_LAYER]: context.view.overlays.art,
             },
+            // à l'accueil, la citadelle est déjà là, reconstruite, sous la caméra qui en fait le tour
+            kept: (context.startsAtHome ? { [AERIAL_LAYER]: HOME_IMAGERY } : {}) as Record<string, readonly string[]>,
             distance: context.view.pose.distance,
           }),
         },

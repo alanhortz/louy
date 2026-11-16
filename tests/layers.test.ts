@@ -40,7 +40,7 @@ const postsLayer = (list: Post[] = posts): SelectionLayerSpec<Post> => ({
 });
 
 describe('état générique d’un calque à sélection', () => {
-  const start = async (input?: { visible?: boolean; distance?: number }, list?: Post[]) => {
+  const start = async (input?: { visible?: boolean; distance?: number; kept?: readonly string[] }, list?: Post[]) => {
     const harness = underParent(createSelectionLayer(postsLayer(list)), input);
     await waitFor(harness.actor, (snapshot) => !snapshot.matches('probing'));
     return harness;
@@ -69,6 +69,14 @@ describe('état générique d’un calque à sélection', () => {
       { type: 'layer.selectionChanged', item: null, markerId: null },
       { type: 'layer.keptChanged', items: [] },
     ]);
+  });
+
+  it('peut naître avec un élément déjà gardé affiché : il est annoncé dès l’ouverture', async () => {
+    const { actor, announced } = await start({ kept: ['b', 'inconnu'] });
+    expect(layerKept(actor.getSnapshot())).toEqual(['b', 'inconnu']);
+    // seul ce qui existe est annoncé comme gardé, et son marqueur le dit
+    expect(announced.at(-1)).toMatchObject({ type: 'layer.keptChanged', items: [{ id: 'b' }] });
+    expect(announced[1]!.features.map((feature: { label: string }) => feature.label)).toEqual(['a', 'b+', 'c']);
   });
 
   it('peut naître éteint : sa liste est connue, mais rien ne se laisse toucher', async () => {
