@@ -201,7 +201,7 @@ function MotorwaysRow() {
         name="Autoroutes"
         count={new Set((trace.labels ?? []).map((label) => label.text)).size}
         feed={feed}
-        meta={`${trace.credit.author} · tracé posé sur le relief, numéros le long des routes`}
+        meta={`${trace.credit.author} · tracé posé sur le relief, numéros européens et belges le long des routes`}
         onToggle={() => motorways.send({ type: 'motorways.toggled' })}
       />
       {feed !== 'off' && legend.length > 0 && (
