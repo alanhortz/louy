@@ -1,6 +1,8 @@
 import {
   ClockIcon, CubeTransparentIcon, HeartIcon, LifebuoyIcon, MapIcon, PaintBrushIcon, PaperAirplaneIcon, PhotoIcon, PuzzlePieceIcon, TagIcon, VideoCameraIcon, ViewColumnsIcon,
+  GlobeEuropeAfricaIcon,
 } from '@heroicons/react/24/outline';
+import { satelliteAvailable, satelliteFeed } from '../../machines/satellite.machine.ts';
 import { useSelector } from '@xstate/react';
 import type { ReactNode } from 'react';
 import { AERIAL_LABEL, ART_LABEL, FUN_LABEL, OBJECTS_LABEL, SURVIVAL_LABEL, type Scan } from '../../domain/scans.ts';
@@ -185,6 +187,27 @@ function ScanLayerRow({ layer, name, icon, meta }: { layer: string; name: string
   );
 }
 
+/** Satellite : des prises de vue faites à la verticale, redressées et posées sur le relief. */
+function SatelliteRow() {
+  const satellite = useChild('satellite');
+  const available = useSelector(satellite, satelliteAvailable);
+  const feed = useSelector(satellite, satelliteFeed);
+  const mosaics = useSelector(satellite, (snapshot) => snapshot.context.mosaics);
+  if (!available || mosaics.length === 0) return null;
+  const authors = [...new Set(mosaics.map((mosaic) => mosaic.credit.author))].join(', ');
+
+  return (
+    <LayerRow
+      icon={<GlobeEuropeAfricaIcon aria-hidden="true" />}
+      name="Satellite"
+      count={mosaics.length}
+      feed={feed}
+      meta={`${authors} · prises de vue au drone à la verticale, redressées et posées sur le relief`}
+      onToggle={() => satellite.send({ type: 'satellite.toggled' })}
+    />
+  );
+}
+
 /** Autoroutes : le tracé posé sur le relief, et ce que disent ses couleurs. */
 function MotorwaysRow() {
   const motorways = useChild('motorways');
@@ -247,6 +270,7 @@ export function LayersPanel() {
         <AircraftRow />
         <VesselsRow />
         <MotorwaysRow />
+        <SatelliteRow />
         <ScanLayerRow layer={AERIAL_LAYER} name={AERIAL_LABEL} icon={<PhotoIcon aria-hidden="true" />} meta="Lieux filmés au drone, reconstruits en volume" />
         <ScanLayerRow layer={OBJECTS_LAYER} name={OBJECTS_LABEL} icon={<CubeTransparentIcon aria-hidden="true" />} meta="Relevés sur place, au téléphone" />
         <ScanLayerRow layer={ART_LAYER} name={ART_LABEL} icon={<PaintBrushIcon aria-hidden="true" />} meta="Fresques, lettrages et détails peints, relevés dans la rue" />

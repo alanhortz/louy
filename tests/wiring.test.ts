@@ -29,6 +29,8 @@ const ANNOUNCEMENTS = [
   'app.clipRequested', 'viewer.clipPicked',
   // autoroutes
   'motorways.changed', 'motorways.flyRequested',
+  // satellite
+  'satellite.changed', 'satellite.flyRequested',
   // balade au sol
   'walk.aimChanged', 'viewer.groundPicked', 'viewer.zoomedThrough', 'walk.started', 'walk.ended', 'viewer.walkEntered', 'viewer.walkFailed',
   // film du temps
