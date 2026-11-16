@@ -28,8 +28,10 @@ export interface ScanProgress {
 
 /** Durée de la construction à l'écran, une fois le scan reçu. */
 const BUILD_MS = 4500;
-/** Demi-largeur à l'écran du trait d'un tracé, en pixels (écart-type de ses taches, en travers de la route). */
-const STROKE_PIXELS = 1.5;
+/** Demi-largeur à l'écran du trait d'un tracé, en pixels. */
+const STROKE_PIXELS = 3.2;
+/** Nombre d'écarts-types auquel une tache de tracé est coupée net. */
+const STROKE_CUT = 1.6;
 /** Hauteur d'où un tracé descend se poser sur le relief, en mètres. */
 const LANDING_HEIGHT = 6000;
 /** L'avancement est annoncé par pas de 5 % : assez pour le lire, sans noyer le journal. */
@@ -39,6 +41,11 @@ export class SplatLayer {
   readonly #renderer: WebGLRenderer;
   readonly #scene = new ThreeScene();
   readonly #spark: SparkRenderer;
+  /**
+   * Les tracés ont leur propre scène et leur propre moteur, créés au premier tracé : ils se dessinent
+   * autrement que les lieux filmés — à bords nets, et sur des centaines de kilomètres.
+   */
+  #traces: { scene: ThreeScene; spark: SparkRenderer } | null = null;
   readonly #meshes = new Map<string, SplatMesh>();
   /** Scans reçus en entier : leurs splats peuvent être lus. */
   readonly #loaded = new Set<string>();
@@ -58,10 +65,7 @@ export class SplatLayer {
   constructor(renderer: WebGLRenderer, onDirty: () => void, onProgress: (progress: ScanProgress) => void = () => {}) {
     this.#onProgress = onProgress;
     this.#renderer = renderer;
-    // Le moteur rassemble ce qu'il dessine dans un encodage compact, où une position ne dépasse pas 65 km :
-    // un tracé large de deux cents kilomètres y disparaîtrait par morceaux. On lui demande donc l'encodage
-    // étendu, dès sa création — c'est le seul moment où ce choix est pris en compte.
-    this.#spark = new SparkRenderer({ renderer, onDirty, accumExtSplats: true });
+    this.#spark = new SparkRenderer({ renderer, onDirty });
     this.#scene.add(this.#spark);
     this.#onDirty = onDirty;
   }
@@ -70,13 +74,13 @@ export class SplatLayer {
     const wanted = new Map(scans.map((scan) => [scan.id, scan]));
     for (const [id, mesh] of this.#meshes) {
       if (wanted.has(id)) continue;
-      this.#scene.remove(mesh);
+      mesh.removeFromParent();
       mesh.dispose();
       this.#meshes.delete(id);
       this.#loaded.delete(id);
       this.#grounds.delete(id);
       this.#strokes.delete(mesh);
-      for (const level of this.#levels.get(id) ?? []) { this.#scene.remove(level.mesh); level.mesh.dispose(); this.#strokes.delete(level.mesh); }
+      for (const level of this.#levels.get(id) ?? []) { level.mesh.removeFromParent(); level.mesh.dispose(); this.#strokes.delete(level.mesh); }
       this.#levels.delete(id);
     }
     for (const scan of scans) {
@@ -103,7 +107,7 @@ export class SplatLayer {
       this.#onProgress({ id: scan.id, phase: 'loading', fraction: 0 });
       // le fichier est déjà dans le repère du viewer : il ne reste qu'à le poser sur son ancrage
       mesh.position.set(scan.x - T.ORIGIN.x, 0, -(scan.y - T.ORIGIN.y));
-      this.#scene.add(mesh);
+      (scan.trace ? this.#traceScene() : this.#scene).add(mesh);
       this.#meshes.set(scan.id, mesh);
     }
   }
@@ -183,9 +187,29 @@ export class SplatLayer {
       if (width) this.#followZoom(mesh, width, 0);
       mesh.position.set(scan.x - T.ORIGIN.x, 0, -(scan.y - T.ORIGIN.y));
       mesh.visible = false;
-      this.#scene.add(mesh);
+      this.#traceScene().add(mesh);
       return { mesh, beyond };
     }));
+  }
+
+  /**
+   * Scène des tracés. Son moteur diffère de celui des lieux filmés sur trois points :
+   * - l'encodage étendu, car l'encodage compact ne porte pas au-delà de 65 km et un tracé en fait deux cents
+   *   (ce choix ne se fait qu'à la création du moteur) ;
+   * - des taches pleines, sans dégradé vers leur bord ;
+   * - coupées net à faible distance de leur centre.
+   * Mises bout à bout le long d'une route, elles donnent un trait aux contours francs, comme sur une carte.
+   */
+  #traceScene(): ThreeScene {
+    if (!this.#traces) {
+      const scene = new ThreeScene();
+      const spark = new SparkRenderer({
+        renderer: this.#renderer, onDirty: this.#onDirty, accumExtSplats: true, falloff: 0, maxStdDev: STROKE_CUT,
+      });
+      scene.add(spark);
+      this.#traces = { scene, spark };
+    }
+    return this.#traces.scene;
   }
 
   /** Fait dépendre la taille des taches d'un fichier d'un facteur, que la vue règle à chaque image. */
@@ -203,7 +227,8 @@ export class SplatLayer {
   /** Règle l'épaisseur des traits sur l'éloignement de la vue : `metresPerPixel` au point visé. */
   #sizeStrokes(metresPerPixel: number): void {
     for (const [mesh, stroke] of this.#strokes) {
-      const wanted = Math.max(stroke.floor, (STROKE_PIXELS * metresPerPixel) / stroke.width);
+      // la tache est coupée à `STROKE_CUT` écarts-types : c'est là qu'est le bord du trait
+      const wanted = Math.max(stroke.floor, ((STROKE_PIXELS / STROKE_CUT) * metresPerPixel) / stroke.width);
       // le moteur recalcule tout le tracé à chaque changement : on ne le dérange que pour un écart visible
       if (Math.abs(wanted - stroke.factor.value) < stroke.factor.value * 0.02) continue;
       stroke.factor.value = wanted;
@@ -230,6 +255,8 @@ export class SplatLayer {
     const autoClear = this.#renderer.autoClear;
     this.#renderer.autoClear = false;
     this.#renderer.setRenderTarget(null);
+    // les tracés d'abord : un lieu filmé posé sur une route passe par-dessus
+    if (this.#traces) this.#renderer.render(this.#traces.scene, camera);
     this.#renderer.render(this.#scene, camera);
     this.#renderer.autoClear = autoClear;
   }
@@ -237,5 +264,6 @@ export class SplatLayer {
   dispose(): void {
     this.setScans([]);
     this.#scene.remove(this.#spark);
+    if (this.#traces) this.#traces.scene.remove(this.#traces.spark);
   }
 }
