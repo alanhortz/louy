@@ -12,7 +12,7 @@ export const roadShieldStyle: OverlayStyle<RoadShieldFeature> = {
   maxVisible: 40,
   detailDistance: Infinity,
   // un peu plus que le cartouche lui-même : deux numéros voisins ne se collent pas
-  footprint: (feature) => ({ width: 26 + feature.label.length * 8, height: 30 }),
+  footprint: (feature) => ({ width: 22 + feature.label.length * 6.5, height: 30 }),
   create() {
     const element = document.createElement('span');
     element.className = 'road-shield';
