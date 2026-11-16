@@ -21,7 +21,7 @@ export interface Pose {
   tilt: number;
 }
 
-export type OverlayId = 'places' | 'cameras' | 'aircraft' | 'scans' | 'objects' | 'survival' | 'fun' | 'art' | 'streets' | 'vessels';
+export type OverlayId = 'places' | 'cameras' | 'aircraft' | 'scans' | 'objects' | 'survival' | 'fun' | 'art' | 'streets' | 'vessels' | 'motorways';
 export type OverlayVisibility = Record<OverlayId, boolean>;
 
 export interface View {
@@ -45,7 +45,7 @@ export const POSE_LIMITS = {
 export const DEFAULT_VIEW: View = {
   pose: { x: 685070, y: 627918, distance: 1800, azimuth: 0, tilt: 58 },
   scene: DEFAULT_SCENE,
-  overlays: { places: true, cameras: false, aircraft: false, scans: true, objects: true, survival: true, fun: false, art: false, streets: false, vessels: false },
+  overlays: { places: true, cameras: false, aircraft: false, scans: true, objects: true, survival: true, fun: false, art: false, streets: false, vessels: false, motorways: false },
   cameraId: null,
 };
 
@@ -55,7 +55,7 @@ export const DEFAULT_VIEW: View = {
  */
 export const HOME_IMAGERY: readonly string[] = ['namur'];
 
-const OVERLAY_CODES: Record<OverlayId, string> = { places: 'p', cameras: 'c', aircraft: 'a', scans: 'i', objects: 'o', survival: 'd', fun: 'f', art: 't', streets: 'r', vessels: 'b' };
+const OVERLAY_CODES: Record<OverlayId, string> = { places: 'p', cameras: 'c', aircraft: 'a', scans: 'i', objects: 'o', survival: 'd', fun: 'f', art: 't', streets: 'r', vessels: 'b', motorways: 'm' };
 /**
  * L'imagerie aérienne, les objets scannés et les équipements de survie sont nés après les premiers liens
  * partagés : un lien qui ne les mentionne pas ne les a pas éteints, il les
@@ -127,6 +127,7 @@ export function decodeView(fragment: string, fallback: View = DEFAULT_VIEW): Vie
         art: codes.includes(OVERLAY_CODES.art),
         streets: codes.includes(OVERLAY_CODES.streets),
         vessels: codes.includes(OVERLAY_CODES.vessels),
+        motorways: codes.includes(OVERLAY_CODES.motorways),
       },
     cameraId: cameraId && /^\d{1,6}$/.test(cameraId) ? cameraId : null,
   };
