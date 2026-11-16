@@ -47,6 +47,11 @@ export interface Scan {
    */
   trace?: boolean;
   /**
+   * Le lieu est une image du sol : des prises de vue faites à la verticale, redressées et posées sur le
+   * relief, une tache plate par case. Elle a son propre calque, « Satellite », et l'on ne s'y promène pas.
+   */
+  satellite?: boolean;
+  /**
    * Finesses plus grossières d'un tracé : chacune remplace la précédente quand la vue s'éloigne
    * au-delà de `beyond` mètres, pour que le tracé reste lisible de loin.
    */
@@ -152,6 +157,7 @@ const isScan = (value: unknown): value is Scan => {
       && (scan.walk?.azimuth === undefined || Number.isFinite(scan.walk.azimuth))))
     && (scan.note === undefined || typeof scan.note === 'string')
     && (scan.trace === undefined || (typeof scan.splats === 'string' && typeof scan.trace === 'boolean'))
+    && (scan.satellite === undefined || (typeof scan.splats === 'string' && typeof scan.satellite === 'boolean'))
     && (scan.legend === undefined || (Array.isArray(scan.legend)
       && scan.legend.every((entry) => typeof entry?.label === 'string' && /^#[0-9a-f]{6}$/i.test(entry.colour ?? ''))))
     && (scan.labels === undefined || (scan.trace === true && Array.isArray(scan.labels)
@@ -210,7 +216,10 @@ export const scanFlyover = (scan: Scan) => ({
 export const walkStart = (scan: Scan): { x: number; y: number; azimuth?: number } => scan.walk ?? { x: scan.x, y: scan.y };
 
 /** Scans dessinés dans la carte. */
-export const placeScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined && !scan.trace);
+export const placeScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined && !scan.trace && !scan.satellite);
+
+/** Images du sol du calque « Satellite ». */
+export const satelliteScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined && scan.satellite === true);
 
 /** Tracés à l'échelle du territoire : ils ne sont pas des lieux filmés, et ont leur propre calque. */
 export const traceScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined && scan.trace === true);

@@ -54,6 +54,7 @@ import { walkMachine, type WalkEmitted } from './walk.machine.ts';
 import { coordinatesMachine } from './coordinates.machine.ts';
 import { locationMachine, type LocationEmitted } from './location.machine.ts';
 import { motorwaysMachine, type MotorwaysEmitted } from './motorways.machine.ts';
+import { satelliteMachine, type SatelliteEmitted } from './satellite.machine.ts';
 import { cinemaMachine } from './cinema.machine.ts';
 import { locationHeight, nearDevice, type DevicePosition } from '../domain/whereabouts.ts';
 import { WALK_REACH, nearestPlace } from '../domain/walk.ts';
@@ -91,7 +92,8 @@ export type AppEvent =
   | TrajectoryEmitted
   | WalkEmitted
   | LocationEmitted
-  | MotorwaysEmitted;
+  | MotorwaysEmitted
+  | SatelliteEmitted;
 
 export interface AppInput {
   /** Vue lue dans l'URL au chargement. */
@@ -113,6 +115,8 @@ interface AppContext extends AppInput {
   device: DevicePosition | null;
   /** Tracés dessinés par le calque « Autoroutes » : aucun quand il est éteint. */
   traces: Scan[];
+  /** Images du sol du calque « Satellite », quand il est allumé. */
+  mosaics: Scan[];
 }
 
 /** Hauteur de survol d'un site touristique, et d'une caméra routière. */
@@ -159,6 +163,7 @@ export const appMachine = setup({
       coordinates: 'coordinates';
       location: 'location';
       motorways: 'motorways';
+      satellite: 'satellite';
       cinema: 'cinema';
       acquisition: 'acquisition';
       activity: 'activity';
@@ -189,6 +194,7 @@ export const appMachine = setup({
     coordinates: coordinatesMachine,
     location: locationMachine,
     motorways: motorwaysMachine,
+    satellite: satelliteMachine,
     cinema: cinemaMachine,
     acquisition: acquisitionMachine,
     activity: activityMachine,
@@ -225,13 +231,14 @@ export const appMachine = setup({
         type: 'viewer.scansChanged',
         scans: [
           ...drawnScans(context.imagery.selected, context.walk ? [context.walk, ...context.imagery.kept.filter((scan) => scan !== context.walk)] : context.imagery.kept),
+          ...context.mosaics,
           ...context.traces,
         ],
       })),
   },
 }).createMachine({
   id: 'app',
-  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] }, places: [], walk: null, device: null, traces: [] }),
+  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] }, places: [], walk: null, device: null, traces: [], mosaics: [] }),
   initial: 'checking',
   states: {
     checking: {
@@ -329,6 +336,7 @@ export const appMachine = setup({
         { id: 'location', src: 'location' },
         { id: 'cinema', src: 'cinema' },
         { id: 'motorways', src: 'motorways', input: ({ context }) => ({ visible: context.view.overlays.motorways }) },
+        { id: 'satellite', src: 'satellite', input: ({ context }) => ({ visible: context.view.overlays.satellite }) },
         {
           id: 'acquisition',
           src: 'acquisition',
@@ -710,6 +718,22 @@ export const appMachine = setup({
             })),
             'syncUrl',
           ],
+        },
+        /* ---- satellite : des prises de vue verticales redressées, dessinées quand leur calque est allumé ---- */
+        'satellite.changed': {
+          actions: [
+            assign({
+              mosaics: ({ event }) => event.mosaics,
+              view: ({ context, event }) =>
+                ({ ...context.view, overlays: { ...context.view.overlays, satellite: event.visible } }),
+            }),
+            'drawImagery',
+            'syncUrl',
+          ],
+        },
+        'satellite.flyRequested': {
+          actions: sendTo('viewer', ({ event }) =>
+            ({ type: 'viewer.flyoverRequested', flyover: { ...scanFlyover(event.mosaic), orbit: false } })),
         },
         'motorways.flyRequested': {
           actions: sendTo('viewer', ({ event }) =>

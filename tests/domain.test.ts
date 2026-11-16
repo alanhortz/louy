@@ -110,7 +110,7 @@ describe('vue partageable', () => {
   const view: View = {
     pose: { x: 688879, y: 605554, distance: 426, azimuth: 137, tilt: 58 },
     scene: { campaign: '2013-2014', surface: 'mnt', tint: 'infrared', vintage: '2019' },
-    overlays: { places: false, cameras: true, aircraft: true, scans: true, objects: true, survival: true, fun: true, art: true, streets: true, vessels: true, motorways: true },
+    overlays: { places: false, cameras: true, aircraft: true, scans: true, objects: true, survival: true, fun: true, art: true, streets: true, vessels: true, motorways: true, satellite: true },
     cameraId: '519',
   };
 
@@ -123,7 +123,7 @@ describe('vue partageable', () => {
   });
 
   it('produit un lien lisible', () => {
-    expect(encodeView(view)).toBe('c=688879,605554,426,137,58&s=2013-2014.mnt.infrared.2019&o=caiodftrbm&cam=519');
+    expect(encodeView(view)).toBe('c=688879,605554,426,137,58&s=2013-2014.mnt.infrared.2019&o=caiodftrbms&cam=519');
   });
 
   it('garde l’imagerie et les objets allumés pour un lien d’avant leur existence, et éteints si le lien le dit', () => {
@@ -133,13 +133,13 @@ describe('vue partageable', () => {
     expect([old.overlays.fun, old.overlays.art]).toEqual([false, false]);
     expect([DEFAULT_VIEW.overlays.fun, DEFAULT_VIEW.overlays.art]).toEqual([false, false]);
     const off = encodeView({ ...view, overlays: { ...view.overlays, scans: false, objects: false, survival: false } });
-    expect(off).toContain('o=caftrbmxyz');
+    expect(off).toContain('o=caftrbmsxyz');
     expect(decodeView(off).overlays.art).toBe(true);
     expect(decodeView(off).overlays.fun).toBe(true);
     expect(decodeView(off).overlays.survival).toBe(false);
     expect([decodeView(off).overlays.scans, decodeView(off).overlays.objects]).toEqual([false, false]);
     const onlyObjects = encodeView({ ...view, overlays: { ...view.overlays, scans: false } });
-    expect(onlyObjects).toContain('o=caodftrbmx');
+    expect(onlyObjects).toContain('o=caodftrbmsx');
     expect([decodeView(onlyObjects).overlays.scans, decodeView(onlyObjects).overlays.objects]).toEqual([false, true]);
   });
 

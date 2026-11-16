@@ -55,6 +55,27 @@
     ]
   },
   {
+    "id": "satellite-namur",
+    "name": "Namur vue du ciel : place d’Armes et quai de Sambre",
+    "x": 685260,
+    "y": 628100,
+    "splats": "/scans/satellite-namur.spz",
+    "satellite": true,
+    "note": "Deux passages filmés à la verticale, redressés case par case sur la surface LiDAR. C'est une orthophoto du jour du vol, pas un volume.",
+    "credit": {
+      "author": "Joeys Journeys",
+      "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
+      "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
+      "licence": "CC BY"
+    },
+    "view": {
+      "x": 685330,
+      "y": 628110,
+      "height": 420,
+      "azimuth": 0
+    }
+  },
+  {
     "id": "esplanade-citadelle-namur",
     "name": "Esplanade de la citadelle, Namur",
     "x": 684783,
