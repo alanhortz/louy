@@ -79,12 +79,18 @@ export function clipHeading([x, y, z, w]: ClipKey['q']): number {
   return ((Math.atan2(east, north) / Math.PI) * 180 + 360) % 360;
 }
 
-/** Largeur de l'écran qui porte la séquence dans la carte, en mètres. */
+/** Plus grand côté de l'écran qui porte la séquence dans la carte, en mètres : le même pour toutes, qu'elles soient en large ou en hauteur. */
 export const CLIP_SCREEN_WIDTH = 14;
 
-/** Distance entre la caméra et son écran : celle où l'image, large de `CLIP_SCREEN_WIDTH`, remplit exactement son champ. */
+/** Taille de l'écran d'une séquence : son plus grand côté fait `CLIP_SCREEN_WIDTH`, l'autre suit le rapport de l'image. */
+export const clipScreenSize = (clip: ScanClip): { width: number; height: number } =>
+  (clip.aspect >= 1
+    ? { width: CLIP_SCREEN_WIDTH, height: CLIP_SCREEN_WIDTH / clip.aspect }
+    : { width: CLIP_SCREEN_WIDTH * clip.aspect, height: CLIP_SCREEN_WIDTH });
+
+/** Distance entre la caméra et son écran : celle où l'image remplit exactement son champ. */
 export const clipScreenDistance = (clip: ScanClip): number =>
-  CLIP_SCREEN_WIDTH / clip.aspect / 2 / Math.tan((clip.fov * Math.PI) / 360);
+  clipScreenSize(clip).height / 2 / Math.tan((clip.fov * Math.PI) / 360);
 
 /**
  * Vue de carte qui montre une séquence : en retrait de la caméra et au-dessus

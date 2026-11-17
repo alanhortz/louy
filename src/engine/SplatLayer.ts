@@ -46,6 +46,8 @@ export class SplatLayer {
    * autrement que les lieux filmés — à bords nets, et sur des centaines de kilomètres.
    */
   #traces: { scene: ThreeScene; spark: SparkRenderer } | null = null;
+  /** Scène des images du sol tirées d'un drone : elles passent devant le relief. */
+  #covers: { scene: ThreeScene; spark: SparkRenderer } | null = null;
   readonly #meshes = new Map<string, SplatMesh>();
   /** Scans reçus en entier : leurs splats peuvent être lus. */
   readonly #loaded = new Set<string>();
@@ -58,6 +60,8 @@ export class SplatLayer {
   readonly #strokes = new Map<SplatMesh, { width: number; floor: number; factor: ReturnType<typeof dyno.dynoFloat> }>();
   /** Finesses plus grossières des tracés, à montrer à mesure que l'on s'éloigne. */
   readonly #levels = new Map<string, { mesh: SplatMesh; beyond: number }[]>();
+  /** Fichier chargé pour chaque relevé : il change avec la définition choisie. */
+  readonly #urls = new Map<string, string>();
   readonly #onDirty: () => void;
   readonly #onProgress: (progress: ScanProgress) => void;
 
@@ -73,7 +77,9 @@ export class SplatLayer {
   setScans(scans: readonly Scan[]): void {
     const wanted = new Map(scans.map((scan) => [scan.id, scan]));
     for (const [id, mesh] of this.#meshes) {
-      if (wanted.has(id)) continue;
+      // même relevé, même fichier : rien à faire ; un autre fichier (une autre définition) le remplace
+      if (wanted.get(id)?.splats === this.#urls.get(id)) continue;
+      this.#urls.delete(id);
       mesh.removeFromParent();
       mesh.dispose();
       this.#meshes.delete(id);
@@ -107,8 +113,9 @@ export class SplatLayer {
       this.#onProgress({ id: scan.id, phase: 'loading', fraction: 0 });
       // le fichier est déjà dans le repère du viewer : il ne reste qu'à le poser sur son ancrage
       mesh.position.set(scan.x - T.ORIGIN.x, 0, -(scan.y - T.ORIGIN.y));
-      (scan.trace ? this.#traceScene() : this.#scene).add(mesh);
+      (scan.trace ? this.#traceScene() : scan.orthophoto ? this.#coverScene() : this.#scene).add(mesh);
       this.#meshes.set(scan.id, mesh);
+      this.#urls.set(scan.id, scan.splats);
     }
   }
 
@@ -212,6 +219,21 @@ export class SplatLayer {
     return this.#traces.scene;
   }
 
+  /**
+   * Scène des images du sol. Une prise de vue récente, faite de près, est plus juste que le relief
+   * LiDAR qu'elle recouvre : là où elle existe, c'est elle qu'on montre, et aucun point du relief
+   * ne doit la traverser. Elle a donc sa scène, dessinée sans tenir compte de la profondeur du relief.
+   */
+  #coverScene(): ThreeScene {
+    if (!this.#covers) {
+      const scene = new ThreeScene();
+      const spark = new SparkRenderer({ renderer: this.#renderer, onDirty: this.#onDirty });
+      scene.add(spark);
+      this.#covers = { scene, spark };
+    }
+    return this.#covers.scene;
+  }
+
   /** Fait dépendre la taille des taches d'un fichier d'un facteur, que la vue règle à chaque image. */
   #followZoom(mesh: SplatMesh, width: number, floor: number): void {
     const factor = dyno.dynoFloat(1);
@@ -256,7 +278,12 @@ export class SplatLayer {
     this.#renderer.autoClear = false;
     // dans un casque, la cible du rendu est celle de la séance : on ne la remplace pas par l'écran
     if (!immersive) this.#renderer.setRenderTarget(null);
-    // les tracés d'abord : un lieu filmé posé sur une route passe par-dessus
+    // les images du sol d'abord, relief oublié : elles le remplacent là où elles existent
+    if (this.#covers && this.#covers.scene.children.length > 1) {
+      this.#renderer.clearDepth();
+      this.#renderer.render(this.#covers.scene, camera);
+    }
+    // les tracés ensuite : un lieu filmé posé sur une route passe par-dessus
     if (this.#traces) this.#renderer.render(this.#traces.scene, camera);
     this.#renderer.render(this.#scene, camera);
     this.#renderer.autoClear = autoClear;
@@ -266,5 +293,6 @@ export class SplatLayer {
     this.setScans([]);
     this.#scene.remove(this.#spark);
     if (this.#traces) this.#traces.scene.remove(this.#traces.spark);
+    if (this.#covers) this.#covers.scene.remove(this.#covers.spark);
   }
 }

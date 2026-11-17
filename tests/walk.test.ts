@@ -255,3 +255,21 @@ describe('vue cinéma', () => {
     expect(cinema.getSnapshot().context.clip).toBeNull();
   });
 });
+
+describe('ce que le lieu cache', () => {
+  it('coupe le regard derrière un bâtiment, pas par-dessus ni à côté', async () => {
+    const { buildGround, sightBlocked } = await import('../src/domain/walk.ts');
+    // un sol plat de 60 m, et un bâtiment de 10 m de haut entre x = 28 et x = 32
+    const points: number[] = [];
+    for (let x = 0; x < 60; x += 0.5) for (let z = 0; z < 20; z += 0.5) {
+      points.push(x, 0, z, x, 0.02, z);
+      if (x >= 28 && x <= 32 && z < 12) points.push(x, 10, z, x, 9.9, z);
+    }
+    const ground = buildGround(new Float32Array(points))!;
+    const eye = { x: 5, y: 1.7, z: 5 };
+    expect(sightBlocked(ground, eye, { x: 55, y: 4, z: 5 })).toBe(true);      // derrière le bâtiment
+    expect(sightBlocked(ground, eye, { x: 55, y: 40, z: 5 })).toBe(false);    // bien plus haut que lui
+    expect(sightBlocked(ground, { ...eye, z: 17 }, { x: 55, y: 4, z: 17 })).toBe(false); // à côté
+    expect(sightBlocked(ground, eye, { x: 20, y: 4, z: 5 })).toBe(false);     // devant lui
+  });
+});

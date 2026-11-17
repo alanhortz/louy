@@ -49,6 +49,9 @@
 .walk-bar-exit:hover, .walk-bar-exit:focus-visible, .walk-bar-exit:active { background: rgba(0, 212, 255, 0.18); border-color: var(--accent); outline: none; }
 
 /* L'outil armé : le pointeur vise. */
+/* La carte se saisit et se fait glisser : main ouverte au repos, main fermée tant qu'on la tient, relâchée ensuite. */
+.stage canvas { cursor: grab; }
+.stage canvas:active { cursor: grabbing; }
 body:has(.walk-aiming) .stage canvas { cursor: crosshair; }
 /* tant que l'on vise, un marqueur ne retient pas le toucher : on désigne le sol qu'il recouvre */
 body:has(.walk-aiming) .overlay-root * { pointer-events: none !important; }
@@ -85,3 +88,22 @@ body:has(.walk-walking) .stage canvas:active { cursor: grabbing; }
 }
 @media (prefers-reduced-motion: reduce) { .location-halo { animation: none; } }
 .top-actions button[aria-busy='true'] { color: var(--accent); cursor: progress; }
+
+/* ---- vols de drone : halo tactique autour du drone, et la vue de sa caméra dans le panneau ---- */
+.drone-halo { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
+.drone-halo i {
+  position: absolute; left: -26px; top: -26px; width: 52px; height: 52px; border-radius: 50%;
+  border: 1px solid rgba(0, 212, 255, 0.85); box-shadow: 0 0 10px var(--accent-glow), inset 0 0 8px rgba(0, 212, 255, 0.25);
+  /* quatre encoches : le réticule */
+  background:
+    linear-gradient(var(--accent), var(--accent)) 50% 0 / 1px 7px no-repeat, linear-gradient(var(--accent), var(--accent)) 50% 100% / 1px 7px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) 0 50% / 7px 1px no-repeat, linear-gradient(var(--accent), var(--accent)) 100% 50% / 7px 1px no-repeat;
+}
+.drone-halo span {
+  position: absolute; left: 34px; top: -24px; padding: 4px 7px; white-space: pre; border-radius: 6px;
+  background: var(--glass-bg); border: 1px solid rgba(0, 212, 255, 0.4);
+  font-family: var(--font-mono); font-size: 9px; line-height: 1.5; letter-spacing: 1px; text-transform: uppercase; color: #dff9ff;
+  font-variant-numeric: tabular-nums;
+}
+.drone-halo[hidden] { display: none; }
+.drone-feed { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; border: 1px solid var(--glass-border); background: #000; object-fit: cover; }

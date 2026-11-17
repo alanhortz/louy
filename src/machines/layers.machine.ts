@@ -34,12 +34,14 @@ export interface LayersInput {
   visible?: Record<string, boolean>;
   /** Éléments gardés affichés dès l'ouverture, par nom de calque. */
   kept?: Record<string, readonly string[]>;
+  /** Élément sélectionné dès l'ouverture, par nom de calque. */
+  selected?: Record<string, string>;
   distance?: number;
 }
 
 interface LayersContext { layers: Record<string, SelectionLayerRef> }
 
-const GESTURES = ['toggled', 'picked', 'stepped', 'dismissed', 'keepToggled'] as const;
+const GESTURES = ['toggled', 'picked', 'stepped', 'dismissed', 'keepToggled', 'keepEnsured'] as const;
 const REPORTS = ['listed', 'changed', 'selectionChanged', 'keptChanged', 'expandRequested', 'activated'] as const;
 
 // `any` : chaque calque a son propre type d'élément, que l'orchestrateur n'a pas à connaître
@@ -69,7 +71,7 @@ export function createLayersMachine(specs: readonly SelectionLayerSpec<any>[]) {
     id: 'layers',
     context: ({ spawn, input }) => ({
       layers: Object.fromEntries(specs.map((spec) => {
-        const settings: LayerInput = { visible: input?.visible?.[spec.name], distance: input?.distance, kept: input?.kept?.[spec.name] };
+        const settings: LayerInput = { visible: input?.visible?.[spec.name], distance: input?.distance, kept: input?.kept?.[spec.name], selected: input?.selected?.[spec.name] };
         // les calques sont créés à la volée : leur type échappe au registre d'acteurs de `setup`, d'où la conversion
         const born = (spawn as unknown as (logic: AnyActorLogic, options: { id: string; input: LayerInput }) => unknown)(
           createSelectionLayer(spec as SelectionLayerSpec), { id: spec.name, input: settings });

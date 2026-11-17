@@ -21,7 +21,7 @@ export interface Pose {
   tilt: number;
 }
 
-export type OverlayId = 'places' | 'cameras' | 'aircraft' | 'scans' | 'objects' | 'survival' | 'fun' | 'art' | 'streets' | 'vessels' | 'motorways' | 'satellite';
+export type OverlayId = 'places' | 'cameras' | 'aircraft' | 'scans' | 'objects' | 'survival' | 'fun' | 'art' | 'streets' | 'vessels' | 'motorways' | 'orthophoto' | 'clouds' | 'sports' | 'backed' | 'drones';
 export type OverlayVisibility = Record<OverlayId, boolean>;
 
 export interface View {
@@ -30,6 +30,10 @@ export interface View {
   overlays: OverlayVisibility;
   /** Caméra routière sélectionnée, le cas échéant. */
   cameraId: string | null;
+  /** Marqueur actif de chaque calque à sélection, par nom de calque : un lien partagé rouvre ce que l'on regardait. */
+  active?: Record<string, string>;
+  /** On occupe la caméra du vol de drone actif : un lien partagé y fait entrer directement. */
+  cockpit?: boolean;
 }
 
 export const POSE_LIMITS = {
@@ -38,24 +42,41 @@ export const POSE_LIMITS = {
 } as const;
 
 /**
- * Vue d'accueil : la citadelle de Namur, au confluent de la Sambre et de la Meuse.
- * Sa distance est un plafond : à l'ouverture, le moteur s'approche jusqu'à ce que
- * le relief s'affiche à sa résolution native (voir `SceneEngine.setPose`).
+ * Vue d'accueil : Namur depuis le Grognon, au confluent de la Sambre et de la Meuse, la citadelle
+ * en face. Le cadrage est celui d'un écran large ; `homePose` l'adapte aux écrans étroits.
  */
 export const DEFAULT_VIEW: View = {
-  pose: { x: 685070, y: 627918, distance: 1800, azimuth: 0, tilt: 58 },
+  pose: { x: 685443, y: 627963, distance: 279, azimuth: 288, tilt: 60 },
   scene: DEFAULT_SCENE,
-  overlays: { places: true, cameras: false, aircraft: false, scans: true, objects: true, survival: true, fun: false, art: false, streets: false, vessels: false, motorways: false, satellite: false },
+  overlays: { places: true, cameras: false, aircraft: false, scans: true, objects: true, survival: true, fun: false, art: false, streets: false, vessels: false, motorways: false, orthophoto: false, clouds: false, sports: false, backed: true, drones: false },
   cameraId: null,
 };
 
 /**
- * Imagerie aérienne dessinée d'emblée à la vue d'accueil : la citadelle de Namur, autour de
- * laquelle cette vue tourne. Un lien partagé, lui, ne montre que ce que son auteur regardait.
+ * Imagerie aérienne dessinée d'emblée à la vue d'accueil : la citadelle de Namur, son esplanade, la Sambre
+ * et la Halle al'Chair, et les lettres « NAMUR » du Grognon. Un lien partagé, lui, ne montre que ce que son auteur regardait.
  */
-export const HOME_IMAGERY: readonly string[] = ['namur'];
+export const HOME_IMAGERY: readonly string[] = ['namur', 'esplanade-citadelle-namur', 'namur-sambre', 'lettres-namur-esplanade'];
 
-const OVERLAY_CODES: Record<OverlayId, string> = { places: 'p', cameras: 'c', aircraft: 'a', scans: 'i', objects: 'o', survival: 'd', fun: 'f', art: 't', streets: 'r', vessels: 'b', motorways: 'm', satellite: 's' };
+/**
+ * Imagerie épinglée d'office, quel que soit le lien par lequel on arrive : les lettres « NAMUR ».
+ * Le visiteur peut toujours la désépingler ; c'est seulement son état de départ.
+ */
+export const PINNED_IMAGERY: readonly string[] = ['lettres-namur-esplanade'];
+
+/** Rapport largeur / hauteur pour lequel la vue d'accueil a été cadrée. */
+const HOME_ASPECT = 1.6;
+
+/**
+ * La vue d'accueil pour un écran de rapport `aspect` : sur un écran plus étroit, la vue recule
+ * pour que la citadelle et le Grognon tiennent encore tous deux dans la largeur.
+ */
+export function homePose(aspect: number): Pose {
+  const narrow = Number.isFinite(aspect) && aspect > 0 ? Math.min(3.2, Math.max(1, HOME_ASPECT / aspect)) : 1;
+  return { ...DEFAULT_VIEW.pose, distance: Math.round(DEFAULT_VIEW.pose.distance * narrow) };
+}
+
+const OVERLAY_CODES: Record<OverlayId, string> = { places: 'p', cameras: 'c', aircraft: 'a', scans: 'i', objects: 'o', survival: 'd', fun: 'f', art: 't', streets: 'r', vessels: 'b', motorways: 'm', orthophoto: 's', clouds: 'n', sports: 'k', backed: 'w', drones: 'v' };
 /**
  * L'imagerie aérienne, les objets scannés et les équipements de survie sont nés après les premiers liens
  * partagés : un lien qui ne les mentionne pas ne les a pas éteints, il les
@@ -80,6 +101,9 @@ function normalizePose(values: number[], fallback: Pose): Pose {
   };
 }
 
+/** Nom de calque ou identifiant d'élément admis dans l'adresse : rien qui puisse y porter autre chose. */
+const ACTIVE_NAME = /^[a-z0-9-]{1,64}$/;
+
 /** Sérialise une vue en fragment d'URL (sans le `#`). */
 export function encodeView(view: View): string {
   const { pose, scene, overlays, cameraId } = view;
@@ -94,8 +118,11 @@ export function encodeView(view: View): string {
     .join('');
   params.set('o', `${visible}${overlays.scans ? '' : SCANS_OFF}${overlays.objects ? '' : OBJECTS_OFF}${overlays.survival ? '' : SURVIVAL_OFF}`);
   if (cameraId) params.set('cam', cameraId);
+  const active = Object.entries(view.active ?? {}).filter(([layer, id]) => ACTIVE_NAME.test(layer) && ACTIVE_NAME.test(id));
+  if (active.length > 0) params.set('sel', active.map(([layer, id]) => `${layer}:${id}`).join(','));
+  if (view.cockpit) params.set('cockpit', '1');
   // les virgules et les points sont sûrs dans un fragment : on garde le lien lisible
-  return params.toString().replaceAll('%2C', ',');
+  return params.toString().replaceAll('%2C', ',').replaceAll('%3A', ':');
 }
 
 /**
@@ -108,6 +135,8 @@ export function decodeView(fragment: string, fallback: View = DEFAULT_VIEW): Vie
   const [campaign, surface, tint, vintage] = (params.get('s') ?? '').split('.');
   const codes = params.get('o');
   const cameraId = params.get('cam');
+  const sel = (params.get('sel') ?? '').split(',').map((pair) => pair.split(':'))
+    .filter((pair): pair is [string, string] => pair.length === 2 && ACTIVE_NAME.test(pair[0]!) && ACTIVE_NAME.test(pair[1]!));
 
   return {
     pose: normalizePose((params.get('c') ?? '').split(',').map(Number), fallback.pose),
@@ -128,9 +157,15 @@ export function decodeView(fragment: string, fallback: View = DEFAULT_VIEW): Vie
         streets: codes.includes(OVERLAY_CODES.streets),
         vessels: codes.includes(OVERLAY_CODES.vessels),
         motorways: codes.includes(OVERLAY_CODES.motorways),
-        satellite: codes.includes(OVERLAY_CODES.satellite),
+        orthophoto: codes.includes(OVERLAY_CODES.orthophoto),
+        clouds: codes.includes(OVERLAY_CODES.clouds),
+        sports: codes.includes(OVERLAY_CODES.sports),
+        backed: codes.includes(OVERLAY_CODES.backed),
+        drones: codes.includes(OVERLAY_CODES.drones),
       },
     cameraId: cameraId && /^\d{1,6}$/.test(cameraId) ? cameraId : null,
+    ...(sel.length > 0 ? { active: Object.fromEntries(sel) } : {}),
+    ...(params.get('cockpit') === '1' ? { cockpit: true } : {}),
   };
 }
 

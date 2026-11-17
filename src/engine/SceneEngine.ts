@@ -7,9 +7,10 @@
  * frontière entre le monde déclaratif de l'application et la boucle d'images.
  */
 
-import { Color, Group, MathUtils, PerspectiveCamera, Scene as ThreeScene, Vector3, WebGLRenderer } from 'three';
+import { Color, Group, MathUtils, PerspectiveCamera, Scene as ThreeScene, Vector3, WebGLRenderer, Quaternion,
+} from 'three';
 
-import { castGround, nearestStand } from '../domain/walk.ts';
+import { castGround, nearestStand, sightBlocked, type WalkGround } from '../domain/walk.ts';
 import { WalkControls } from './WalkControls.ts';
 
 import { cockpitPose } from '../domain/aircraft.ts';
@@ -32,7 +33,12 @@ import { TrajectoryLayer, type TrajectoryPoint } from './TrajectoryLayer.ts';
 import { OverlayLayer, type OverlayFeature, type OverlayStyle } from './OverlayLayer.ts';
 import type { ScanProgress, SplatLayer } from './SplatLayer.ts';
 import { CameraViewLayer, type CameraProjection } from './CameraViewLayer.ts';
+import { clipPose, type ClipKey, type ScanClip } from '../domain/clips.ts';
+import { DroneLayer } from './DroneLayer.ts';
+import type { DroneFlight } from '../domain/droneFlights.ts';
+import { SatelliteLayer } from './SatelliteLayer.ts';
 import { VideoCardLayer } from './VideoCardLayer.ts';
+import { SATELLITE_TILT, type SatelliteImage } from '../domain/satellite.ts';
 
 const DEG = Math.PI / 180;
 const METRES = new Intl.NumberFormat('fr-BE', { maximumFractionDigits: 0 });
@@ -55,6 +61,18 @@ const BLANK_SHARE = 0.75;
 const FLYOVER_TILT = 58;
 /** Champ de la caméra : sur la carte, puis à pied, où l'on embrasse plus large. */
 const MAP_FOV = 55;
+/** Visite guidée : secondes de trajet par cran de molette et par appui de flèche, pivot par appui, et inclinaison permise de la tête. */
+const TOUR_WHEEL_SECONDS = 0.004;
+const TOUR_KEY_SECONDS = 0.5;
+const TOUR_KEY_TURN = 6 * (Math.PI / 180);
+const TOUR_PITCH_LIMIT = 70 * (Math.PI / 180);
+const UP = new Vector3(0, 1, 0);
+const RIGHT = new Vector3(1, 0, 0);
+const TOUR_TURN = new Quaternion();
+/** En vue satellite, la caméra ne descend pas sous cette distance du sol visé : les images sont au-dessus des toits. */
+const SATELLITE_MIN_DISTANCE = 90;
+/** Recul de la caméra en vue satellite, en multiples de sa distance ordinaire : à ce point, la perspective ne se voit plus. */
+const SATELLITE_TELEPHOTO = 60;
 const WALK_FOV = 68;
 /** Éloignement de la vue de carte rendue au visiteur qui quitte une balade — et tenue pour la sienne tant qu'il marche. */
 const WALK_MAP_DISTANCE = 170;
@@ -90,6 +108,10 @@ export interface EngineListeners {
   /** La balade demandée commence — ou n'a pas pu commencer : le lieu n'a pas de sol. */
   onWalkEntered(): void;
   onWalkFailed(): void;
+  /** La visite guidée est arrivée au bout du trajet. */
+  onTourEnded(): void;
+  /** Le visiteur a pris la main pendant la visite guidée. */
+  onTourHeld(): void;
   /** La visite passe en réalité virtuelle, ou en revient. */
   onImmersiveChanged(immersive: boolean): void;
   /** Le visiteur a touché, dans la carte, l'écran d'une séquence filmée. */
@@ -197,7 +219,20 @@ export class SceneEngine {
   #vessels: VesselLayer | null = null;
   /** Séquences filmées des lieux dessinés ; créé à la première séquence. */
   #clips: VideoCardLayer | null = null;
+  #extraClips: readonly ScanClip[] = [];
+  #drones: DroneLayer | null = null;
+  /** Le lieu où l'on marche, tel que la balade le connaît : son sol, et ce qui s'y dresse. */
+  #walkGround: WalkGround | null = null;
+  /** Visite guidée en cours : le trajet, l'instant où l'on en est, et la vue à rendre en sortant. */
+  #tour: {
+    fov: number; track: readonly ClipKey[]; t: number; playing: boolean; back: Pose;
+    /** La tête du visiteur, par rapport au regard du drone ; et de quoi lâcher ses gestes en sortant. */
+    yaw: number; pitch: number; changed: boolean; hands: AbortController;
+  } | null = null;
   #cameraView: CameraViewLayer | null = null;
+  #satellite: SatelliteLayer | null = null;
+  /** Ce que la vue satellite a mis de côté en s'enclenchant : l'inclinaison et les limites d'avant. */
+  #beforeSatellite: { polar: number; minPolar: number; maxPolar: number; minDistance: number } | null = null;
   /** Des tuiles du relief étaient encore attendues à l'image précédente. */
   #wasLoading = false;
   /** Écoute du prochain point désigné, tant que l'outil de balade est armé. */
@@ -245,6 +280,8 @@ export class SceneEngine {
     this.#controls.onUserInput = () => { this.#endOrbit(); this.#endFollow(); };
     this.#controls.onAutoRotateEnd = () => this.#listeners.onOrbitEnded();
     this.#controls.onZoomThrough = () => {
+      // vue satellite : s'approcher ne fait pas entrer dans un lieu
+      if (this.#beforeSatellite) return;
       const { x, y } = this.getPose();
       this.#listeners.onZoomedThrough(x, y);
     };
@@ -427,6 +464,106 @@ export class SceneEngine {
     this.#wake();
   }
 
+  /**
+   * Visite guidée : la caméra refait le vol qui a filmé le lieu, à sa vitesse et dans son regard.
+   * Le visiteur ne tient pas la vue ; elle lui est rendue telle qu'il l'avait à la fin, ou quand il quitte.
+   */
+  startTour(flight: { id?: string; fov: number; track: readonly ClipKey[] }): void {
+    // on occupe la caméra de ce drone : sa maquette ne se dessine pas devant l'objectif
+    this.#drones?.hide(flight.id ?? null);
+    this.#leaveWalk();
+    this.#endOrbit();
+    this.#endFollow();
+    this.#tour?.hands.abort();
+    const hands = new AbortController();
+    const tour = { ...flight, t: 0, playing: true, back: this.#tour?.back ?? this.getPose(), yaw: 0, pitch: 0, changed: true, hands };
+    this.#tour = tour;
+    // Le visiteur peut tourner la tête — glisser, ou les flèches gauche et droite — et avancer ou reculer le long
+    // du trajet — la molette, ou les flèches haut et bas. Il ne quitte jamais la route du drone.
+    const end = flight.track[flight.track.length - 1]!.t;
+    // prendre la main arrête le défilement : on regarde, on se déplace à son rythme, puis on relance
+    const hold = () => { if (tour.playing) { tour.playing = false; this.#listeners.onTourHeld(); } };
+    const scrub = (seconds: number) => { hold(); tour.t = Math.min(end, Math.max(0, tour.t + seconds)); tour.changed = true; this.#wake(); };
+    const turn = (yaw: number, pitch: number) => {
+      hold();
+      tour.yaw += yaw;
+      tour.pitch = Math.min(TOUR_PITCH_LIMIT, Math.max(-TOUR_PITCH_LIMIT, tour.pitch + pitch));
+      tour.changed = true;
+      this.#wake();
+    };
+    let held: { id: number; x: number; y: number } | null = null;
+    const options = { signal: hands.signal };
+    this.#canvas.addEventListener('pointerdown', (event) => {
+      held = { id: event.pointerId, x: event.clientX, y: event.clientY };
+      this.#canvas.setPointerCapture(event.pointerId);
+    }, options);
+    this.#canvas.addEventListener('pointermove', (event) => {
+      if (!held || held.id !== event.pointerId) return;
+      // la scène suit le doigt : glisser vers la droite fait regarder vers la gauche, comme à pied
+      const perPixel = (this.#camera.fov * DEG) / this.#size.height;
+      turn((event.clientX - held.x) * perPixel, (event.clientY - held.y) * perPixel);
+      held = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    }, options);
+    for (const type of ['pointerup', 'pointercancel'] as const) this.#canvas.addEventListener(type, () => { held = null; }, options);
+    this.#canvas.addEventListener('wheel', (event) => { event.preventDefault(); scrub(-event.deltaY * TOUR_WHEEL_SECONDS); }, { ...options, passive: false });
+    window.addEventListener('keydown', (event) => {
+      if (event.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) return;
+      if (event.code === 'ArrowUp') scrub(TOUR_KEY_SECONDS);
+      else if (event.code === 'ArrowDown') scrub(-TOUR_KEY_SECONDS);
+      else if (event.code === 'ArrowLeft') turn(TOUR_KEY_TURN, 0);
+      else if (event.code === 'ArrowRight') turn(-TOUR_KEY_TURN, 0);
+      else return;
+      event.preventDefault();
+    }, options);
+    this.#controls.enabled = false;
+    this.#camera.fov = flight.fov;
+    this.#wake();
+  }
+
+  /** Reprend la visite guidée à son début, la tête dans le regard du drone. */
+  restartTour(): void {
+    const tour = this.#tour;
+    if (!tour) return;
+    Object.assign(tour, { t: 0, yaw: 0, pitch: 0, playing: true, changed: true });
+    this.#wake();
+  }
+
+  setTourPlaying(playing: boolean): void {
+    if (this.#tour) this.#tour.playing = playing;
+    this.#wake();
+  }
+
+  stopTour(): void {
+    const tour = this.#tour;
+    if (!tour) return;
+    this.#tour = null;
+    this.#drones?.hide(null);
+    tour.hands.abort();
+    this.#camera.fov = MAP_FOV;
+    this.#controls.enabled = true;
+    this.setPose(tour.back);
+  }
+
+  /** Place la caméra sur le trajet à l'instant courant, et avance cet instant si la visite joue. */
+  #stepTour(dt: number): boolean {
+    const tour = this.#tour!;
+    const end = tour.track[tour.track.length - 1]!.t;
+    if (tour.playing) tour.t = Math.min(end, tour.t + dt);
+    const pose = clipPose(tour.track, tour.t);
+    this.#camera.position.set(pose.x - T.ORIGIN.x, pose.altitude, -(pose.y - T.ORIGIN.y));
+    // le regard du drone, puis la tête du visiteur : elle pivote autour de la verticale, et se lève ou se baisse
+    this.#camera.quaternion.set(...pose.q);
+    this.#camera.quaternion.premultiply(TOUR_TURN.setFromAxisAngle(UP, tour.yaw)).multiply(TOUR_TURN.setFromAxisAngle(RIGHT, tour.pitch));
+    const changed = tour.changed;
+    tour.changed = false;
+    if (tour.playing && tour.t >= end) {
+      // au bout du trajet la visite se quitte d'elle-même
+      this.stopTour();
+      this.#listeners.onTourEnded();
+    }
+    return tour.playing || changed;
+  }
+
   /** Rend la carte au visiteur, au-dessus de l'endroit où il se tenait. */
   stopWalk(): void {
     this.#walkRequest = null;
@@ -551,6 +688,7 @@ export class SceneEngine {
     // sans cap imposé, on arrive en regardant dans le sens de la carte
     const yaw = request.azimuth === undefined ? this.#controls.azimuth : -request.azimuth * DEG;
     this.#walk = new WalkControls(this.#camera, this.#canvas, ground, start, yaw);
+    this.#walkGround = ground;
     this.#listeners.onWalkEntered();
   }
 
@@ -659,6 +797,41 @@ export class SceneEngine {
     }
   }
 
+  /**
+   * Vue « Satellite » : la carte se regarde du dessus, les images redressées tendues au-dessus
+   * du relief ; `null` rend la vue à son inclinaison d'avant.
+   */
+  setSatellite(images: readonly SatelliteImage[] | null): void {
+    const controls = this.#controls;
+    if (images && images.length > 0) {
+      this.#satellite ??= new SatelliteLayer(this.#renderer, () => this.#wake());
+      this.#satellite.setImages(images);
+      this.#beforeSatellite ??= { polar: controls.polar, minPolar: controls.minPolar, maxPolar: controls.maxPolar, minDistance: controls.minDistance };
+      controls.minPolar = controls.maxPolar = controls.polar = SATELLITE_TILT * DEG;
+      // la caméra reste au-dessus des images, tendues plus haut que les toits
+      controls.minDistance = Math.max(this.#beforeSatellite.minDistance, SATELLITE_MIN_DISTANCE);
+      controls.distance = Math.max(controls.distance, controls.minDistance);
+    } else {
+      this.#satellite?.setImages([]);
+      if (this.#beforeSatellite) {
+        ({ minPolar: controls.minPolar, maxPolar: controls.maxPolar, minDistance: controls.minDistance, polar: controls.polar } = this.#beforeSatellite);
+        this.#beforeSatellite = null;
+        // la caméra revient de son recul : champ ordinaire, et place que lui donnent les commandes
+        this.#camera.fov = MAP_FOV;
+        const { target, distance, polar, azimuth } = controls;
+        this.#camera.position.set(
+          target.x + distance * Math.sin(polar) * Math.sin(azimuth),
+          target.y + distance * Math.cos(polar),
+          target.z + distance * Math.sin(polar) * Math.cos(azimuth),
+        );
+        this.#camera.lookAt(target);
+      }
+    }
+    controls.changed = true;
+    this.#unsettled = true;
+    this.#wake();
+  }
+
   /** Pose sur le relief la dernière image d'une caméra routière ; `null` la retire. */
   setCameraProjection(projection: CameraProjection | null): void {
     if (projection) this.#cameraView ??= new CameraViewLayer(this.#renderer, () => this.#wake());
@@ -666,12 +839,30 @@ export class SceneEngine {
     this.#wake();
   }
 
+  /** Vols de drone à montrer en vol dans la carte. */
+  setDroneFlights(flights: readonly DroneFlight[]): void {
+    if (flights.length > 0) this.#drones ??= new DroneLayer(this.#renderer, this.#overlayRoot);
+    this.#drones?.setFlights(flights);
+    this.#wake();
+  }
+
+  /** Séquences filmées à montrer en plus de celles des lieux dessinés. */
+  setExtraClips(clips: readonly ScanClip[]): void {
+    this.#extraClips = clips;
+    this.#showClips();
+    this.#wake();
+  }
+
+  #showClips(): void {
+    const clips = [...this.#scans.flatMap((scan) => scan.clips ?? []), ...this.#extraClips];
+    if (clips.length > 0) this.#clips ??= new VideoCardLayer(this.#renderer);
+    this.#clips?.setClips(clips);
+  }
+
   setScans(scans: readonly Scan[]): void {
     this.#scans = scans;
     // un lieu dessiné amène ses séquences filmées, chacune à l'endroit où elle a été tournée
-    const clips = scans.flatMap((scan) => scan.clips ?? []);
-    if (clips.length > 0) this.#clips ??= new VideoCardLayer(this.#renderer);
-    this.#clips?.setClips(clips);
+    this.#showClips();
     // annoncé tout de suite : le moteur de splats lui-même met un instant à arriver
     if (!this.#splats && scans[0]) this.#listeners.onScanProgress({ id: scans[0].id, phase: 'loading', fraction: 0 });
     if (this.#splats) {
@@ -690,6 +881,8 @@ export class SceneEngine {
     this.#splats?.dispose();
     this.#clips?.dispose();
     this.#cameraView?.dispose();
+    this.#satellite?.dispose();
+    this.#drones?.dispose();
     this.#aircraft?.dispose();
     this.#vessels?.dispose();
     this.#trajectory?.dispose();
@@ -852,7 +1045,7 @@ export class SceneEngine {
 
     this.#trackFollow();
     if (this.#walkRequest) this.#enterWalk();
-    const moved = this.#walk ? this.#stepWalk(this.#walk, dt) : this.#controls.update(dt);
+    const moved = this.#tour ? this.#stepTour(dt) : this.#walk ? this.#stepWalk(this.#walk, dt) : this.#controls.update(dt);
     if (moved) {
       this.#movedAt = now;
       this.#unsettled = true;
@@ -871,7 +1064,7 @@ export class SceneEngine {
     // Rendu à la demande : une vue immobile dont toutes les tuiles sont arrivées
     // ne coûte plus rien — ni GPU, ni batterie.
     // des maquettes d'avions à l'écran avancent et s'inclinent à chaque image
-    const busy = moved || this.#loader.pending > 0 || (this.#aircraft?.count ?? 0) > 0 || (this.#clips?.playing ?? false);
+    const busy = moved || this.#loader.pending > 0 || (this.#aircraft?.count ?? 0) > 0 || (this.#clips?.playing ?? false) || (this.#drones?.count ?? 0) > 0;
     this.#idleFrames = busy ? 0 : this.#idleFrames + 1;
     if (this.#idleFrames <= IDLE_FRAMES) this.#render();
     // la vue est immobile mais des entités bougent (avions) : seules leurs étiquettes sont replacées
@@ -891,8 +1084,24 @@ export class SceneEngine {
     // plans de coupe adaptés à l'altitude : indispensable sur 250 km d'étendue
     const distance = this.#controls.distance;
     // à pied, le premier plan est à portée de main
-    this.#camera.near = this.#walk ? 0.3 : Math.max(1, distance * 0.008);
-    this.#camera.far = this.#walk ? 30000 : Math.max(distance * 6, 60000);
+    this.#camera.near = this.#walk ? 0.3 : this.#tour ? 1 : Math.max(1, distance * 0.008);
+    this.#camera.far = this.#walk || this.#tour ? 30000 : Math.max(distance * 6, 60000);
+    if (this.#beforeSatellite) {
+      // Vue satellite : la carte se lit sans perspective, comme un plan. La caméra recule très loin sur son axe
+      // et resserre son champ d'autant : le cadrage est le même, mais plus rien ne penche — une image tendue
+      // au-dessus des toits tombe alors exactement sur le sol qu'elle montre.
+      const { target, polar, azimuth } = this.#controls;
+      const away = distance * SATELLITE_TELEPHOTO;
+      this.#camera.position.set(
+        target.x + away * Math.sin(polar) * Math.sin(azimuth),
+        target.y + away * Math.cos(polar),
+        target.z + away * Math.sin(polar) * Math.cos(azimuth),
+      );
+      this.#camera.lookAt(target);
+      this.#camera.fov = (2 * Math.atan(Math.tan((MAP_FOV * DEG) / 2) / SATELLITE_TELEPHOTO)) / DEG;
+      this.#camera.near = Math.max(1, away - 6000);
+      this.#camera.far = away + 6000;
+    }
     this.#camera.updateProjectionMatrix();
     this.#camera.updateMatrixWorld();
 
@@ -918,10 +1127,15 @@ export class SceneEngine {
     } else {
       this.#edl.render(this.#scene, this.#camera);
     }
+    // les images de la vue satellite recouvrent le relief ; tout le reste se dessine par-dessus
+    this.#satellite?.render(this.#camera);
     this.#splats?.render(this.#camera, this.#controls.distance, this.#size.height);
     this.#walk?.renderPointer(this.#renderer);
-    this.#clips?.render(this.#camera);
+    const sight = this.#walk ? this.#walkGround : null;
+    this.#clips?.render(this.#camera, sight
+      ? (x, y, z) => sightBlocked(sight, this.#camera.position, { x, y, z }) : undefined);
     this.#cameraView?.render(this.#camera);
+    this.#drones?.render(this.#camera, this.#size.width, this.#size.height, performance.now() / 1000, (worldX, worldZ) => this.#groundAt(worldX, worldZ));
     // les bateaux d'abord : un avion qui les survole se dessine par-dessus
     this.#vessels?.render(this.#camera, this.#size.height,
       (worldX, worldZ) => this.#groundAt(worldX, worldZ) ?? this.#controls.target.y);
@@ -956,7 +1170,10 @@ export class SceneEngine {
   }
 
   #updateAltimeter(): void {
-    const camera = METRES.format(this.#camera.position.y);
+    // en vue satellite la caméra est reculée très loin pour effacer la perspective : l'altitude dite est celle du cadrage
+    const camera = METRES.format(this.#beforeSatellite
+      ? this.#controls.target.y + this.#controls.distance * Math.cos(this.#controls.polar)
+      : this.#camera.position.y);
     const ground = METRES.format(this.#controls.target.y);
     // le DOM n'est touché que lorsque la valeur affichée change
     if (this.#altimeter.camera.textContent !== camera) this.#altimeter.camera.textContent = camera;

@@ -1,44 +1,82 @@
 import { useSelector } from '@xstate/react';
-import { AERIAL_LABEL, walkStart, type Scan } from '../../domain/scans.ts';
-import { AERIAL_LAYER } from '../../machines/scans.layer.ts';
+import { AERIAL_LABEL, CLOUD_LABEL, ORTHO_LABEL, isWalkable, walkStart, type Scan } from '../../domain/scans.ts';
+import { AERIAL_LAYER, CLOUD_LAYER, ORTHO_LAYER } from '../../machines/scans.layer.ts';
 import { layerFeed, layerKept, layerSelection } from '../../machines/selectionLayer.machine.ts';
 import { useApp, useChild, useLayer } from '../actors.ts';
+import type { PanelId } from '../../machines/chrome.machine.ts';
 import { Panel } from './Panel.tsx';
 
 /**
  * Imagerie aérienne : la fiche du lieu sélectionné — ce que c'est, d'où viennent
  * les images — et le choix de le garder affiché dans la carte pendant que l'on
  * en regarde un autre. Sans sélection, la liste des lieux disponibles.
+ *
+ * Les orthophotos de drone et les nuages de points se dessinent de même : chacun
+ * a son panneau, bâti sur ce même gabarit.
  */
-export function ImageryPanel() {
+const KINDS: Record<string, { panel: PanelId; title: string; label: string; pitch: string; show: string; note: string }> = {
+  [AERIAL_LAYER]: {
+    panel: 'imagery',
+    title: 'Imagerie',
+    label: AERIAL_LABEL,
+    pitch: 'Des lieux filmés au drone et reconstruits en volume, posés sur le relief.',
+    show: 'AFFICHER L’IMAGERIE AÉRIENNE',
+    note: 'Vue reconstruite en volume à partir de la vidéo, puis calée sur le relief LiDAR.',
+  },
+  [ORTHO_LAYER]: {
+    panel: 'orthophoto',
+    title: 'Ortho drone',
+    label: ORTHO_LABEL,
+    pitch: 'Des prises de vue faites à la verticale, redressées et posées sur le relief.',
+    show: 'AFFICHER LES ORTHOPHOTOS DE DRONE',
+    note: 'Prise de vue à la verticale, redressée sur la surface LiDAR et posée sur le relief.',
+  },
+  [CLOUD_LAYER]: {
+    panel: 'clouds',
+    title: 'Nuages de points',
+    label: CLOUD_LABEL,
+    pitch: 'Les points retrouvés dans les images, avant d’en faire des gaussian splats.',
+    show: 'AFFICHER LES NUAGES DE POINTS',
+    note: 'Les points que la reconstruction a retrouvés dans les images, calés sur le relief LiDAR : c’est d’eux que partent les gaussian splats.',
+  },
+};
+
+export const ImageryPanel = () => <DrawnPanel name={AERIAL_LAYER} />;
+/** Orthophotos de drone : leur panneau à elles, comme les avions ont le leur. */
+export const OrthophotoPanel = () => <DrawnPanel name={ORTHO_LAYER} />;
+/** Nuages de points : de même. */
+export const CloudPanel = () => <DrawnPanel name={CLOUD_LAYER} />;
+
+function DrawnPanel({ name }: { name: string }) {
   const app = useApp();
   const layers = useChild('layers');
   const walk = useChild('walk');
-  const layer = useLayer<Scan>(AERIAL_LAYER);
+  const kind = KINDS[name]!;
+  const layer = useLayer<Scan>(name);
   const feed = useSelector(layer, layerFeed);
   const scans = useSelector(layer, (snapshot) => snapshot.context.items);
   const scan = useSelector(layer, layerSelection);
   const kept = useSelector(layer, layerKept);
   const enabled = feed !== 'off';
   const send = (event: { type: 'layers.toggled' } | { type: 'layers.dismissed' } | { type: 'layers.picked' | 'layers.keepToggled'; id: string }) =>
-    layers.send({ ...event, layer: AERIAL_LAYER });
+    layers.send({ ...event, layer: name });
 
   return (
-    <Panel id="imagery" title="Imagerie" className="imagery-panel">
+    <Panel id={kind.panel} title={kind.title} className="imagery-panel">
       {!enabled && (
         <div className="aircraft-empty">
-          <p>Des lieux filmés au drone et reconstruits en volume, posés sur le relief.</p>
+          <p>{kind.pitch}</p>
           <button type="button" className="scene-btn" onClick={() => send({ type: 'layers.toggled' })}>
-            AFFICHER L’IMAGERIE AÉRIENNE
+            {kind.show}
           </button>
         </div>
       )}
 
       {enabled && scan && (
-        <section className="aircraft-card" aria-label={`${AERIAL_LABEL} : ${scan.name}`}>
+        <section className="aircraft-card" aria-label={`${kind.label} : ${scan.name}`}>
           <header className="aircraft-card-header">
             <div className="aircraft-card-title">
-              <span className="imagery-kicker">{AERIAL_LABEL}</span>
+              <span className="imagery-kicker">{kind.label}</span>
               <span className="imagery-name">{scan.name}</span>
             </div>
             <button
@@ -58,7 +96,7 @@ export function ImageryPanel() {
               <dd><a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.title}</a></dd>
             </div>
           </dl>
-          <p className="imagery-note">{scan.note ?? 'Vue reconstruite en volume à partir de la vidéo, puis calée sur le relief LiDAR.'}</p>
+          <p className="imagery-note">{scan.note ?? kind.note}</p>
           <div className="cctv-controls">
             <button
               type="button"
@@ -80,7 +118,7 @@ export function ImageryPanel() {
             >
               RETOUR
             </button>
-            {!scan.trace && <button
+            {isWalkable(scan) && <button
               type="button"
               className="scene-btn"
               title="Se poser au sol dans ce lieu et s'y promener"
@@ -119,7 +157,7 @@ export function ImageryPanel() {
       )}
 
       {enabled && (
-        <ul className="search-results aircraft-list" aria-label="Lieux en imagerie aérienne">
+        <ul className="search-results aircraft-list" aria-label={`Lieux — ${kind.label}`}>
           {scans.map((item) => (
             <li key={item.id}>
               <button

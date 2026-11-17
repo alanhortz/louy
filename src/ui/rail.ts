@@ -7,11 +7,13 @@
  */
 
 import {
-  HandRaisedIcon, InformationCircleIcon, LifebuoyIcon, PaperAirplaneIcon, PhotoIcon, Square3Stack3DIcon, SwatchIcon,
+  Cog6ToothIcon, GlobeEuropeAfricaIcon, HandRaisedIcon, InformationCircleIcon, LifebuoyIcon, PaperAirplaneIcon, PhotoIcon, Square3Stack3DIcon, SwatchIcon,
   VideoCameraIcon,
 } from '@heroicons/react/24/outline';
 import type { ComponentType, SVGProps } from 'react';
 import type { PanelId } from '../machines/chrome.machine.ts';
+import { DroneIcon } from './components/DroneIcon.tsx';
+import { PointCloudIcon } from './components/PointCloudIcon.tsx';
 
 export interface RailItem {
   panel: PanelId;
@@ -26,7 +28,11 @@ export const RAIL_ITEMS: readonly RailItem[] = [
   { panel: 'controls', label: 'Navigation', Icon: HandRaisedIcon },
   { panel: 'camera', label: 'Caméras', Icon: VideoCameraIcon },
   { panel: 'imagery', label: 'Imagerie', Icon: PhotoIcon },
+  { panel: 'orthophoto', label: 'Ortho drone', Icon: GlobeEuropeAfricaIcon },
+  { panel: 'clouds', label: 'Nuages de points', Icon: PointCloudIcon },
+  { panel: 'drones', label: 'Vols de drone', Icon: DroneIcon },
   { panel: 'aircraft', label: 'Avions', Icon: PaperAirplaneIcon },
   { panel: 'vessels', label: 'Bateaux', Icon: LifebuoyIcon },
+  { panel: 'settings', label: 'Réglages', Icon: Cog6ToothIcon },
   { panel: 'about', label: 'À propos', Icon: InformationCircleIcon },
 ];

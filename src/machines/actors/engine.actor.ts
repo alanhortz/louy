@@ -24,11 +24,14 @@ import { streetLabelStyle } from '../../engine/overlays/streetLabels.ts';
 import { filmMarkerStyle } from '../../engine/overlays/filmMarkers.ts';
 import { locationMarkerStyle } from '../../engine/overlays/locationMarker.ts';
 import { roadShieldStyle } from '../../engine/overlays/roadShields.ts';
-import { aerialMarkerStyle, artMarkerStyle, funMarkerStyle, objectMarkerStyle, survivalMarkerStyle } from '../../engine/overlays/scanMarkers.ts';
+import { aerialMarkerStyle, artMarkerStyle, backedMarkerStyle, droneMarkerStyle, cloudMarkerStyle, funMarkerStyle, sportsMarkerStyle, orthoMarkerStyle, objectMarkerStyle, survivalMarkerStyle } from '../../engine/overlays/scanMarkers.ts';
+import type { ClipKey, ScanClip } from '../../domain/clips.ts';
+import type { DroneFlight } from '../../domain/droneFlights.ts';
+import type { SatelliteImage } from '../../domain/satellite.ts';
 import type { CameraProjection } from '../../engine/CameraViewLayer.ts';
 import { SceneEngine, type Altimeter, type Flyover, type FollowTarget } from '../../engine/SceneEngine.ts';
 
-export type OverlayName = 'streets' | 'places' | 'cameras' | 'scans' | 'objects' | 'survival' | 'fun' | 'art' | 'vessels' | 'aircraft' | 'films' | 'location' | 'motorways';
+export type OverlayName = 'streets' | 'places' | 'cameras' | 'scans' | 'objects' | 'survival' | 'fun' | 'art' | 'vessels' | 'aircraft' | 'films' | 'location' | 'motorways' | 'orthophoto' | 'clouds' | 'sports' | 'backed' | 'drones';
 
 export interface ViewerMount {
   canvas: HTMLCanvasElement;
@@ -48,6 +51,10 @@ export type EngineCommand =
   | { type: 'viewer.flyoverRequested'; flyover: Flyover }
   /** Dernière image d'une caméra routière à poser sur le relief ; `null` pour la retirer. */
   | { type: 'viewer.cameraProjected'; projection: CameraProjection | null }
+  /** Vue « Satellite » : les images à tendre au-dessus du relief, la carte vue du dessus ; `null` pour la quitter. */
+  | { type: 'viewer.satelliteChanged'; images: SatelliteImage[] | null }
+  /** Séquences filmées à montrer en plus de celles des lieux dessinés (calque « Sports »). */
+  | { type: 'viewer.clipsChanged'; clips: ScanClip[] }
   | { type: 'viewer.orbitStopped' }
   | { type: 'viewer.followChanged'; target: FollowTarget | null }
   | { type: 'viewer.poseCaptureRequested' }
@@ -57,6 +64,13 @@ export type EngineCommand =
   /** `strict` : ne se poser que sur le point demandé, sans être emmené au sol le plus proche. */
   | { type: 'viewer.walkRequested'; scanId: string; x: number; y: number; azimuth?: number; strict?: boolean }
   | { type: 'viewer.walkStopped' }
+  /** Visite guidée : refaire le vol qui a filmé un lieu, la mettre en pause ou la reprendre, la quitter. */
+  | { type: 'viewer.tourRequested'; flight: { id?: string; fov: number; track: ClipKey[] } }
+  /** Vols de drone à montrer en vol dans la carte. */
+  | { type: 'viewer.droneFlightsChanged'; flights: DroneFlight[] }
+  | { type: 'viewer.tourPlayChanged'; playing: boolean }
+  | { type: 'viewer.tourStopped' }
+  | { type: 'viewer.tourRestarted' }
   /** Passer la visite en réalité virtuelle : à demander dans le geste même du visiteur. */
   | { type: 'viewer.vrRequested' }
   /** Trajectoire du vol sélectionné : chemin parcouru, estimation, instant désigné. */
@@ -65,6 +79,8 @@ export type EngineCommand =
 /** Ce que le moteur rapporte. */
 export type EngineReport =
   | { type: 'engine.ready' }
+  | { type: 'engine.tourEnded' }
+  | { type: 'engine.tourHeld' }
   | { type: 'engine.failed'; reason: string }
   | { type: 'engine.viewSettled'; pose: Pose }
   | { type: 'engine.poseCaptured'; pose: Pose }
@@ -95,9 +111,12 @@ export interface EngineInput {
   scans: Scan[];
   preload: Scan[];
   cameraProjection: CameraProjection | null;
+  satellite: SatelliteImage[] | null;
+  clips: ScanClip[];
+  droneFlights: DroneFlight[];
 }
 
-const OVERLAYS: readonly OverlayName[] = ['streets', 'places', 'cameras', 'scans', 'objects', 'survival', 'fun', 'art', 'vessels', 'aircraft', 'films', 'location', 'motorways'];
+const OVERLAYS: readonly OverlayName[] = ['streets', 'places', 'cameras', 'scans', 'objects', 'survival', 'fun', 'art', 'vessels', 'aircraft', 'films', 'location', 'motorways', 'orthophoto', 'clouds', 'sports', 'backed', 'drones'];
 
 export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport>(
   ({ input, sendBack, receive }) => {
@@ -122,6 +141,8 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
           onZoomedThrough: (x, y) => sendBack({ type: 'engine.zoomedThrough', x, y }),
           onWalkEntered: () => sendBack({ type: 'engine.walkEntered' }),
           onWalkFailed: () => sendBack({ type: 'engine.walkFailed' }),
+          onTourEnded: () => sendBack({ type: 'engine.tourEnded' }),
+          onTourHeld: () => sendBack({ type: 'engine.tourHeld' }),
           onImmersiveChanged: (immersive) => sendBack({ type: 'engine.immersiveChanged', immersive }),
           onClipPicked: (clipId) => sendBack({ type: 'engine.clipPicked', clipId }),
           onOverlayPicked: (layer, id, members) =>
@@ -145,6 +166,11 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
     engine.addOverlay('survival', survivalMarkerStyle);
     engine.addOverlay('fun', funMarkerStyle);
     engine.addOverlay('art', artMarkerStyle);
+    engine.addOverlay('backed', backedMarkerStyle);
+    engine.addOverlay('drones', droneMarkerStyle);
+    engine.addOverlay('orthophoto', orthoMarkerStyle);
+    engine.addOverlay('clouds', cloudMarkerStyle);
+    engine.addOverlay('sports', sportsMarkerStyle);
     engine.addOverlay('vessels', vesselMarkerStyle);
     engine.addOverlay('aircraft', aircraftMarkerStyle);
     engine.addOverlay('films', filmMarkerStyle);
@@ -161,6 +187,9 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
     engine.setScans(input.scans);
     engine.preloadScans(input.preload);
     engine.setCameraProjection(input.cameraProjection);
+    engine.setSatellite(input.satellite);
+    engine.setExtraClips(input.clips);
+    engine.setDroneFlights(input.droneFlights);
 
     receive((command) => {
       switch (command.type) {
@@ -179,11 +208,18 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
         case 'viewer.poseApplied': return engine.setPose(command.pose, { sharpen: command.sharpen });
         case 'viewer.flyoverRequested': return engine.flyOver(command.flyover);
         case 'viewer.cameraProjected': return engine.setCameraProjection(command.projection);
+        case 'viewer.satelliteChanged': return engine.setSatellite(command.images);
+        case 'viewer.clipsChanged': return engine.setExtraClips(command.clips);
         case 'viewer.orbitStopped': return engine.stopOrbit();
         case 'viewer.followChanged': return engine.follow(command.target);
         case 'viewer.pickArmed': return engine.armPick(command.armed);
         case 'viewer.walkRequested': return engine.startWalk(command.scanId, command.x, command.y, command.azimuth, command.strict);
         case 'viewer.walkStopped': return engine.stopWalk();
+        case 'viewer.tourRequested': return engine.startTour(command.flight);
+        case 'viewer.tourPlayChanged': return engine.setTourPlaying(command.playing);
+        case 'viewer.tourStopped': return engine.stopTour();
+        case 'viewer.droneFlightsChanged': return engine.setDroneFlights(command.flights);
+        case 'viewer.tourRestarted': return engine.restartTour();
         case 'viewer.vrRequested': return void engine.enterVr();
         case 'viewer.poseCaptureRequested':
           return sendBack({ type: 'engine.poseCaptured', pose: engine.getPose() });

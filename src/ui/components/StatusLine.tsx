@@ -9,7 +9,9 @@ export function StatusLine() {
   // les lieux dessinés dans la carte sont à l'écran : leurs auteurs sont crédités
   const imagery = useSelector(useApp(), (snapshot) => snapshot.context.imagery);
   const traces = useSelector(useApp(), (snapshot) => snapshot.context.traces);
-  const scans = [...drawnScans(imagery.selected, imagery.kept), ...traces];
+  const satellite = useSelector(useApp(), (snapshot) => snapshot.context.satellite);
+  const drawn = useSelector(useApp(), (snapshot) => snapshot.context.drawn);
+  const scans = [...drawnScans(imagery.selected, imagery.kept), ...Object.values(drawn).flatMap((layer) => drawnScans(layer.selected, layer.kept)), ...traces];
   return (
     <footer className="status-line">
       <span>{label}</span>
@@ -21,6 +23,11 @@ export function StatusLine() {
             {' · '}{scan.trace ? 'tracé' : 'images drone'} <a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.author}</a> {scan.credit.licence}
           </span>
         ))}
+        {satellite.map((image) => (
+          <span key={image.id}>
+            {' · '}images drone <a href={image.credit.url} target="_blank" rel="noreferrer">{image.credit.author}</a> {image.credit.licence}
+          </span>
+        )).slice(0, 1)}
       </span>
     </footer>
   );

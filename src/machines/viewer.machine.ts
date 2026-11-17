@@ -32,6 +32,8 @@ export type ViewerEmitted =
   | { type: 'viewer.zoomedThrough'; x: number; y: number }
   | { type: 'viewer.walkEntered' }
   | { type: 'viewer.walkFailed' }
+  | { type: 'viewer.tourEnded' }
+  | { type: 'viewer.tourHeld' }
   | { type: 'viewer.clipPicked'; clipId: string }
   | { type: 'viewer.captured'; blob: Blob | null; blank: boolean };
 
@@ -68,13 +70,16 @@ function remembered(context: ViewerContext, event: ViewerEvent): Partial<ViewerC
     case 'viewer.scansChanged': return { scans: event.scans };
     case 'viewer.scansPreloaded': return { preload: event.scans };
     case 'viewer.cameraProjected': return { cameraProjection: event.projection };
+    case 'viewer.satelliteChanged': return { satellite: event.images };
+    case 'viewer.clipsChanged': return { clips: event.clips };
+    case 'viewer.droneFlightsChanged': return { droneFlights: event.flights };
     default: return {};
   }
 }
 
 const COMMANDS = [
   'viewer.sceneChanged', 'viewer.overlayChanged', 'viewer.overlayActivated', 'viewer.scansChanged',
-  'viewer.scansPreloaded', 'viewer.cameraProjected',
+  'viewer.scansPreloaded', 'viewer.cameraProjected', 'viewer.satelliteChanged', 'viewer.clipsChanged', 'viewer.droneFlightsChanged',
   'viewer.poseApplied',
 ] as const;
 
@@ -100,11 +105,14 @@ export const viewerMachine = viewer.createMachine({
   context: ({ input }) => ({
     ...input,
     mount: null,
-    overlays: { streets: [], places: [], cameras: [], scans: [], objects: [], survival: [], fun: [], art: [], vessels: [], aircraft: [], films: [], location: [], motorways: [] },
-    active: { streets: null, places: null, cameras: null, scans: null, objects: null, survival: null, fun: null, art: null, vessels: null, aircraft: null, films: null, location: null, motorways: null },
+    overlays: { streets: [], places: [], cameras: [], scans: [], objects: [], survival: [], fun: [], art: [], vessels: [], aircraft: [], films: [], location: [], motorways: [], orthophoto: [], clouds: [], sports: [], backed: [], drones: [] },
+    active: { streets: null, places: null, cameras: null, scans: null, objects: null, survival: null, fun: null, art: null, vessels: null, aircraft: null, films: null, location: null, motorways: null, orthophoto: null, clouds: null, sports: null, backed: null, drones: null },
     scans: [],
     preload: [],
     cameraProjection: null,
+    satellite: null,
+    clips: [],
+    droneFlights: [],
     scanBuild: null,
     immersive: false,
     loading: true,
@@ -141,6 +149,12 @@ export const viewerMachine = viewer.createMachine({
         'viewer.pickArmed': { actions: 'command' },
         'viewer.walkRequested': { actions: 'command' },
         'viewer.walkStopped': { actions: 'command' },
+        'viewer.tourRequested': { actions: 'command' },
+        'viewer.tourPlayChanged': { actions: 'command' },
+        'viewer.tourStopped': { actions: 'command' },
+        'viewer.tourRestarted': { actions: 'command' },
+        'engine.tourEnded': { actions: sendParent((): ViewerEmitted => ({ type: 'viewer.tourEnded' })) },
+        'engine.tourHeld': { actions: sendParent((): ViewerEmitted => ({ type: 'viewer.tourHeld' })) },
         'viewer.vrRequested': { actions: 'command' },
         'engine.clipPicked': { actions: sendParent(({ event }): ViewerEmitted => ({ type: 'viewer.clipPicked', clipId: event.clipId })) },
         'engine.immersiveChanged': { actions: assign({ immersive: ({ event }) => event.immersive }) },

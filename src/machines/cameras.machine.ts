@@ -7,7 +7,7 @@
  * laisse la précédente à l'écran.
  */
 
-import { assign, fromPromise, sendParent, setup, type SnapshotFrom } from 'xstate';
+import { assign, enqueueActions, fromPromise, sendParent, setup, type SnapshotFrom } from 'xstate';
 import type { CameraPose } from '../domain/cameraView.ts';
 import type { CameraProjection } from '../engine/CameraViewLayer.ts';
 import type { CameraFeature } from '../engine/overlays/cameraMarkers.ts';
@@ -63,7 +63,7 @@ const selected = (context: CamerasContext): RoadCamera | null =>
 const selectedPose = (context: CamerasContext): CameraPose | null =>
   (context.selectedId ? context.poses[context.selectedId] ?? null : null);
 
-const toFeature = (camera: RoadCamera): CameraFeature => ({
+const toFeature = (camera: RoadCamera, view: boolean): CameraFeature => ({
   id: camera.id,
   x: camera.x,
   y: camera.y,
@@ -71,6 +71,7 @@ const toFeature = (camera: RoadCamera): CameraFeature => ({
   rank: 1,
   maxDistance: MARKER_RANGE,
   thumbnail: thumbnailUrl(camera.id),
+  view,
 });
 
 /** Caméra voisine dans la liste, en bouclant aux extrémités. */
@@ -120,7 +121,14 @@ export const camerasMachine = setup({
     }),
     deselect: assign({ selectedId: null, frame: null }),
     publish: sendParent(({ context }): CamerasEmitted =>
-      ({ type: 'cameras.changed', visible: true, features: context.cameras.map(toFeature) })),
+      ({ type: 'cameras.changed', visible: true, features: context.cameras.map((camera) => toFeature(camera, camera.id in context.poses)) })),
+    /** Les poses arrivent après la liste : les marqueurs déjà posés sont repeints. Sans liste, rien à repeindre. */
+    republish: enqueueActions(({ context, enqueue }) => {
+      if (context.cameras.length === 0) return;
+      enqueue.sendParent({
+        type: 'cameras.changed', visible: true, features: context.cameras.map((camera) => toFeature(camera, camera.id in context.poses)),
+      } satisfies CamerasEmitted);
+    }),
     withdraw: sendParent((): CamerasEmitted => ({ type: 'cameras.changed', visible: false, features: [] })),
     announceSelection: sendParent(({ context }): CamerasEmitted =>
       ({ type: 'cameras.selectionChanged', camera: selected(context) })),
@@ -168,7 +176,8 @@ export const camerasMachine = setup({
         id: 'cameras.poses',
         src: 'loadPoses',
         // les poses peuvent arriver après la première image : elle est alors posée à ce moment
-        onDone: { actions: [assign({ poses: ({ event }) => event.output }), 'announceProjection'] },
+        // les marqueurs sont repeints : ceux dont la vue est connue se distinguent
+        onDone: { actions: [assign({ poses: ({ event }) => event.output }), 'announceProjection', 'republish'] },
       },
       exit: ['deselect', 'announceSelection', 'announceProjection', 'withdraw'],
       on: { 'cameras.toggled': 'hidden' },
