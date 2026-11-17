@@ -29,8 +29,12 @@ const ANNOUNCEMENTS = [
   'app.clipRequested', 'viewer.clipPicked',
   // autoroutes
   'motorways.changed', 'motorways.flyRequested',
-  // satellite
-  'satellite.changed', 'satellite.flyRequested',
+  // vue satellite
+  'satellite.changed',
+  // visite guidée
+  'tour.started', 'tour.playChanged', 'tour.ended', 'tour.restarted', 'viewer.tourEnded', 'viewer.tourHeld',
+  // réglages
+  'settings.changed',
   // balade au sol
   'walk.aimChanged', 'viewer.groundPicked', 'viewer.zoomedThrough', 'walk.started', 'walk.ended', 'viewer.walkEntered', 'viewer.walkFailed',
   // film du temps

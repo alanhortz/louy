@@ -1,0 +1,34 @@
+[
+  {
+    "id": "namur-place-darmes",
+    "name": "Place d’Armes, Namur",
+    "src": "/satellite/namur-place-darmes.webp",
+    "west": 685369.5,
+    "south": 628006.6,
+    "east": 685488.8,
+    "north": 628262.5,
+    "top": 113.4,
+    "credit": {
+      "author": "Joeys Journeys",
+      "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
+      "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
+      "licence": "CC BY"
+    }
+  },
+  {
+    "id": "namur-rue-des-brasseurs",
+    "name": "Rue des Brasseurs et quai de Sambre, Namur",
+    "src": "/satellite/namur-rue-des-brasseurs.webp",
+    "west": 685031.9,
+    "south": 627934.1,
+    "east": 685173.8,
+    "north": 628091.5,
+    "top": 101.4,
+    "credit": {
+      "author": "Joeys Journeys",
+      "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
+      "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
+      "licence": "CC BY"
+    }
+  }
+]

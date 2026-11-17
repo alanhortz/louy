@@ -35,6 +35,8 @@ export interface Scan {
   fun?: FunKind;
   /** L'objet est une œuvre d'art de rue (fresque, lettrage, détail peint…) : elle aussi sur son calque. */
   art?: ArtKind;
+  /** L'objet relève d'un projet soutenu par un pouvoir public — la Wallonie : il a son calque, lui aussi. */
+  backed?: BackedBy;
   /**
    * Où la balade au sol commence dans ce lieu, en Lambert 2008, et vers où l'on regarde en
    * arrivant (cap en degrés) ; à défaut, à son ancrage, dans le cap de la carte.
@@ -47,10 +49,27 @@ export interface Scan {
    */
   trace?: boolean;
   /**
-   * Le lieu est une image du sol : des prises de vue faites à la verticale, redressées et posées sur le
-   * relief, une tache plate par case. Elle a son propre calque, « Satellite », et l'on ne s'y promène pas.
+   * Plus grande étendue du lieu au sol, en mètres, quand elle est petite : en dessous de
+   * `WALKABLE_SPAN`, il n'y a pas la place de s'y promener et la visite n'est pas proposée.
    */
-  satellite?: boolean;
+  span?: number;
+  /**
+   * Le lieu est une image du sol : des prises de vue faites à la verticale, redressées et posées sur le
+   * relief, une tache plate par case. Elle a son propre calque, « Ortho drone », et l'on ne s'y promène pas.
+   */
+  orthophoto?: boolean;
+  /**
+   * Le lieu est un nuage de points : ceux que la reconstruction a retrouvés dans les images, avant
+   * d'en faire des gaussian splats. Il a son calque, « Nuages de points ».
+   */
+  cloud?: boolean;
+  /** Le même relevé en haute définition, quand il existe : c'est le réglage de l'application qui choisit. */
+  hd?: { splats: string };
+  /**
+   * Où poser le marqueur, quand ce n'est pas sur l'ancrage : plusieurs relevés d'un même lieu
+   * (volume, orthophoto, nuage de points) ont le même ancrage, et leurs marqueurs se recouvriraient.
+   */
+  marker?: { x: number; y: number };
   /**
    * Finesses plus grossières d'un tracé : chacune remplace la précédente quand la vue s'éloigne
    * au-delà de `beyond` mètres, pour que le tracé reste lisible de loin.
@@ -126,6 +145,9 @@ export const OBJECTS_LABEL = 'Objets scannés';
 export const SURVIVAL_LABEL = 'Équipements de survie';
 export const FUN_LABEL = 'Fun';
 export const ART_LABEL = 'Street art';
+export const BACKED_LABEL = 'Soutenu par la Wallonie';
+export const ORTHO_LABEL = 'Ortho drone';
+export const CLOUD_LABEL = 'Nuages de points';
 
 /** Équipements de survie reconnus, et le nom de chacun à l'écran. */
 export const SURVIVAL_KINDS = { defibrillator: 'Défibrillateur' } as const;
@@ -134,6 +156,10 @@ export type SurvivalKind = keyof typeof SURVIVAL_KINDS;
 /** Objets de loisir reconnus, et le nom de chacun à l'écran. */
 export const FUN_KINDS = { arcade: 'Borne d’arcade' } as const;
 export type FunKind = keyof typeof FUN_KINDS;
+
+/** Soutiens reconnus, et le nom de chacun à l'écran. */
+export const BACKERS = { wallonie: 'Projet soutenu par la Wallonie' } as const;
+export type BackedBy = keyof typeof BACKERS;
 
 /** Genres d'art reconnus, et le nom de chacun à l'écran. */
 export const ART_KINDS = { street: 'Art de rue' } as const;
@@ -157,7 +183,11 @@ const isScan = (value: unknown): value is Scan => {
       && (scan.walk?.azimuth === undefined || Number.isFinite(scan.walk.azimuth))))
     && (scan.note === undefined || typeof scan.note === 'string')
     && (scan.trace === undefined || (typeof scan.splats === 'string' && typeof scan.trace === 'boolean'))
-    && (scan.satellite === undefined || (typeof scan.splats === 'string' && typeof scan.satellite === 'boolean'))
+    && (scan.span === undefined || (typeof scan.splats === 'string' && Number.isFinite(scan.span) && scan.span > 0))
+    && (scan.orthophoto === undefined || (typeof scan.splats === 'string' && typeof scan.orthophoto === 'boolean'))
+    && (scan.hd === undefined || (typeof scan.splats === 'string' && typeof scan.hd?.splats === 'string' && /^\/(?!\/)/.test(scan.hd.splats)))
+    && (scan.cloud === undefined || (typeof scan.splats === 'string' && typeof scan.cloud === 'boolean'))
+    && (scan.marker === undefined || (Number.isFinite(scan.marker?.x) && Number.isFinite(scan.marker?.y)))
     && (scan.legend === undefined || (Array.isArray(scan.legend)
       && scan.legend.every((entry) => typeof entry?.label === 'string' && /^#[0-9a-f]{6}$/i.test(entry.colour ?? ''))))
     && (scan.labels === undefined || (scan.trace === true && Array.isArray(scan.labels)
@@ -172,6 +202,8 @@ const isScan = (value: unknown): value is Scan => {
     && (scan.survival === undefined || (typeof scan.mesh === 'string' && scan.survival in SURVIVAL_KINDS))
     // de même un objet de loisir ; et un objet n'appartient qu'à une catégorie
     && (scan.fun === undefined || (typeof scan.mesh === 'string' && scan.fun in FUN_KINDS && scan.survival === undefined))
+    && (scan.backed === undefined || (typeof scan.mesh === 'string' && scan.backed in BACKERS
+      && scan.survival === undefined && scan.fun === undefined && scan.art === undefined))
     && (scan.art === undefined || (typeof scan.mesh === 'string' && scan.art in ART_KINDS
       && scan.survival === undefined && scan.fun === undefined));
 };
@@ -215,11 +247,21 @@ export const scanFlyover = (scan: Scan) => ({
 /** Point où la balade au sol commence dans un lieu, quand le visiteur n'en désigne pas un lui-même. */
 export const walkStart = (scan: Scan): { x: number; y: number; azimuth?: number } => scan.walk ?? { x: scan.x, y: scan.y };
 
-/** Scans dessinés dans la carte. */
-export const placeScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined && !scan.trace && !scan.satellite);
+/** Étendue en dessous de laquelle un lieu est trop petit pour qu'on s'y promène. */
+export const WALKABLE_SPAN = 30;
 
-/** Images du sol du calque « Satellite ». */
-export const satelliteScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined && scan.satellite === true);
+/** Peut-on se poser au sol dans ce lieu et s'y promener ? Ni dans un tracé, ni dans une image du sol, ni dans un lieu de quelques mètres. */
+export const isWalkable = (scan: Scan): boolean =>
+  scan.splats !== undefined && !scan.trace && !scan.orthophoto && !scan.cloud && (scan.span === undefined || scan.span >= WALKABLE_SPAN);
+
+/** Scans dessinés dans la carte. */
+export const placeScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined && !scan.trace && !scan.orthophoto && !scan.cloud);
+
+/** Nuages de points du calque du même nom. */
+export const cloudScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined && scan.cloud === true);
+
+/** Images du sol du calque « Ortho drone ». */
+export const orthophotoScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined && scan.orthophoto === true);
 
 /** Tracés à l'échelle du territoire : ils ne sont pas des lieux filmés, et ont leur propre calque. */
 export const traceScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined && scan.trace === true);
@@ -230,12 +272,15 @@ export const isSurvivalScan = (scan: Scan): boolean => scan.survival !== undefin
 /** L'objet est là pour s'amuser, signalé sur son propre calque. */
 export const isFunScan = (scan: Scan): boolean => scan.fun !== undefined;
 
+/** L'objet relève d'un projet soutenu par la Wallonie, signalé sur son propre calque. */
+export const isBackedScan = (scan: Scan): boolean => scan.backed !== undefined;
+
 /** L'objet est une œuvre d'art de rue, signalée sur son propre calque. */
 export const isArtScan = (scan: Scan): boolean => scan.art !== undefined;
 
 /** Nom du calque auquel un objet appartient : c'est ce que sa visionneuse annonce. */
 export const objectLabel = (scan: Scan): string =>
-  (isSurvivalScan(scan) ? SURVIVAL_LABEL : isFunScan(scan) ? FUN_LABEL : isArtScan(scan) ? ART_LABEL : OBJECTS_LABEL);
+  (isSurvivalScan(scan) ? SURVIVAL_LABEL : isFunScan(scan) ? FUN_LABEL : isArtScan(scan) ? ART_LABEL : isBackedScan(scan) ? BACKED_LABEL : OBJECTS_LABEL);
 
 /** Le scan est un objet, à examiner dans la visionneuse. */
 export const isObjectScan = (scan: Scan): boolean => scan.mesh !== undefined;
@@ -254,6 +299,9 @@ export function fitFlyover(scans: readonly Scan[]) {
   return { x, y, height: Math.max(150, scansSpread(scans) * 1.1), orbit: false };
 }
 
-/** Lecture tolérante du manifeste : toute entrée incomplète est écartée. */
+/**
+ * Lecture tolérante du manifeste : toute entrée incomplète est écartée, ainsi que celles qui sont
+ * mises de côté (`disabled`) — un relevé retiré le temps d'être refait, sans perdre sa description.
+ */
 export const parseScans = (manifest: unknown): Scan[] =>
-  Array.isArray(manifest) ? manifest.filter(isScan) : [];
+  Array.isArray(manifest) ? manifest.filter((entry) => (entry as { disabled?: unknown } | null)?.disabled !== true).filter(isScan) : [];

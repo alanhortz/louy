@@ -1,42 +1,37 @@
 /**
- * Machine du calque « Satellite » : des prises de vue faites à la verticale, redressées
- * en une image du sol et posées sur le relief. Un calque comme les autres — on l'allume,
- * on l'éteint — sans marqueur ni sélection : allumé, il est dessiné tout entier.
+ * Machine de la vue « Satellite » : la carte vue du dessus, avec les prises de
+ * vue redressées tendues au-dessus du relief. Ce n'est pas un calque : c'est une
+ * façon de regarder, qu'on enclenche et qu'on quitte par le globe de la barre.
  *
  *   probing ──▶ absent                      (le site ne publie aucune image)
- *          └──▶ hidden ⇄ shown
+ *          └──▶ off ⇄ on
  */
 
 import { assign, fromPromise, sendParent, setup, type SnapshotFrom } from 'xstate';
-import { satelliteScans, type Scan } from '../domain/scans.ts';
-import { loadScans } from '../services/scans.ts';
-import type { LayerFeed } from './places.machine.ts';
+import type { SatelliteImage } from '../domain/satellite.ts';
+import { loadSatelliteImages } from '../services/satellite.ts';
 
 export type SatelliteEvent = { type: 'satellite.toggled' };
 
 export type SatelliteEmitted =
-  /** `mosaics` : les images à dessiner ; aucune quand le calque est éteint. */
-  | { type: 'satellite.changed'; visible: boolean; mosaics: Scan[] }
-  /** Le visiteur vient d'allumer le calque : la vue va se placer au-dessus de l'image. */
-  | { type: 'satellite.flyRequested'; mosaic: Scan };
+  /** `byVisitor` : le visiteur vient d'enclencher la vue ; elle peut l'emmener au-dessus d'une image. */
+  { type: 'satellite.changed'; active: boolean; images: SatelliteImage[]; byVisitor: boolean };
 
 export const satelliteMachine = setup({
   types: {
-    context: {} as { mosaics: Scan[]; startsVisible: boolean },
+    context: {} as { images: SatelliteImage[] },
     events: {} as SatelliteEvent,
-    input: {} as { visible: boolean } | undefined,
   },
   actors: {
-    load: fromPromise<Scan[]>(async ({ signal }) => satelliteScans(await loadScans(signal))),
+    load: fromPromise<SatelliteImage[]>(({ signal }) => loadSatelliteImages(signal)),
   },
   actions: {
-    publish: sendParent(({ context }): SatelliteEmitted => ({ type: 'satellite.changed', visible: true, mosaics: context.mosaics })),
-    withdraw: sendParent((): SatelliteEmitted => ({ type: 'satellite.changed', visible: false, mosaics: [] })),
-    fly: sendParent(({ context }): SatelliteEmitted => ({ type: 'satellite.flyRequested', mosaic: context.mosaics[0]! })),
+    engage: sendParent(({ context }): SatelliteEmitted => ({ type: 'satellite.changed', active: true, images: context.images, byVisitor: true })),
+    release: sendParent((): SatelliteEmitted => ({ type: 'satellite.changed', active: false, images: [], byVisitor: true })),
   },
 }).createMachine({
   id: 'satellite',
-  context: ({ input }) => ({ mosaics: [], startsVisible: input?.visible ?? false }),
+  context: { images: [] },
   initial: 'probing',
   states: {
     probing: {
@@ -45,22 +40,20 @@ export const satelliteMachine = setup({
         src: 'load',
         onDone: [
           { guard: ({ event }) => event.output.length === 0, target: 'absent' },
-          { guard: ({ context }) => context.startsVisible, target: 'shown', actions: assign({ mosaics: ({ event }) => event.output }) },
-          { target: 'hidden', actions: assign({ mosaics: ({ event }) => event.output }) },
+          { target: 'off', actions: assign({ images: ({ event }) => event.output }) },
         ],
         onError: 'absent',
       },
     },
-    /** Rien à montrer : le calque n'est même pas proposé. */
+    /** Rien à montrer : le globe n'est même pas proposé. */
     absent: {},
-    hidden: {
-      // la vue ne recule que si c'est le visiteur qui allume : un lien partagé garde la sienne
-      on: { 'satellite.toggled': { target: 'shown', actions: 'fly' } },
+    off: {
+      on: { 'satellite.toggled': 'on' },
     },
-    shown: {
-      entry: 'publish',
-      exit: 'withdraw',
-      on: { 'satellite.toggled': 'hidden' },
+    on: {
+      entry: 'engage',
+      exit: 'release',
+      on: { 'satellite.toggled': 'off' },
     },
   },
 });
@@ -69,5 +62,5 @@ export const satelliteMachine = setup({
 
 type SatelliteSnapshot = SnapshotFrom<typeof satelliteMachine>;
 
-export const satelliteAvailable = (snapshot: SatelliteSnapshot): boolean => snapshot.matches('hidden') || snapshot.matches('shown');
-export const satelliteFeed = (snapshot: SatelliteSnapshot): LayerFeed => (snapshot.matches('shown') ? 'nominal' : 'off');
+export const satelliteAvailable = (snapshot: SatelliteSnapshot): boolean => snapshot.matches('off') || snapshot.matches('on');
+export const satelliteActive = (snapshot: SatelliteSnapshot): boolean => snapshot.matches('on');

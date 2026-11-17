@@ -7,7 +7,7 @@
 import { setup } from 'xstate';
 import { acknowledge } from '../services/preferences.ts';
 
-export const PANELS = ['layers', 'controls', 'render', 'camera', 'imagery', 'aircraft', 'vessels', 'about'] as const;
+export const PANELS = ['layers', 'controls', 'render', 'camera', 'imagery', 'orthophoto', 'clouds', 'drones', 'aircraft', 'vessels', 'settings', 'about'] as const;
 export type PanelId = (typeof PANELS)[number];
 
 export type ChromeEvent =
@@ -81,8 +81,12 @@ export const chromeMachine = chrome.createMachine({
     render: panelRegion('render'),
     camera: panelRegion('camera'),
     imagery: panelRegion('imagery'),
+    orthophoto: panelRegion('orthophoto'),
+    clouds: panelRegion('clouds'),
+    drones: panelRegion('drones'),
     aircraft: panelRegion('aircraft'),
     vessels: panelRegion('vessels'),
+    settings: panelRegion('settings'),
     about: panelRegion('about'),
   },
 });

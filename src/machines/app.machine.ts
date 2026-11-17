@@ -13,13 +13,13 @@
  *   films ──▶ viewer, timeline             timeline ⇄ viewer
  */
 
-import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate';
+import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom, enqueueActions } from 'xstate';
 import { PROJECT } from '../config/project.ts';
 import { QUALITY_PROFILES } from '../domain/quality.ts';
 import { fitFlyover, scanFlyover, type Scan } from '../domain/scans.ts';
 import { resolveScene } from '../domain/scene.ts';
 import { timelineSteps, timelineTint, type FilmFraming } from '../domain/timeline.ts';
-import { DEFAULT_VIEW, HOME_IMAGERY, encodeView, viewUrl, type View } from '../domain/view.ts';
+import { HOME_IMAGERY, PINNED_IMAGERY, encodeView, homePose, viewUrl, type View } from '../domain/view.ts';
 import type { SupportReport } from '../services/capabilities.ts';
 import { isAcknowledged } from '../services/preferences.ts';
 import { readRecentSearches } from '../services/recentSearches.ts';
@@ -36,8 +36,8 @@ import { objectMachine, type ObjectEmitted } from './object.machine.ts';
 import { placesMachine, type PlacesEmitted } from './places.machine.ts';
 import { createLayersMachine, type LayersEmitted } from './layers.machine.ts';
 import {
-  AERIAL_LAYER, ART_LAYER, FUN_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER,
-  aerialLayer, artLayer, drawnScans, funLayer, objectsLayer, survivalLayer,
+  AERIAL_LAYER, ART_LAYER, BACKED_LAYER, CLOUD_LAYER, DRONES_LAYER, DRAWN_LAYERS, FUN_LAYER, OBJECTS_LAYER, ORTHO_LAYER, SPORTS_LAYER, SURVIVAL_LAYER,
+  aerialLayer, artLayer, backedLayer, cloudLayer, dronesLayer, drawnScans, funLayer, objectsLayer, orthoLayer, sportsLayer, survivalLayer,
 } from './scans.layer.ts';
 import type { OverlayName } from './actors/engine.actor.ts';
 import { filmsMachine, type FilmsEmitted } from './films.machine.ts';
@@ -54,9 +54,16 @@ import { walkMachine, type WalkEmitted } from './walk.machine.ts';
 import { coordinatesMachine } from './coordinates.machine.ts';
 import { locationMachine, type LocationEmitted } from './location.machine.ts';
 import { motorwaysMachine, type MotorwaysEmitted } from './motorways.machine.ts';
+import type { DroneFlight } from '../domain/droneFlights.ts';
+import type { SportSequence } from '../domain/sports.ts';
 import { satelliteMachine, type SatelliteEmitted } from './satellite.machine.ts';
+import { tourMachine, type TourEmitted } from './tour.machine.ts';
+import { settingsMachine, type SettingsEmitted } from './settings.machine.ts';
+import { satelliteIn, scanIn, type Definition } from '../domain/definition.ts';
+import { readDefinition } from '../services/definition.ts';
+import { satelliteDestination, type SatelliteImage } from '../domain/satellite.ts';
 import { cinemaMachine } from './cinema.machine.ts';
-import { locationHeight, nearDevice, type DevicePosition } from '../domain/whereabouts.ts';
+import { locationHeight, nearDevice, type DevicePosition, locationLabel } from '../domain/whereabouts.ts';
 import { WALK_REACH, nearestPlace } from '../domain/walk.ts';
 import { clipViewPose, type ScanClip } from '../domain/clips.ts';
 
@@ -83,7 +90,7 @@ export type AppEvent =
   | StreetsEmitted
   | StreetSearchEmitted
   | RecentsEmitted
-  | LayersEmitted<Scan>
+  | LayersEmitted<Scan> | LayersEmitted<SportSequence> | LayersEmitted<DroneFlight>
   | ObjectEmitted
   | AircraftEmitted
   | VesselsEmitted
@@ -93,7 +100,9 @@ export type AppEvent =
   | WalkEmitted
   | LocationEmitted
   | MotorwaysEmitted
-  | SatelliteEmitted;
+  | SatelliteEmitted
+  | SettingsEmitted
+  | TourEmitted;
 
 export interface AppInput {
   /** Vue lue dans l'URL au chargement. */
@@ -111,12 +120,26 @@ interface AppContext extends AppInput {
   places: Scan[];
   /** Lieu où le visiteur marche : dessiné lui aussi, quelle que soit la sélection. */
   walk: Scan | null;
+  /** Lieu dont on refait le vol en visite guidée : dessiné lui aussi tant qu'elle dure. */
+  tour: Scan | null;
+  /** Lieu que la caméra du drone regarde, par son identifiant : il peut être demandé avant que la liste des lieux n'arrive. */
+  tourScanId: string | null;
+  /** Le lien d'arrivée demandait la vue cockpit : on y entre dès que son vol est connu, une seule fois. */
+  cockpitPending: boolean;
+  /** Vols de drone publiés : montrés en vol quand leur calque est allumé. */
+  droneFlights: DroneFlight[];
   /** Position de l'appareil, si le visiteur l'a demandée : en mémoire seulement, pour ne jamais l'écrire dans l'adresse. */
   device: DevicePosition | null;
   /** Tracés dessinés par le calque « Autoroutes » : aucun quand il est éteint. */
   traces: Scan[];
-  /** Images du sol du calque « Satellite », quand il est allumé. */
-  mosaics: Scan[];
+  /** Orthophotos de drone et nuages de points dessinés dans la carte, par calque. */
+  drawn: Record<string, { selected: Scan | null; kept: Scan[] }>;
+  /** Séquence sportive sélectionnée : son écran est dressé dans la carte. */
+  sport: SportSequence | null;
+  /** Définition dans laquelle les relevés se dessinent : le réglage de l'application. */
+  definition: Definition;
+  /** Images de la vue « Satellite », tant qu'elle est enclenchée. */
+  satellite: SatelliteImage[];
 }
 
 /** Hauteur de survol d'un site touristique, et d'une caméra routière. */
@@ -164,6 +187,8 @@ export const appMachine = setup({
       location: 'location';
       motorways: 'motorways';
       satellite: 'satellite';
+      settings: 'settings';
+      tour: 'tour';
       cinema: 'cinema';
       acquisition: 'acquisition';
       activity: 'activity';
@@ -183,7 +208,7 @@ export const appMachine = setup({
     streetSearch: streetSearchMachine,
     recents: recentsMachine,
     // les calques à sélection naissent tous du même état générique, sous un orchestrateur
-    layers: createLayersMachine([aerialLayer, objectsLayer, artLayer, survivalLayer, funLayer]),
+    layers: createLayersMachine([aerialLayer, orthoLayer, cloudLayer, dronesLayer, sportsLayer, objectsLayer, backedLayer, artLayer, survivalLayer, funLayer]),
     object: objectMachine,
     aircraft: aircraftMachine,
     vessels: vesselsMachine,
@@ -195,6 +220,8 @@ export const appMachine = setup({
     location: locationMachine,
     motorways: motorwaysMachine,
     satellite: satelliteMachine,
+    settings: settingsMachine,
+    tour: tourMachine,
     cinema: cinemaMachine,
     acquisition: acquisitionMachine,
     activity: activityMachine,
@@ -225,20 +252,30 @@ export const appMachine = setup({
       if (nearDevice(context.device, context.view.pose.x, context.view.pose.y)) return;
       history.replaceState(null, '', `#${encodeView(context.view)}`);
     },
+    /** Retient le marqueur actif d'un calque, pour l'adresse : un lien partagé rouvre ce que l'on regardait. */
+    rememberActive: assign({
+      view: ({ context, event }) => {
+        if (event.type !== 'layers.selectionChanged') return context.view;
+        const { [event.layer]: _gone, ...others } = context.view.active ?? {};
+        return { ...context.view, active: event.item ? { ...others, [event.layer]: event.item.id } : others };
+      },
+    }),
     /** Dessine dans la carte l'imagerie sélectionnée et celles que le visiteur garde affichées. */
     drawImagery: sendTo('viewer', ({ context }) =>
       ({
         type: 'viewer.scansChanged',
         scans: [
           ...drawnScans(context.imagery.selected, context.walk ? [context.walk, ...context.imagery.kept.filter((scan) => scan !== context.walk)] : context.imagery.kept),
-          ...context.mosaics,
+          // orthophotos de drone et nuages de points : dessinés comme l'imagerie, chacun depuis son calque
+          ...Object.values(context.drawn).flatMap((layer) => drawnScans(layer.selected, layer.kept)),
+          ...context.places.filter((place) => place.id === context.tourScanId),
           ...context.traces,
-        ],
+        ].map((scan) => scanIn(scan, context.definition)),
       })),
   },
 }).createMachine({
   id: 'app',
-  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] }, places: [], walk: null, device: null, traces: [], mosaics: [] }),
+  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] }, places: [], walk: null, tour: null, tourScanId: null, cockpitPending: input.view.cockpit === true, droneFlights: [], device: null, traces: [], drawn: {}, sport: null, definition: 'standard', satellite: [] }),
   initial: 'checking',
   states: {
     checking: {
@@ -278,7 +315,8 @@ export const appMachine = setup({
             quality: QUALITY_PROFILES[context.support?.profile ?? 'desktop'](),
             source: resolveScene(context.view.scene),
             pose: context.view.pose,
-            sharpStart: context.startsAtHome,
+            // la vue d'accueil est déjà cadrée de près : la rapprocher encore la sortirait de son cadre
+            sharpStart: false,
             // la vue d'accueil s'ouvre par un tour de la citadelle, sauf si le visiteur évite les animations
             orbitStart: context.startsAtHome && !context.support?.reducedMotion,
           }),
@@ -319,9 +357,15 @@ export const appMachine = setup({
               [SURVIVAL_LAYER]: context.view.overlays.survival,
               [FUN_LAYER]: context.view.overlays.fun,
               [ART_LAYER]: context.view.overlays.art,
+              [BACKED_LAYER]: context.view.overlays.backed,
+              [ORTHO_LAYER]: context.view.overlays.orthophoto,
+              [CLOUD_LAYER]: context.view.overlays.clouds,
+              [SPORTS_LAYER]: context.view.overlays.sports,
+              [DRONES_LAYER]: context.view.overlays.drones,
             },
             // à l'accueil, la citadelle est déjà là, reconstruite, sous la caméra qui en fait le tour
-            kept: (context.startsAtHome ? { [AERIAL_LAYER]: HOME_IMAGERY } : {}) as Record<string, readonly string[]>,
+            selected: context.view.active,
+            kept: { [AERIAL_LAYER]: context.startsAtHome ? HOME_IMAGERY : PINNED_IMAGERY } as Record<string, readonly string[]>,
             distance: context.view.pose.distance,
           }),
         },
@@ -336,7 +380,9 @@ export const appMachine = setup({
         { id: 'location', src: 'location' },
         { id: 'cinema', src: 'cinema' },
         { id: 'motorways', src: 'motorways', input: ({ context }) => ({ visible: context.view.overlays.motorways }) },
-        { id: 'satellite', src: 'satellite', input: ({ context }) => ({ visible: context.view.overlays.satellite }) },
+        { id: 'satellite', src: 'satellite' },
+        { id: 'tour', src: 'tour' },
+        { id: 'settings', src: 'settings', input: () => ({ definition: readDefinition() }) },
         {
           id: 'acquisition',
           src: 'acquisition',
@@ -484,7 +530,7 @@ export const appMachine = setup({
           },
           {
             // imagerie aérienne ou objets scannés : le calque reçoit ce que le marqueur touché rassemble
-            guard: ({ event }) => [AERIAL_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER, FUN_LAYER, ART_LAYER].includes(event.layer),
+            guard: ({ event }) => [...DRAWN_LAYERS, SPORTS_LAYER, DRONES_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER, FUN_LAYER, ART_LAYER, BACKED_LAYER].includes(event.layer),
             actions: sendTo('layers', ({ event }) =>
               ({ type: 'layers.picked', layer: event.layer, id: event.id, members: event.members })),
           },
@@ -579,7 +625,8 @@ export const appMachine = setup({
               sendTo('viewer', ({ event }) => ({ type: 'viewer.scansPreloaded', scans: event.items })),
             ],
           },
-          { guard: ({ event }) => event.layer === AERIAL_LAYER, actions: assign({ places: ({ event }) => event.items }) },
+          { guard: ({ event }) => event.layer === AERIAL_LAYER, actions: [assign({ places: ({ event }) => event.items }), 'drawImagery'] },
+          { guard: ({ event }) => event.layer === DRONES_LAYER, actions: assign({ droneFlights: ({ event }) => event.items as DroneFlight[] }) },
         ],
         'layers.changed': {
           actions: [
@@ -594,12 +641,44 @@ export const appMachine = setup({
         },
         'layers.selectionChanged': [
           {
+            // un vol de drone n'est en vol sur la carte que lorsque son marqueur est actif ; son panneau s'ouvre avec lui
+            guard: ({ event }) => event.layer === DRONES_LAYER,
+            actions: [
+              sendTo('viewer', ({ event }) =>
+                ({ type: 'viewer.overlayActivated', layer: event.layer as OverlayName, id: event.markerId })),
+              sendTo('viewer', ({ event }) => ({ type: 'viewer.droneFlightsChanged', flights: event.item ? [event.item as DroneFlight] : [] })),
+              // arrivé par un lien de vue cockpit : on entre dans la caméra de ce vol, une fois
+              enqueueActions(({ context, event, enqueue }) => {
+                if (!context.cockpitPending || !event.item) return;
+                enqueue.assign({ cockpitPending: false });
+                enqueue.sendTo('tour', { type: 'tour.requested', flight: event.item as DroneFlight });
+              }),
+              sendTo('chrome', ({ event }) => ({ type: event.item ? 'chrome.revealed' : 'chrome.dismissed', panel: 'drones' })),
+              'rememberActive', 'syncUrl',
+            ],
+          },
+          {
+            // une séquence sportive sélectionnée : son écran se dresse là où elle a été tournée
+            guard: ({ event }) => event.layer === SPORTS_LAYER,
+            actions: [
+              assign({ sport: ({ event }) => event.item as SportSequence | null }),
+              sendTo('viewer', ({ event }) =>
+                ({ type: 'viewer.overlayActivated', layer: event.layer as OverlayName, id: event.markerId })),
+              'rememberActive', 'syncUrl',
+              sendTo('viewer', ({ event }) =>
+                ({ type: 'viewer.clipsChanged', clips: event.item ? [(event.item as SportSequence).clip] : [] })),
+            ],
+          },
+          {
             // une imagerie aérienne sélectionnée est dessinée dans la carte, et son panneau s'ouvre
             guard: ({ event }) => event.layer === AERIAL_LAYER,
             actions: [
-              assign({ imagery: ({ context, event }) => ({ ...context.imagery, selected: event.item }) }),
+              assign({
+                imagery: ({ context, event }) => ({ ...context.imagery, selected: event.item }),
+              }),
               sendTo('viewer', ({ event }) =>
                 ({ type: 'viewer.overlayActivated', layer: event.layer as OverlayName, id: event.markerId })),
+              'rememberActive', 'syncUrl',
               'drawImagery',
               sendTo('chrome', ({ event }) => (event.item
                 ? { type: 'chrome.revealed', panel: 'imagery' }
@@ -607,15 +686,48 @@ export const appMachine = setup({
             ],
           },
           {
-            actions: sendTo('viewer', ({ event }) =>
-              ({ type: 'viewer.overlayActivated', layer: event.layer as OverlayName, id: event.markerId })),
+            // orthophoto de drone, nuage de points : dessinés de même, chacun avec sa fiche dans son panneau
+            guard: ({ event }) => DRAWN_LAYERS.includes(event.layer),
+            actions: [
+              assign({
+                drawn: ({ context, event }) =>
+                  ({ ...context.drawn, [event.layer]: { kept: context.drawn[event.layer]?.kept ?? [], selected: event.item } }),
+              }),
+              sendTo('viewer', ({ event }) =>
+                ({ type: 'viewer.overlayActivated', layer: event.layer as OverlayName, id: event.markerId })),
+              'rememberActive', 'syncUrl',
+              'drawImagery',
+              sendTo('chrome', ({ event }) => ({
+                type: event.item ? 'chrome.revealed' : 'chrome.dismissed',
+                panel: event.layer === ORTHO_LAYER ? 'orthophoto' : 'clouds',
+              })),
+            ],
+          },
+          {
+            actions: [
+              sendTo('viewer', ({ event }) =>
+                ({ type: 'viewer.overlayActivated', layer: event.layer as OverlayName, id: event.markerId })),
+              'rememberActive', 'syncUrl',
+            ],
           },
         ],
         // les imageries que le visiteur garde affichées restent dessinées, quelle que soit la sélection
-        'layers.keptChanged': {
-          guard: ({ event }) => event.layer === AERIAL_LAYER,
-          actions: [assign({ imagery: ({ context, event }) => ({ ...context.imagery, kept: event.items }) }), 'drawImagery'],
-        },
+        'layers.keptChanged': [
+          {
+            guard: ({ event }) => event.layer === AERIAL_LAYER,
+            actions: [assign({ imagery: ({ context, event }) => ({ ...context.imagery, kept: event.items }) }), 'drawImagery'],
+          },
+          {
+            guard: ({ event }) => DRAWN_LAYERS.includes(event.layer),
+            actions: [
+              assign({
+                drawn: ({ context, event }) =>
+                  ({ ...context.drawn, [event.layer]: { selected: context.drawn[event.layer]?.selected ?? null, kept: event.items } }),
+              }),
+              'drawImagery',
+            ],
+          },
+        ],
         // le marqueur touché rassemble plusieurs lieux : la caméra s'en approche, et chacun retrouve le sien
         'layers.expandRequested': {
           actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.flyoverRequested', flyover: fitFlyover(event.items) })),
@@ -623,8 +735,24 @@ export const appMachine = setup({
         // l'élément vient d'être désigné : un objet s'ouvre dans sa visionneuse, la caméra se rend sur un lieu
         'layers.activated': [
           {
+            // un vol de drone désigné : la vue va se placer au-dessus de son trajet
+            guard: ({ event }) => event.layer === DRONES_LAYER,
+            actions: sendTo('viewer', ({ event }) => {
+              const track = (event.item as DroneFlight).track, middle = track[Math.floor(track.length / 2)]!;
+              return { type: 'viewer.flyoverRequested', flyover: { x: middle.x, y: middle.y, height: 260, orbit: false } };
+            }),
+          },
+          {
+            // la vue se place devant l'écran, dans l'axe de la caméra qui a filmé
+            guard: ({ event }) => event.layer === SPORTS_LAYER,
+            actions: [
+              sendTo('viewer', { type: 'viewer.orbitStopped' }),
+              sendTo('viewer', ({ event }) => ({ type: 'viewer.poseApplied', pose: clipViewPose((event.item as SportSequence).clip) })),
+            ],
+          },
+          {
             // objets scannés, équipements de survie et objets de loisir s'examinent dans la même visionneuse
-            guard: ({ event }) => [OBJECTS_LAYER, SURVIVAL_LAYER, FUN_LAYER, ART_LAYER].includes(event.layer),
+            guard: ({ event }) => [OBJECTS_LAYER, SURVIVAL_LAYER, FUN_LAYER, ART_LAYER, BACKED_LAYER].includes(event.layer),
             actions: sendTo('object', ({ event }) => ({ type: 'object.opened', scan: event.item, group: event.siblings })),
           },
           {
@@ -639,6 +767,7 @@ export const appMachine = setup({
             sendTo('layers', { type: 'layers.dismissed', layer: SURVIVAL_LAYER }),
             sendTo('layers', { type: 'layers.dismissed', layer: FUN_LAYER }),
             sendTo('layers', { type: 'layers.dismissed', layer: ART_LAYER }),
+            sendTo('layers', { type: 'layers.dismissed', layer: BACKED_LAYER }),
           ],
         },
 
@@ -659,13 +788,15 @@ export const appMachine = setup({
             }),
           },
         ],
-        // comme dans une carte grand public : zoomer encore, au plus près d'un lieu filmé, y fait entrer à pied
-        'viewer.zoomedThrough': {
-          guard: ({ context, event }) => context.view.overlays.scans && context.walk === null
-            && (nearestPlace(context.places, event.x, event.y)?.distance ?? Infinity) <= WALK_REACH,
-          actions: sendTo('walk', ({ context, event }) =>
-            ({ type: 'walk.placed', scan: nearestPlace(context.places, event.x, event.y)!.scan, x: event.x, y: event.y, byZoom: true })),
-        },
+        // comme dans une carte grand public : zoomer encore, au plus près d'un lieu filmé, y fait entrer — à pied, ou en visite guidée
+        'viewer.zoomedThrough': [
+          {
+            guard: ({ context, event }) => context.view.overlays.scans && context.walk === null && context.tour === null
+              && (nearestPlace(context.places, event.x, event.y)?.distance ?? Infinity) <= WALK_REACH,
+            actions: sendTo('walk', ({ context, event }) =>
+              ({ type: 'walk.placed', scan: nearestPlace(context.places, event.x, event.y)!.scan, x: event.x, y: event.y, byZoom: true })),
+          },
+        ],
         // le lieu est dessiné même si son calque est éteint ; la balade commence dès qu'il est arrivé
         'walk.started': {
           actions: [
@@ -677,6 +808,30 @@ export const appMachine = setup({
         'walk.ended': {
           actions: [assign({ walk: null }), sendTo('viewer', { type: 'viewer.walkStopped' }), 'drawImagery'],
         },
+        /* ---- visite guidée : le vol du drone refait à sa vitesse ; en sortir rend la vue d'avant ---- */
+        'tour.started': {
+          actions: [
+            // le lieu reconstruit à partir de ce vol est dessiné : c'est lui que la caméra regarde
+            assign({
+              tourScanId: ({ event }) => event.flight.scanId ?? null,
+              tour: ({ context, event }) => context.places.find((place) => place.id === event.flight.scanId) ?? null,
+              view: ({ context }) => ({ ...context.view, cockpit: true }),
+            }),
+            'syncUrl',
+            'drawImagery',
+            sendTo('viewer', ({ event }) => ({ type: 'viewer.tourRequested', flight: { id: event.flight.id, fov: event.flight.fov, track: event.flight.track } })),
+          ],
+        },
+        'tour.playChanged': { actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.tourPlayChanged', playing: event.playing })) },
+        'tour.ended': {
+          actions: [
+            assign({ tour: null, tourScanId: null, view: ({ context }) => { const { cockpit: _left, ...view } = context.view; return view; } }),
+            sendTo('viewer', { type: 'viewer.tourStopped' }), 'drawImagery', 'syncUrl',
+          ],
+        },
+        'tour.restarted': { actions: sendTo('viewer', { type: 'viewer.tourRestarted' }) },
+        'viewer.tourEnded': { actions: sendTo('tour', { type: 'tour.finished' }) },
+        'viewer.tourHeld': { actions: sendTo('tour', { type: 'tour.held' }) },
         'viewer.walkEntered': { actions: sendTo('walk', { type: 'walk.entered' }) },
         'viewer.walkFailed': { actions: sendTo('walk', { type: 'walk.failed' }) },
 
@@ -687,6 +842,8 @@ export const appMachine = setup({
             const scans = drawnScans(context.imagery.selected, context.imagery.kept);
             const scan = scans.find((candidate) => candidate.clips?.some((clip) => clip.id === event.clipId));
             const clip = scan?.clips?.find((candidate) => candidate.id === event.clipId);
+            // ou bien c'est la séquence sportive sélectionnée
+            if (!clip && context.sport?.clip.id === event.clipId) return { type: 'cinema.opened', clip: context.sport.clip, credit: context.sport.credit };
             // sans séquence retrouvée, un événement que la machine ignore
             return scan && clip ? { type: 'cinema.opened', clip, credit: scan.credit } : { type: 'cinema.closed', by: 'button' };
           }),
@@ -719,22 +876,42 @@ export const appMachine = setup({
             'syncUrl',
           ],
         },
-        /* ---- satellite : des prises de vue verticales redressées, dessinées quand leur calque est allumé ---- */
-        'satellite.changed': {
+        /* ---- réglages : la définition choisie vaut pour tout ce qui est dessiné, et se change à chaud ---- */
+        'settings.changed': {
           actions: [
-            assign({
-              mosaics: ({ event }) => event.mosaics,
-              view: ({ context, event }) =>
-                ({ ...context.view, overlays: { ...context.view.overlays, satellite: event.visible } }),
-            }),
+            assign({ definition: ({ event }) => event.definition }),
             'drawImagery',
-            'syncUrl',
+            sendTo('viewer', ({ context }) => ({
+              type: 'viewer.satelliteChanged',
+              images: context.satellite.length > 0 ? context.satellite.map((image) => satelliteIn(image, context.definition)) : null,
+            })),
           ],
         },
-        'satellite.flyRequested': {
-          actions: sendTo('viewer', ({ event }) =>
-            ({ type: 'viewer.flyoverRequested', flyover: { ...scanFlyover(event.mosaic), orbit: false } })),
-        },
+
+        /* ---- vue satellite : la carte vue du dessus, les prises de vue redressées tendues au-dessus du relief ---- */
+        'satellite.changed': [
+          {
+            // aucune image à portée de la vue : on est emmené au-dessus de la plus proche
+            guard: ({ context, event }) => event.active && satelliteDestination(event.images, context.view.pose) !== null,
+            actions: [
+              assign({ satellite: ({ event }) => event.images }),
+              sendTo('viewer', ({ context, event }) =>
+                ({ type: 'viewer.satelliteChanged', images: event.images.map((image) => satelliteIn(image, context.definition)) })),
+              sendTo('viewer', ({ context, event }) =>
+                ({ type: 'viewer.poseApplied', pose: satelliteDestination(event.images, context.view.pose)! })),
+            ],
+          },
+          {
+            // sinon la vue reste où elle est, et se redresse seulement
+            actions: [
+              assign({ satellite: ({ event }) => event.images }),
+              sendTo('viewer', ({ context, event }) => ({
+                type: 'viewer.satelliteChanged',
+                images: event.active ? event.images.map((image) => satelliteIn(image, context.definition)) : null,
+              })),
+            ],
+          },
+        ],
         'motorways.flyRequested': {
           actions: sendTo('viewer', ({ event }) =>
             ({ type: 'viewer.flyoverRequested', flyover: { ...scanFlyover(event.trace), orbit: false } })),
@@ -748,6 +925,8 @@ export const appMachine = setup({
             x: context.view.pose.x,
             y: context.view.pose.y,
             ...(context.walk ? { azimuth: context.view.pose.azimuth } : {}),
+            // la vue elle-même : le lien qui la rouvre telle que le visiteur la voit
+            view: viewUrl(context.view, location.href),
           })),
         },
         'location.changed': {
@@ -755,7 +934,7 @@ export const appMachine = setup({
             type: 'viewer.overlayChanged',
             layer: 'location',
             features: event.position
-              ? [{ id: 'visiteur', x: event.position.x, y: event.position.y, label: 'Vous êtes ici', rank: 0 }] : [],
+              ? [{ id: 'visiteur', x: event.position.x, y: event.position.y, label: locationLabel(event.position), rank: 0 }] : [],
           }))],
         },
         'location.flyRequested': {
@@ -856,7 +1035,14 @@ export const appMachine = setup({
         },
 
         'app.homeRequested': {
-          actions: sendTo('viewer', { type: 'viewer.poseApplied', pose: DEFAULT_VIEW.pose, sharpen: true }),
+          // retour à la maison : la vue d'accueil, et ce qu'elle montre — l'imagerie aérienne allumée, la citadelle et les lettres dessinées
+          actions: enqueueActions(({ context, enqueue }) => {
+            enqueue.sendTo('viewer', { type: 'viewer.poseApplied', pose: homePose(innerWidth / innerHeight) });
+            if (!context.view.overlays.scans) enqueue.sendTo('layers', { type: 'layers.toggled', layer: AERIAL_LAYER });
+            enqueue.sendTo('layers', { type: 'layers.keepEnsured', layer: AERIAL_LAYER, ids: HOME_IMAGERY });
+            // la vue d'accueil ne joue aucune séquence filmée : celle qui était active est relâchée
+            enqueue.sendTo('layers', { type: 'layers.dismissed', layer: SPORTS_LAYER });
+          }),
         },
 
         // chaque calque lâche sa sélection ; celui qui n'en a pas n'en fait rien
@@ -866,10 +1052,15 @@ export const appMachine = setup({
             sendTo('vessels', { type: 'vessels.dismissed' }),
             sendTo('cameras', { type: 'cameras.dismissed' }),
             sendTo('layers', { type: 'layers.dismissed', layer: AERIAL_LAYER }),
+            sendTo('layers', { type: 'layers.dismissed', layer: ORTHO_LAYER }),
+            sendTo('layers', { type: 'layers.dismissed', layer: CLOUD_LAYER }),
+            sendTo('layers', { type: 'layers.dismissed', layer: SPORTS_LAYER }),
+            sendTo('layers', { type: 'layers.dismissed', layer: DRONES_LAYER }),
             sendTo('layers', { type: 'layers.dismissed', layer: OBJECTS_LAYER }),
             sendTo('layers', { type: 'layers.dismissed', layer: SURVIVAL_LAYER }),
             sendTo('layers', { type: 'layers.dismissed', layer: FUN_LAYER }),
             sendTo('layers', { type: 'layers.dismissed', layer: ART_LAYER }),
+            sendTo('layers', { type: 'layers.dismissed', layer: BACKED_LAYER }),
           ],
         },
       },

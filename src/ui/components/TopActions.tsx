@@ -1,10 +1,11 @@
 import { useSelector } from '@xstate/react';
+import { satelliteActive, satelliteAvailable } from '../../machines/satellite.machine.ts';
 import { walkPhase } from '../../machines/walk.machine.ts';
 import { useApp, useChild } from '../actors.ts';
 
 /**
  * Actions rondes : chercher un site ou une rue, se poser au sol dans un lieu filmé, partager la vue,
- * revenir à la vue d'accueil, copier les coordonnées du point visé, se situer sur la carte.
+ * revenir à la vue d'accueil, regarder la carte du dessus avec les images « satellite », copier les coordonnées du point visé, se situer sur la carte.
  */
 export function TopActions() {
   const app = useApp();
@@ -17,6 +18,9 @@ export function TopActions() {
   const located = useSelector(location, (snapshot) => snapshot.matches('shown'));
   const locating = useSelector(location, (snapshot) => snapshot.matches('locating'));
   const aiming = useSelector(walk, (snapshot) => walkPhase(snapshot) === 'aiming');
+  const satellite = useChild('satellite');
+  const satelliteOffered = useSelector(satellite, satelliteAvailable);
+  const satelliteOn = useSelector(satellite, satelliteActive);
 
   return (
     <nav className="top-actions" aria-label="Actions">
@@ -63,6 +67,20 @@ export function TopActions() {
       >
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5M6.5 9.8V20h11V9.8" /></svg>
       </button>
+      {satelliteOffered && (
+        <button
+          type="button"
+          title={satelliteOn ? 'Quitter la vue satellite' : 'Vue satellite : la carte vue du dessus'}
+          aria-label={satelliteOn ? 'Quitter la vue satellite' : 'Vue satellite : la carte vue du dessus'}
+          aria-pressed={satelliteOn}
+          onClick={() => satellite.send({ type: 'satellite.toggled' })}
+        >
+          {/* un globe : ses méridiens et son équateur */}
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5c-3 2.4-3 14.6 0 17M12 3.5c3 2.4 3 14.6 0 17" />
+          </svg>
+        </button>
+      )}
       <button
         type="button"
         title="Copier les coordonnées du centre de la vue"

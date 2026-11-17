@@ -11,7 +11,7 @@
  * z vers le sud, en mètres.
  */
 
-import type { Scan } from './scans.ts';
+import { isWalkable, type Scan } from './scans.ts';
 
 /** Hauteur des yeux du promeneur au-dessus du sol. */
 export const EYE_HEIGHT = 1.7;
@@ -40,6 +40,8 @@ export interface WalkGround {
   rows: number;
   /** Altitude du sol par case, ligne par ligne ; `NaN` hors du lieu. */
   heights: Float32Array;
+  /** Altitude de ce que le lieu a de plus haut dans chaque case — toits, murs, feuillages ; `NaN` là où il n'y a rien. */
+  tops: Float32Array;
 }
 
 /**
@@ -70,6 +72,16 @@ export function buildGround(points: Float32Array, cellSize = CELL): WalkGround |
     if (y < lowest[index]!) { second[index] = lowest[index]!; lowest[index] = y; }
     else if (y < second[index]!) second[index] = y;
   }
+  // Le haut de chaque case : le second splat le plus haut, pour écarter de même un splat isolé égaré en l'air.
+  const highest = new Float32Array(cols * rows).fill(-Infinity);
+  const nextHighest = new Float32Array(cols * rows).fill(-Infinity);
+  for (let at = 0; at < count * 3; at += 3) {
+    const index = Math.floor((points[at + 2]! - zMin) / cell) * cols + Math.floor((points[at]! - xMin) / cell);
+    const y = points[at + 1]!;
+    if (y > highest[index]!) { nextHighest[index] = highest[index]!; highest[index] = y; }
+    else if (y > nextHighest[index]!) nextHighest[index] = y;
+  }
+  const tops = nextHighest.map((value) => (value > -Infinity ? value : NaN));
   const low = (index: number) => (second[index]! < Infinity ? second[index]! : lowest[index]!);
 
   const heights = new Float32Array(cols * rows).fill(NaN);
@@ -92,7 +104,7 @@ export function buildGround(points: Float32Array, cellSize = CELL): WalkGround |
       heights[row * cols + col] = around[Math.floor(around.length * GROUND_SHARE)]!;
     }
   }
-  return { cell, x0: xMin, z0: zMin, cols, rows, heights };
+  return { cell, x0: xMin, z0: zMin, cols, rows, heights, tops };
 }
 
 const cellHeight = (ground: WalkGround, col: number, row: number): number =>
@@ -147,6 +159,36 @@ export function castGround(
   return null;
 }
 
+/** Ce qui dépasse le regard de moins que cela ne le cache pas : un muret, un buisson bas. */
+const SIGHT_MARGIN = 0.8;
+/** Les abords immédiats de l'œil et de la cible ne comptent pas : on est toujours au pied de quelque chose. */
+const SIGHT_CLEARANCE = 2.5;
+
+/**
+ * Le lieu cache-t-il `to` à qui regarde depuis `from` ? Le regard est suivi case par case ;
+ * il est coupé s'il passe, sur l'épaisseur d'une case au moins, sous ce que le lieu a de plus haut.
+ */
+export function sightBlocked(
+  ground: WalkGround,
+  from: { x: number; y: number; z: number },
+  to: { x: number; y: number; z: number },
+): boolean {
+  const length = Math.hypot(to.x - from.x, to.z - from.z);
+  if (length <= 2 * SIGHT_CLEARANCE) return false;
+  const step = ground.cell / 2;
+  let run = 0;
+  for (let t = SIGHT_CLEARANCE; t <= length - SIGHT_CLEARANCE; t += step) {
+    const k = t / length;
+    const col = Math.floor((from.x + (to.x - from.x) * k - ground.x0) / ground.cell);
+    const row = Math.floor((from.z + (to.z - from.z) * k - ground.z0) / ground.cell);
+    const top = col < 0 || row < 0 || col >= ground.cols || row >= ground.rows ? NaN : ground.tops[row * ground.cols + col]!;
+    // hors du lieu, ou case vide : rien ne s'y dresse
+    run = top > from.y + (to.y - from.y) * k + SIGHT_MARGIN ? run + 1 : 0;
+    if (run >= 2) return true;
+  }
+  return false;
+}
+
 /** Point du lieu le plus proche de (x, z) où l'on peut se tenir ; `null` si le lieu n'a pas de sol. */
 export function nearestStand(ground: WalkGround, x: number, z: number): { x: number; z: number } | null {
   if (groundAt(ground, x, z) !== null) return { x, z };
@@ -168,8 +210,8 @@ export function nearestStand(ground: WalkGround, x: number, z: number): { x: num
 export function nearestPlace(places: readonly Scan[], x: number, y: number): { scan: Scan; distance: number } | null {
   let best: { scan: Scan; distance: number } | null = null;
   for (const scan of places) {
-    // on ne marche que dans un lieu filmé : un tracé à l'échelle du territoire n'a pas de sol où se tenir
-    if (!scan.splats || scan.trace || scan.satellite) continue;
+    // on ne marche que dans un lieu filmé assez grand : ni tracé, ni image du sol, ni relevé de quelques mètres
+    if (!isWalkable(scan)) continue;
     const distance = Math.hypot(scan.x - x, scan.y - y);
     if (!best || distance < best.distance) best = { scan, distance };
   }

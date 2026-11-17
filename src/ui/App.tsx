@@ -4,8 +4,11 @@ import { useApp } from './actors.ts';
 import { AboutPanel } from './components/AboutPanel.tsx';
 import { AircraftPanel } from './components/AircraftPanel.tsx';
 import { VesselPanel } from './components/VesselPanel.tsx';
-import { ImageryPanel } from './components/ImageryPanel.tsx';
+import { CloudPanel, ImageryPanel, OrthophotoPanel } from './components/ImageryPanel.tsx';
+import { DronePanel } from './components/DronePanel.tsx';
+import { SettingsPanel } from './components/SettingsPanel.tsx';
 import { CockpitExit } from './components/CockpitExit.tsx';
+import { TourBar } from './components/TourBar.tsx';
 import { WalkBar } from './components/WalkBar.tsx';
 import { Cinema } from './components/Cinema.tsx';
 import { Brand } from './components/Brand.tsx';
@@ -64,6 +67,7 @@ export function App() {
       <Rail />
       <CockpitExit />
       <WalkBar />
+      <TourBar />
       <div className="stacks">
         <aside className="stack stack-left">
           <LayersPanel />
@@ -72,6 +76,10 @@ export function App() {
         <aside className="stack stack-right">
           <CameraPanel />
           <ImageryPanel />
+          <OrthophotoPanel />
+          <CloudPanel />
+          <DronePanel />
+          <SettingsPanel />
           <AircraftPanel />
           <VesselPanel />
           <AboutPanel />

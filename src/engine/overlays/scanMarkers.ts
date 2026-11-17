@@ -6,7 +6,9 @@
  * représente et porte leur nombre.
  */
 
-import { AERIAL_LABEL, ART_LABEL, FUN_LABEL, OBJECTS_LABEL, SURVIVAL_LABEL } from '../../domain/scans.ts';
+import { AERIAL_LABEL, ART_LABEL, BACKED_LABEL, CLOUD_LABEL, FUN_LABEL, OBJECTS_LABEL, ORTHO_LABEL, SURVIVAL_LABEL } from '../../domain/scans.ts';
+import { DRONES_LABEL } from '../../domain/droneFlights.ts';
+import { SPORTS_LABEL } from '../../domain/sports.ts';
 import type { OverlayFeature, OverlayStyle } from '../OverlayLayer.ts';
 import { TINT_ACTIVE, TINT_IDLE, tinted } from './tint.ts';
 
@@ -101,6 +103,61 @@ function scanMarker({ className, kicker, plural, icon }: MarkerKind): OverlaySty
   };
 }
 
+/** Ortho drone : une image à plat, vue du dessus, avec sa mire. */
+const ORTHO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <g fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M18 7 31 14 18 21 5 14Z" fill="#0e1720" stroke="#75e7ff" stroke-width="1.4"/>
+    <path d="M5 20l13 7 13-7" stroke="#4ecde7" stroke-width="1.1"/>
+    <path d="M11.5 14 18 10.5 24.5 14 18 17.5Z" stroke="#75e7ff" stroke-width="1"/>
+    <circle cx="18" cy="14" r="1.6" fill="#c9f6ff" stroke="#dbfbff" stroke-width="0.6"/>
+  </g>
+</svg>`;
+
+/** Nuage de points : des points épars qui dessinent un volume. */
+const CLOUD_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <rect x="5" y="5" width="26" height="26" rx="4" fill="#0e1720" stroke="#75e7ff" stroke-width="1.4"/>
+  <g fill="#c9f6ff">
+    <circle cx="18" cy="9.500" r="1.900"/><circle cx="11" cy="13.500" r="1.900"/><circle cx="25" cy="13.500" r="1.900"/>
+    <circle cx="18" cy="18" r="2.900"/><circle cx="11" cy="22.500" r="2.300"/><circle cx="25" cy="22.500" r="2.300"/><circle cx="18" cy="26.500" r="2.600"/>
+  </g>
+</svg>`;
+
+export const orthoMarkerStyle = scanMarker({
+  className: 'overlay-orthophoto', kicker: ORTHO_LABEL, plural: (count) => `${count} orthophotos`, icon: ORTHO_ICON,
+});
+
+export const cloudMarkerStyle = scanMarker({
+  className: 'overlay-clouds', kicker: CLOUD_LABEL, plural: (count) => `${count} nuages`, icon: CLOUD_ICON,
+});
+
+/** Sports : un haltère, deux disques pleins sur leur barre. */
+const SPORTS_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <g fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M4 18h28" stroke="#75e7ff" stroke-width="2.400"/>
+    <rect x="7" y="9" width="5.500" height="18" rx="2" fill="#0e1720" stroke="#75e7ff" stroke-width="2.400"/>
+    <rect x="23.500" y="9" width="5.500" height="18" rx="2" fill="#0e1720" stroke="#75e7ff" stroke-width="2.400"/>
+    <path d="M14.500 18h7" stroke="#c9f6ff" stroke-width="3.200"/>
+  </g>
+</svg>`;
+
+export const sportsMarkerStyle = scanMarker({
+  className: 'overlay-sports', kicker: SPORTS_LABEL, plural: (count) => `${count} séquences`, icon: SPORTS_ICON,
+});
+
+/** Vol de drone : le drone vu du dessus — un corps, quatre rotors pleins. */
+const DRONE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <g fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M10 10 26 26M26 10 10 26" stroke="#75e7ff" stroke-width="2.600"/>
+    <circle cx="9" cy="9" r="5" fill="#0e1720" stroke="#75e7ff" stroke-width="2.200"/><circle cx="27" cy="9" r="5" fill="#0e1720" stroke="#75e7ff" stroke-width="2.200"/>
+    <circle cx="9" cy="27" r="5" fill="#0e1720" stroke="#75e7ff" stroke-width="2.200"/><circle cx="27" cy="27" r="5" fill="#0e1720" stroke="#75e7ff" stroke-width="2.200"/>
+    <rect x="13.500" y="12" width="9" height="12" rx="3" fill="#c9f6ff"/>
+  </g>
+</svg>`;
+
+export const droneMarkerStyle = scanMarker({
+  className: 'overlay-drones', kicker: DRONES_LABEL, plural: (count) => `${count} vols`, icon: DRONE_ICON,
+});
+
 export const aerialMarkerStyle = scanMarker({
   className: 'overlay-scans', kicker: AERIAL_LABEL, plural: (count) => `${count} lieux`, icon: AERIAL_ICON,
 });
@@ -115,6 +172,18 @@ export const survivalMarkerStyle = scanMarker({
 
 export const funMarkerStyle = scanMarker({
   className: 'overlay-fun', kicker: FUN_LABEL, plural: (count) => `${count} objets`, icon: FUN_ICON,
+});
+
+/** Soutenu par la Wallonie : un écusson, et dedans la poignée de main réduite à deux traits qui se croisent. */
+const BACKED_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <g fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M18 4.500 29 8.500v8.500c0 7-4.600 11.800-11 14.500C11.600 28.800 7 24 7 17V8.500Z" fill="#0e1720" stroke="#75e7ff" stroke-width="2.200"/>
+    <path d="m12.500 17.500 4 4 7.500-8" stroke="#c9f6ff" stroke-width="2.800"/>
+  </g>
+</svg>`;
+
+export const backedMarkerStyle = scanMarker({
+  className: 'overlay-backed', kicker: BACKED_LABEL, plural: (count) => `${count} projets`, icon: BACKED_ICON,
 });
 
 export const artMarkerStyle = scanMarker({

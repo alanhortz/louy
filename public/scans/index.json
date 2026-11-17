@@ -55,13 +55,13 @@
     ]
   },
   {
-    "id": "satellite-namur",
-    "name": "Namur vue du ciel : place d’Armes et quai de Sambre",
-    "x": 685260,
-    "y": 628100,
-    "splats": "/scans/satellite-namur.spz",
-    "satellite": true,
-    "note": "Deux passages filmés à la verticale, redressés case par case sur la surface LiDAR. C'est une orthophoto du jour du vol, pas un volume.",
+    "id": "namur-place-darmes",
+    "disabled": true,
+    "name": "Place d’Armes, Namur — vue du ciel",
+    "x": 685424,
+    "y": 628131,
+    "splats": "/scans/namur-place-darmes.spz",
+    "note": "Un passage du drone à la verticale, reconstruit en volume. Filmé seulement d'en haut, il se regarde du dessus : de côté, les façades manquent.",
     "credit": {
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
@@ -69,9 +69,275 @@
       "licence": "CC BY"
     },
     "view": {
-      "x": 685330,
-      "y": 628110,
-      "height": 420,
+      "x": 685424,
+      "y": 628131,
+      "height": 230,
+      "azimuth": 0
+    }
+  },
+  {
+    "id": "namur-rue-des-brasseurs",
+    "disabled": true,
+    "name": "Rue des Brasseurs et quai de Sambre, Namur — vue du ciel",
+    "x": 685103.0,
+    "y": 628024.0,
+    "splats": "/scans/namur-rue-des-brasseurs.spz",
+    "note": "Un passage du drone à la verticale, reconstruit en volume. Filmé seulement d'en haut, il se regarde du dessus : de côté, les façades manquent.",
+    "credit": {
+      "author": "Joeys Journeys",
+      "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
+      "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
+      "licence": "CC BY"
+    },
+    "view": {
+      "x": 685103.0,
+      "y": 628024.0,
+      "height": 200,
+      "azimuth": 0
+    }
+  },
+  {
+    "id": "namur-sambre",
+    "name": "La Sambre et la Halle al’Chair, Namur",
+    "x": 685412.0,
+    "y": 628032.0,
+    "splats": "/scans/namur-sambre.spz",
+    "note": "Un vol bas en oblique au-dessus de la Sambre, reconstruit en volume et calé sur le relief LiDAR.",
+    "credit": {
+      "author": "Joeys Journeys",
+      "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
+      "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
+      "licence": "CC BY"
+    },
+    "view": {
+      "x": 685412.0,
+      "y": 628032.0,
+      "height": 150,
+      "azimuth": 0
+    }
+  },
+  {
+    "id": "ortho-place-darmes",
+    "disabled": true,
+    "name": "Place d’Armes, Namur — orthophoto",
+    "x": 685424,
+    "y": 628131,
+    "splats": "/scans/ortho-place-darmes.spz",
+    "marker": {
+      "x": 685438,
+      "y": 628145
+    },
+    "orthophoto": true,
+    "note": "Un passage filmé à la verticale, redressé case par case sur la surface LiDAR et posé sur le relief : une orthophoto du jour du vol, pas un volume.",
+    "credit": {
+      "author": "Joeys Journeys",
+      "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
+      "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
+      "licence": "CC BY"
+    },
+    "view": {
+      "x": 685424,
+      "y": 628131,
+      "height": 260,
+      "azimuth": 0
+    }
+  },
+  {
+    "id": "ortho-rue-des-brasseurs",
+    "disabled": true,
+    "name": "Rue des Brasseurs et quai de Sambre, Namur — orthophoto",
+    "x": 685103,
+    "y": 628013,
+    "splats": "/scans/ortho-rue-des-brasseurs.spz",
+    "marker": {
+      "x": 685117,
+      "y": 628027
+    },
+    "orthophoto": true,
+    "note": "Un passage filmé à la verticale, redressé case par case sur la surface LiDAR et posé sur le relief : une orthophoto du jour du vol, pas un volume.",
+    "credit": {
+      "author": "Joeys Journeys",
+      "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
+      "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
+      "licence": "CC BY"
+    },
+    "view": {
+      "x": 685103,
+      "y": 628013,
+      "height": 200,
+      "azimuth": 0
+    }
+  },
+  {
+    "id": "lettres-namur-esplanade",
+    "name": "Lettres « NAMUR », esplanade de la Confluence",
+    "x": 685570,
+    "y": 627961,
+    "splats": "/scans/lettres-namur-esplanade.spz",
+    "span": 9,
+    "note": "Les lettres et le sol de l'esplanade qui les porte, relevés au téléphone puis posés à leur place sur le relief LiDAR.",
+    "credit": {
+      "author": "Alan Hortz",
+      "title": "Relevé Polycam du 13 novembre 2026",
+      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
+      "licence": "© 2026"
+    },
+    "view": {
+      "x": 685566,
+      "y": 627966,
+      "height": 14,
+      "azimuth": 250
+    }
+  },
+  {
+    "id": "nuage-namur",
+    "name": "Citadelle de Namur — nuage de points",
+    "x": 685265.0,
+    "y": 627878.0,
+    "splats": "/scans/nuage-namur.spz",
+    "cloud": true,
+    "marker": {
+      "x": 685251.0,
+      "y": 627892.0
+    },
+    "note": "162 400 points retrouvés dans les images et calés sur le relief LiDAR. C'est de ce nuage que part l'entraînement des gaussian splats.",
+    "credit": {
+      "author": "Joeys Journeys",
+      "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
+      "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
+      "licence": "CC BY"
+    },
+    "view": {
+      "x": 685265.0,
+      "y": 627878.0,
+      "height": 309,
+      "azimuth": 0
+    }
+  },
+  {
+    "id": "nuage-esplanade-citadelle-namur",
+    "name": "Esplanade de la citadelle, Namur — nuage de points",
+    "x": 684783.0,
+    "y": 627522.0,
+    "splats": "/scans/nuage-esplanade-citadelle-namur.spz",
+    "cloud": true,
+    "marker": {
+      "x": 684769.0,
+      "y": 627536.0
+    },
+    "note": "158 314 points retrouvés dans les images et calés sur le relief LiDAR. C'est de ce nuage que part l'entraînement des gaussian splats.",
+    "credit": {
+      "author": "Mathis Hortz",
+      "title": "Prises de vue au drone du 14 novembre 2026",
+      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
+      "licence": "© 2026"
+    },
+    "view": {
+      "x": 684783.0,
+      "y": 627522.0,
+      "height": 302,
+      "azimuth": 0
+    }
+  },
+  {
+    "id": "nuage-crossfit-hawks-nest",
+    "name": "CrossFit Hawks Nest — nuage de points",
+    "x": 636186.0,
+    "y": 619125.0,
+    "splats": "/scans/nuage-crossfit-hawks-nest.spz",
+    "cloud": true,
+    "marker": {
+      "x": 636172.0,
+      "y": 619139.0
+    },
+    "note": "195 621 points retrouvés dans les images et calés sur le relief LiDAR. C'est de ce nuage que part l'entraînement des gaussian splats.",
+    "credit": {
+      "author": "Alan Hortz",
+      "title": "Prises de vue au drone du 14 novembre 2026",
+      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
+      "licence": "© 2026"
+    },
+    "view": {
+      "x": 636186.0,
+      "y": 619125.0,
+      "height": 120,
+      "azimuth": 0
+    }
+  },
+  {
+    "id": "nuage-namur-place-darmes",
+    "disabled": true,
+    "name": "Place d’Armes, Namur — nuage de points",
+    "x": 685424.0,
+    "y": 628131.0,
+    "splats": "/scans/nuage-namur-place-darmes.spz",
+    "cloud": true,
+    "marker": {
+      "x": 685410.0,
+      "y": 628145.0
+    },
+    "note": "31 555 points retrouvés dans les images et calés sur le relief LiDAR. C'est de ce nuage que part l'entraînement des gaussian splats.",
+    "credit": {
+      "author": "Joeys Journeys",
+      "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
+      "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
+      "licence": "CC BY"
+    },
+    "view": {
+      "x": 685424.0,
+      "y": 628131.0,
+      "height": 170,
+      "azimuth": 0
+    }
+  },
+  {
+    "id": "nuage-namur-rue-des-brasseurs",
+    "disabled": true,
+    "name": "Rue des Brasseurs et quai de Sambre, Namur — nuage de points",
+    "x": 685103.0,
+    "y": 628024.0,
+    "splats": "/scans/nuage-namur-rue-des-brasseurs.spz",
+    "cloud": true,
+    "marker": {
+      "x": 685089.0,
+      "y": 628038.0
+    },
+    "note": "29 053 points retrouvés dans les images et calés sur le relief LiDAR. C'est de ce nuage que part l'entraînement des gaussian splats.",
+    "credit": {
+      "author": "Joeys Journeys",
+      "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
+      "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
+      "licence": "CC BY"
+    },
+    "view": {
+      "x": 685103.0,
+      "y": 628024.0,
+      "height": 138,
+      "azimuth": 0
+    }
+  },
+  {
+    "id": "nuage-namur-sambre",
+    "name": "La Sambre et la Halle al’Chair, Namur — nuage de points",
+    "x": 685412.0,
+    "y": 628032.0,
+    "splats": "/scans/nuage-namur-sambre.spz",
+    "cloud": true,
+    "marker": {
+      "x": 685398.0,
+      "y": 628046.0
+    },
+    "note": "32 187 points retrouvés dans les images et calés sur le relief LiDAR. C'est de ce nuage que part l'entraînement des gaussian splats.",
+    "credit": {
+      "author": "Joeys Journeys",
+      "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
+      "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
+      "licence": "CC BY"
+    },
+    "view": {
+      "x": 685412.0,
+      "y": 628032.0,
+      "height": 146,
       "azimuth": 0
     }
   },
@@ -168,6 +434,7 @@
     "x": 680463,
     "y": 630760,
     "mesh": "/scans/cluster-eco-construction.glb",
+    "backed": "wallonie",
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam du 14 novembre 2026",

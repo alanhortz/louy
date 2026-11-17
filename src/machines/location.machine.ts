@@ -1,6 +1,7 @@
 /**
  * Machine de la localisation : demande sa position à l'appareil du visiteur et
- * la porte sur la carte par un repère. Un second appui retire le repère.
+ * la porte sur la carte par un repère. Un second appui retire le repère. Sur un
+ * appareil tenu en main, le repère suit ensuite le visiteur, avec sa vitesse.
  *
  *   off ──▶ locating ──▶ shown ──▶ off
  *               └──▶ failed ──(un instant)──▶ off
@@ -9,11 +10,14 @@
  * ni écrite dans le journal local (l'inspecteur la masque), ni inscrite dans l'adresse.
  */
 
-import { assign, fromPromise, sendParent, setup, type SnapshotFrom } from 'xstate';
+import { assign, fromCallback, fromPromise, sendParent, setup, type SnapshotFrom } from 'xstate';
 import { LOCATION_FAILURES, type DevicePosition, type LocationFailure } from '../domain/whereabouts.ts';
-import { locateDevice } from '../services/whereabouts.ts';
+import { locateDevice, watchDevice } from '../services/whereabouts.ts';
 
-export type LocationEvent = { type: 'location.toggled' };
+export type LocationEvent =
+  | { type: 'location.toggled' }
+  /** L'appareil a bougé : un nouveau relevé du suivi continu. */
+  | { type: 'location.moved'; position: DevicePosition };
 
 export type LocationEmitted =
   /** `null` : le repère est retiré. */
@@ -30,6 +34,7 @@ export const locationMachine = setup({
   },
   actors: {
     locate: fromPromise<DevicePosition>(() => locateDevice()),
+    follow: fromCallback<LocationEvent>(({ sendBack }) => watchDevice((position) => sendBack({ type: 'location.moved', position }))),
   },
   actions: {
     announce: sendParent(({ context }): LocationEmitted => ({ type: 'location.changed', position: context.position })),
@@ -62,7 +67,13 @@ export const locationMachine = setup({
     shown: {
       entry: ['announce', 'fly'],
       exit: [assign({ position: null }), 'announce'],
-      on: { 'location.toggled': 'off' },
+      // le suivi dure tant que le repère est affiché : le retirer l'arrête
+      invoke: { id: 'location.follow', src: 'follow' },
+      on: {
+        'location.toggled': 'off',
+        // le repère se déplace ; la vue, elle, reste où le visiteur l'a mise
+        'location.moved': { actions: [assign({ position: ({ event }) => event.position }), 'announce'] },
+      },
     },
     failed: {
       after: { [NOTICE_MS]: 'off' },

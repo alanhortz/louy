@@ -24,6 +24,10 @@ export function formatCoordinates(x: number, y: number, azimuth?: number): strin
 export interface DevicePosition extends LambertPoint {
   /** Rayon d'incertitude, en mètres. */
   accuracy: number;
+  /** Vitesse de déplacement, en km/h, quand l'appareil la mesure ou qu'elle se déduit de deux positions. */
+  speed?: number;
+  /** Instant du relevé, en millisecondes. */
+  at?: number;
 }
 
 /**
@@ -44,6 +48,31 @@ export function devicePosition(latitude: number, longitude: number, accuracy: nu
   const { x, y } = toLambert(latitude, longitude);
   return inWallonia(x, y) ? { x, y, accuracy } : null;
 }
+
+/** En dessous, l'appareil est tenu pour immobile : le bruit d'un récepteur à l'arrêt ne fait pas une vitesse. */
+const STILL_KMH = 1.5;
+
+/**
+ * Vitesse à afficher pour un relevé, en km/h. Celle que mesure l'appareil (`measured`, en m/s) d'abord ;
+ * à défaut, la distance parcourue depuis le relevé précédent — si les deux sont assez précis pour qu'elle
+ * ait un sens. `undefined` quand rien ne permet de la dire.
+ */
+export function speedKmh(previous: DevicePosition | null, next: DevicePosition, measured: number | null): number | undefined {
+  let speed: number | undefined;
+  if (measured !== null && Number.isFinite(measured) && measured >= 0) speed = measured * 3.6;
+  else if (previous?.at !== undefined && next.at !== undefined) {
+    const seconds = (next.at - previous.at) / 1000;
+    const moved = Math.hypot(next.x - previous.x, next.y - previous.y);
+    // deux relevés trop rapprochés, ou un déplacement noyé dans leur incertitude : on ne dit rien
+    if (seconds >= 1 && moved > Math.max(previous.accuracy, next.accuracy) * 0.5) speed = (moved / seconds) * 3.6;
+    else if (seconds >= 1) speed = 0;
+  }
+  return speed === undefined ? undefined : speed < STILL_KMH ? 0 : Math.round(speed);
+}
+
+/** Ce que dit le repère : où l'on est, et à quelle vitesse quand elle est connue. */
+export const locationLabel = (position: DevicePosition): string =>
+  (position.speed === undefined ? 'Vous êtes ici' : `Vous êtes ici · ${position.speed} km/h`);
 
 /** Hauteur de survol qui montre la position et son incertitude, sans descendre trop bas. */
 export const locationHeight = (position: DevicePosition): number =>

@@ -73,6 +73,10 @@
 }
 /* l'icône est moitié moins grande que celle d'un scan : la légende remonte d'autant */
 .camera-marker .scan-caption { top: calc(50% + 10px); }
+/* une caméra dont la vue est connue : un anneau d'accent autour de l'icône, et sa légende plus bas */
+.camera-marker.has-view .scan-marker-icon { border-radius: 50%; box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.55), 0 0 10px var(--accent-glow); background: rgba(8, 12, 18, 0.55); padding: 2px; box-sizing: content-box; }
+.camera-marker.has-view .scan-caption { top: calc(50% + 16px); }
+.camera-marker.has-view .scan-caption b { color: var(--accent); }
 /* un nom de caméra peut être long : la légende le coupe proprement */
 .camera-marker .scan-caption span { max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
 
@@ -253,22 +257,23 @@
 /* l'instant désigné : l'anneau des marqueurs */
 .trajectory-cursor { fill: var(--bg-dark); stroke: var(--text-primary); stroke-width: 1.5; filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 6px var(--accent-glow)); }
 
-/* Cartouche d'une route : un numéro dans un cadre clair, comme sur une carte routière. */
+/* Cartouche d'une route : son numéro dans la capsule de verre des marqueurs de L'Oûy, liseré d'accent. */
 .road-shield {
   position: absolute;
   /* le calque place l'élément par `transform` : le centrage passe donc par `translate`, qui s'y ajoute */
   translate: -50% -50%;
-  padding: 2px 6px 1px;
-  background: #fff;
-  border: 1.5px solid #5f6368;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-  color: #202124;
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
+  padding: 3px 7px 2px;
+  background: var(--glass-bg);
+  border: 1px solid rgba(0, 212, 255, 0.55);
+  border-radius: 6px;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.6), 0 0 10px var(--accent-dim);
+  color: #dff9ff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
   line-height: 1.25;
+  text-transform: uppercase;
   white-space: nowrap;
   pointer-events: none;
 }

@@ -165,7 +165,8 @@ export class OverlayLayer<F extends OverlayFeature = OverlayFeature> {
       const element = this.#element(index);
       element.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0)`;
       const ids = members.map((member) => member.id).join(',');
-      const signature = `${ids}|${active ? 1 : 0}|${detailed ? 1 : 0}`;
+      // le libellé en fait partie : un marqueur dont le texte change (une vitesse, un nom) est repeint
+      const signature = `${ids}|${active ? 1 : 0}|${detailed ? 1 : 0}|${feature.label}`;
       if (this.#shown.get(element) !== signature) {
         element.dataset.feature = feature.id;
         element.dataset.members = ids;

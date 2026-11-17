@@ -18,7 +18,7 @@
  * visionneuse, déplacer la caméra : elle l'annonce, son parent en fait ce qu'il veut.
  */
 
-import { assign, fromPromise, sendParent, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate';
+import { assign, fromPromise, sendParent, setup, type ActorRefFrom, type SnapshotFrom, enqueueActions } from 'xstate';
 import type { OverlayFeature } from '../engine/OverlayLayer.ts';
 import type { LayerFeed } from './places.machine.ts';
 
@@ -49,6 +49,8 @@ export type LayerEvent =
   | { type: 'layer.dismissed' }
   /** Garder cet élément à l'écran tant que le calque est allumé, même quand un autre est sélectionné — ou cesser. */
   | { type: 'layer.keepToggled'; id: string }
+  /** Garder ces éléments à l'écran, sans toucher à ceux qui le sont déjà : le retour à la vue d'accueil. */
+  | { type: 'layer.keepEnsured'; ids: readonly string[] }
   | { type: 'layer.viewChanged'; distance: number };
 
 export type LayerEmitted<T extends LayerItem = LayerItem> =
@@ -76,7 +78,7 @@ export interface LayerContext<T extends LayerItem = LayerItem> {
 }
 
 /** `kept` : éléments gardés affichés dès l'ouverture, par identifiant. */
-export interface LayerInput { visible?: boolean; distance?: number; kept?: readonly string[] }
+export interface LayerInput { visible?: boolean; distance?: number; kept?: readonly string[]; /** Élément sélectionné dès l'ouverture : celui d'un lien partagé. */ selected?: string }
 
 /** Dérive la machine d'un calque à partir de sa description. */
 export function createSelectionLayer<T extends LayerItem>(spec: SelectionLayerSpec<T>) {
@@ -153,6 +155,14 @@ export function createSelectionLayer<T extends LayerItem>(spec: SelectionLayerSp
             ? context.keptIds.filter((id) => id !== event.id) : [...context.keptIds, event.id];
         },
       }),
+      ensureKeep: assign({
+        keptIds: ({ context, event }) => (event.type !== 'layer.keepEnsured' ? context.keptIds
+          : [...context.keptIds, ...event.ids.filter((id) => !context.keptIds.includes(id) && context.items.some((item) => item.id === id))]),
+      }),
+      announceRestored: enqueueActions(({ context, enqueue }) => {
+        if (!selected(context)) return;
+        enqueue.sendParent({ type: 'layer.selectionChanged', layer: spec.name, item: selected(context), ...home(context) } satisfies LayerEmitted<T>);
+      }),
       announceKept: sendParent(({ context }): LayerEmitted<T> => ({ type: 'layer.keptChanged', layer: spec.name, items: kept(context) })),
       announceNoneKept: sendParent((): LayerEmitted<T> => ({ type: 'layer.keptChanged', layer: spec.name, items: [] })),
       announceList: sendParent(({ context }): LayerEmitted<T> => ({ type: 'layer.listed', layer: spec.name, items: context.items })),
@@ -175,7 +185,7 @@ export function createSelectionLayer<T extends LayerItem>(spec: SelectionLayerSp
     context: ({ input }) => ({
       startsVisible: input?.visible ?? true,
       items: [],
-      selectedId: null,
+      selectedId: input?.selected ?? null,
       siblingIds: [],
       keptIds: [...(input?.kept ?? [])],
       distance: input?.distance ?? 1800,
@@ -205,7 +215,8 @@ export function createSelectionLayer<T extends LayerItem>(spec: SelectionLayerSp
         on: { 'layer.toggled': 'visible' },
       },
       visible: {
-        entry: ['publish', 'announceKept'],
+        // une sélection venue d'un lien partagé est annoncée, sans emmener la vue : le lien porte déjà la sienne
+        entry: ['publish', 'announceKept', 'announceRestored'],
         exit: ['deselect', 'withdraw', 'announceSelection', 'announceNoneKept'],
         on: {
           'layer.toggled': 'hidden',
@@ -217,6 +228,7 @@ export function createSelectionLayer<T extends LayerItem>(spec: SelectionLayerSp
           'layer.stepped': { guard: 'canStep', actions: ['selectNeighbour', 'publish', 'announceSelection', 'activate'] },
           'layer.dismissed': { guard: 'hasSelection', actions: ['deselect', 'publish', 'announceSelection'] },
           'layer.keepToggled': { guard: 'keepsKnown', actions: ['toggleKeep', 'publish', 'announceKept'] },
+          'layer.keepEnsured': { actions: ['ensureKeep', 'publish', 'announceKept'] },
         },
       },
     },
