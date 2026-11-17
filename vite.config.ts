@@ -5,10 +5,11 @@ import { cameraSourceUrl } from './src/domain/cameraView.ts';
 import { routeUrl } from './src/domain/flightRoute.ts';
 import { vesselPageUrl } from './src/domain/vessels.ts';
 import { entropy } from './build/entropy/plugin.ts';
+import { publishedAssets } from './build/published-assets.ts';
 import { supportGate } from './build/support-gate.ts';
 
 export default defineConfig({
-  plugins: [react(), supportGate(), entropy('Alan Hortz')],
+  plugins: [react(), supportGate(), entropy('Alan Hortz'), publishedAssets()],
   build: {
     target: 'es2022',
     sourcemap: false,

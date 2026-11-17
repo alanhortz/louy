@@ -5,5 +5,6 @@ export async function loadSatelliteImages(signal: AbortSignal): Promise<Satellit
   const response = await fetch('/data/satellite.json', { signal });
   if (!response.ok) return [];
   const list: unknown = await response.json();
-  return Array.isArray(list) ? list.filter(isSatelliteImage) : [];
+  // une image mise de côté (`disabled`) n'est ni listée ni chargée, comme un relevé mis de côté
+  return Array.isArray(list) ? list.filter((entry) => (entry as { disabled?: unknown } | null)?.disabled !== true).filter(isSatelliteImage) : [];
 }

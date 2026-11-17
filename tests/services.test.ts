@@ -141,3 +141,23 @@ describe('télémétrie locale', () => {
     expect(buffer.drain().map((record) => record.n)).toEqual(['checking', 'running']);
   });
 });
+
+describe('fichiers lourds publiés', () => {
+  it('écarte les entrées mises de côté et donne son empreinte à chaque adresse', async () => {
+    const { publishList } = await import('../build/published-assets.ts');
+    const kept = new Set<string>(), dropped = new Set<string>();
+    const list = [
+      { id: 'a', splats: '/scans/a.spz', hd: { splats: '/scans/a-hd.spz' }, clips: [{ src: '/scans/clips/a.mp4' }], credit: { url: 'https://exemple.be/scans/x.spz' } },
+      { id: 'b', disabled: true, splats: '/scans/b.spz', cloud: '/scans/a.spz' },
+    ];
+    const out = publishList(list as never, (path) => (path === '/scans/a-hd.spz' ? null : 'abc123'), kept, dropped) as unknown as { splats: string; hd: { splats: string }; clips: { src: string }[]; credit: { url: string } }[];
+    expect(out).toHaveLength(1);
+    expect(out[0]!.splats).toBe('/scans/a.spz?v=abc123');
+    expect(out[0]!.clips[0]!.src).toBe('/scans/clips/a.mp4?v=abc123');
+    // fichier absent : l'adresse reste telle quelle ; adresse d'un autre site : jamais touchée
+    expect(out[0]!.hd.splats).toBe('/scans/a-hd.spz');
+    expect(out[0]!.credit.url).toBe('https://exemple.be/scans/x.spz');
+    // seul ce qui ne sert à aucune entrée gardée peut être retiré
+    expect([...dropped].filter((path) => !kept.has(path))).toEqual(['/scans/b.spz']);
+  });
+});

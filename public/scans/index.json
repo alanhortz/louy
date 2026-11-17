@@ -61,6 +61,9 @@
     "x": 685424,
     "y": 628131,
     "splats": "/scans/namur-place-darmes.spz",
+    "hd": {
+      "splats": "/scans/namur-place-darmes-hd.spz"
+    },
     "note": "Un passage du drone à la verticale, reconstruit en volume. Filmé seulement d'en haut, il se regarde du dessus : de côté, les façades manquent.",
     "credit": {
       "author": "Joeys Journeys",
@@ -271,6 +274,9 @@
     "x": 685424.0,
     "y": 628131.0,
     "splats": "/scans/nuage-namur-place-darmes.spz",
+    "hd": {
+      "splats": "/scans/nuage-namur-place-darmes-hd.spz"
+    },
     "cloud": true,
     "marker": {
       "x": 685410.0,
@@ -297,6 +303,9 @@
     "x": 685103.0,
     "y": 628024.0,
     "splats": "/scans/nuage-namur-rue-des-brasseurs.spz",
+    "hd": {
+      "splats": "/scans/nuage-namur-rue-des-brasseurs-hd.spz"
+    },
     "cloud": true,
     "marker": {
       "x": 685089.0,

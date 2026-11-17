@@ -8,9 +8,14 @@
 /data/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 
-# Scans 3D : gros fichiers, remplacés rarement.
+# Relevés 3D, séquences et images de la vue satellite : gros fichiers. Leur adresse porte l'empreinte de leur
+# contenu (`?v=…`, posée à la construction) : le navigateur les garde un an sans jamais les redemander, et un
+# fichier refait change d'adresse.
 /scans/*
-  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+  Cache-Control: public, max-age=31536000, immutable
+
+/satellite/*
+  Cache-Control: public, max-age=31536000, immutable
 
 # Leur liste, elle, change à chaque ajout : elle est revalidée à chaque visite.
 /scans/index.json
