@@ -1145,6 +1145,9 @@ export class SceneEngine {
     this.#trajectory?.render(this.#camera, this.#size.width, this.#size.height, this.#aircraft?.anchor ?? null);
 
     this.#updateOverlays();
+    // Le champ resserré de la vue satellite ne vaut que pour le dessin : les commandes de la carte mesurent
+    // le glisser d'après le champ ordinaire — sans cela, la carte ne suivait presque plus la souris.
+    if (this.#beforeSatellite) this.#camera.fov = MAP_FOV;
     this.#updateAltimeter();
 
     if (!this.#ready && this.#tree.stats.points > 0) {
