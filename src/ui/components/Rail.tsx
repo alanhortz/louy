@@ -1,4 +1,5 @@
 import { useSelector } from '@xstate/react';
+import { SHELVED_LAYERS } from '../../machines/scans.layer.ts';
 import { RAIL_ITEMS } from '../rail.ts';
 import { useChild } from '../actors.ts';
 
@@ -13,7 +14,7 @@ export function Rail() {
 
   return (
     <nav className="rail" aria-label="Panneaux">
-      {RAIL_ITEMS.map(({ panel, label, Icon }) => {
+      {RAIL_ITEMS.filter(({ panel }) => !SHELVED_LAYERS.includes(panel)).map(({ panel, label, Icon }) => {
         const active = expanded.split(',').includes(panel);
         return (
           <button

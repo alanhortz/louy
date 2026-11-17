@@ -58,11 +58,18 @@ export const aerialLayer: SelectionLayerSpec<Scan> = {
   opensTogether: (members) => members.length === 1,
 };
 
+/**
+ * Calques mis de côté pour l'instant : ils ne sont proposés nulle part — ni dans le panneau des calques,
+ * ni dans le rail. Leurs données restent publiées ; il suffit de vider cette liste pour les rétablir.
+ */
+export const SHELVED_LAYERS: readonly string[] = ['orthophoto', 'clouds'];
+
 /** Un calque dont les éléments se dessinent dans la carte, comme l'imagerie aérienne. */
 const drawnLayer = (name: string, pick: (scans: readonly Scan[]) => Scan[]): SelectionLayerSpec<Scan> => ({
   ...aerialLayer,
   name,
-  load: async (signal) => pick(await loadScans(signal)),
+  // un calque mis de côté n'a rien à montrer : il n'est alors pas proposé du tout
+  load: async (signal) => (SHELVED_LAYERS.includes(name) ? [] : pick(await loadScans(signal))),
 });
 
 /**

@@ -116,3 +116,10 @@ body:has(.walk-walking) .stage canvas:active { cursor: grabbing; }
 }
 .drone-halo[hidden] { display: none; }
 .drone-feed { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; border: 1px solid var(--glass-border); background: #000; object-fit: cover; }
+
+/* Vue cockpit sur téléphone tenu droit : la barre garde le nom du vol et ses quatre boutons, sans le mode d'emploi. */
+@media (max-width: 720px) {
+  .tour-bar { left: calc(8px + var(--safe-left)); right: calc(8px + var(--safe-right)); width: auto; max-width: none; transform: none; gap: 6px; padding-left: 14px; }
+  .tour-bar .walk-bar-hint { display: none; }
+  .tour-bar .walk-bar-exit { flex: 0 0 44px; }
+}
