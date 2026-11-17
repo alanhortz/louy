@@ -69,6 +69,20 @@ const TOUR_PITCH_LIMIT = 70 * (Math.PI / 180);
 const UP = new Vector3(0, 1, 0);
 const RIGHT = new Vector3(1, 0, 0);
 const TOUR_TURN = new Quaternion();
+/** Rapport de l'image d'un drone, et champ vertical au-delà duquel la vue se déforme trop. */
+const DRONE_ASPECT = 16 / 9;
+const TOUR_MAX_FOV = 96;
+
+/**
+ * Champ vertical de la vue cockpit sur un écran de rapport `aspect`. Sur un écran large, c'est celui du drone.
+ * Sur un écran en hauteur — un téléphone tenu droit — ce champ ne montrerait qu'une tranche étroite de ce que
+ * la caméra voit : la vue s'élargit pour garder toute la largeur de son image, dans la limite du supportable.
+ */
+export function tourFov(droneFov: number, aspect: number): number {
+  if (!(aspect > 0) || aspect >= DRONE_ASPECT) return droneFov;
+  const halfWidth = Math.tan((droneFov * DEG) / 2) * DRONE_ASPECT;
+  return Math.min(TOUR_MAX_FOV, (2 * Math.atan(halfWidth / aspect)) / DEG);
+}
 /** En vue satellite, la caméra ne descend pas sous cette distance du sol visé : les images sont au-dessus des toits. */
 const SATELLITE_MIN_DISTANCE = 90;
 /** Recul de la caméra en vue satellite, en multiples de sa distance ordinaire : à ce point, la perspective ne se voit plus. */
@@ -516,7 +530,7 @@ export class SceneEngine {
       event.preventDefault();
     }, options);
     this.#controls.enabled = false;
-    this.#camera.fov = flight.fov;
+    this.#camera.fov = tourFov(flight.fov, this.#size.width / this.#size.height);
     this.#wake();
   }
 
@@ -547,6 +561,7 @@ export class SceneEngine {
   /** Place la caméra sur le trajet à l'instant courant, et avance cet instant si la visite joue. */
   #stepTour(dt: number): boolean {
     const tour = this.#tour!;
+    this.#camera.fov = tourFov(tour.fov, this.#size.width / this.#size.height);
     const end = tour.track[tour.track.length - 1]!.t;
     if (tour.playing) tour.t = Math.min(end, tour.t + dt);
     const pose = clipPose(tour.track, tour.t);

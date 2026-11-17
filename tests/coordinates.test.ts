@@ -63,3 +63,15 @@ describe('vue cockpit dans l’adresse', () => {
     expect(decodeView(encodeView(DEFAULT_VIEW)).cockpit).toBeUndefined();
   });
 });
+
+describe('vue cockpit sur un écran en hauteur', () => {
+  it('garde le champ du drone sur un écran large, et l’élargit sur un téléphone tenu droit', async () => {
+    const { tourFov } = await import('../src/engine/SceneEngine.ts');
+    expect(tourFov(46.6, 16 / 9)).toBe(46.6);
+    expect(tourFov(46.6, 21 / 9)).toBe(46.6);
+    // iPhone 15 Pro en portrait : 393 × 852
+    const portrait = tourFov(46.6, 393 / 852);
+    expect(portrait).toBeGreaterThan(90);
+    expect(portrait).toBeLessThanOrEqual(96);
+  });
+});
