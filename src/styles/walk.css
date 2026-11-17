@@ -92,15 +92,24 @@ body:has(.walk-walking) .stage canvas:active { cursor: grabbing; }
 /* ---- vols de drone : halo tactique autour du drone, et la vue de sa caméra dans le panneau ---- */
 .drone-halo { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
 .drone-halo i {
-  position: absolute; left: -26px; top: -26px; width: 52px; height: 52px; border-radius: 50%;
-  border: 1px solid rgba(0, 212, 255, 0.85); box-shadow: 0 0 10px var(--accent-glow), inset 0 0 8px rgba(0, 212, 255, 0.25);
-  /* quatre encoches : le réticule */
-  background:
-    linear-gradient(var(--accent), var(--accent)) 50% 0 / 1px 7px no-repeat, linear-gradient(var(--accent), var(--accent)) 50% 100% / 1px 7px no-repeat,
-    linear-gradient(var(--accent), var(--accent)) 0 50% / 7px 1px no-repeat, linear-gradient(var(--accent), var(--accent)) 100% 50% / 7px 1px no-repeat;
+  /* le pointeur : quatre marques d'accroche radar — les coins d'un carré arrondi, sans ses côtés — qui battent doucement */
+  position: absolute; left: -28px; top: -28px; width: 56px; height: 56px; border-radius: 12px;
+  border: 2px solid var(--accent);
+  filter: drop-shadow(0 0 5px var(--accent-glow));
+  /* seul ce qui tombe dans un coin est gardé */
+  --corner: 17px;
+  -webkit-mask:
+    linear-gradient(#000, #000) 0 0 / var(--corner) var(--corner) no-repeat, linear-gradient(#000, #000) 100% 0 / var(--corner) var(--corner) no-repeat,
+    linear-gradient(#000, #000) 0 100% / var(--corner) var(--corner) no-repeat, linear-gradient(#000, #000) 100% 100% / var(--corner) var(--corner) no-repeat;
+  mask:
+    linear-gradient(#000, #000) 0 0 / var(--corner) var(--corner) no-repeat, linear-gradient(#000, #000) 100% 0 / var(--corner) var(--corner) no-repeat,
+    linear-gradient(#000, #000) 0 100% / var(--corner) var(--corner) no-repeat, linear-gradient(#000, #000) 100% 100% / var(--corner) var(--corner) no-repeat;
+  animation: drone-pulse 1.8s ease-in-out infinite;
 }
+@keyframes drone-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.88); opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) { .drone-halo i { animation: none; } }
 .drone-halo span {
-  position: absolute; left: 34px; top: -24px; padding: 4px 7px; white-space: pre; border-radius: 6px;
+  position: absolute; left: 40px; top: -24px; padding: 4px 7px; white-space: pre; border-radius: 6px;
   background: var(--glass-bg); border: 1px solid rgba(0, 212, 255, 0.4);
   font-family: var(--font-mono); font-size: 9px; line-height: 1.5; letter-spacing: 1px; text-transform: uppercase; color: #dff9ff;
   font-variant-numeric: tabular-nums;
