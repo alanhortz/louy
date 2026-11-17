@@ -1,6 +1,7 @@
 [
   {
     "id": "namur-place-darmes",
+    "disabled": true,
     "name": "Place d’Armes, Namur",
     "src": "/satellite/namur-place-darmes.webp",
     "west": 685369.5,
@@ -17,6 +18,7 @@
   },
   {
     "id": "namur-rue-des-brasseurs",
+    "disabled": true,
     "name": "Rue des Brasseurs et quai de Sambre, Namur",
     "src": "/satellite/namur-rue-des-brasseurs.webp",
     "west": 685031.9,
