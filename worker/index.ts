@@ -39,7 +39,7 @@
  */
 
 import { FLIGHT_CELL, flightDatesUrl } from '../src/domain/acquisition.ts';
-import { AIRCRAFT_CACHE_SECONDS, AIRCRAFT_EDGE_PATH, aircraftFeedUrl } from '../src/domain/aircraft.ts';
+import { AIRCRAFT_CACHE_SECONDS, AIRCRAFT_EDGE_PATH, AIRCRAFT_FEEDS, AIRCRAFT_SOURCE_HEADER } from '../src/domain/aircraft.ts';
 import { CAMERA_EDGE_ROUTE, CAMERA_IMAGE_CACHE_SECONDS, cameraSourceUrl } from '../src/domain/cameraView.ts';
 import { LATEST_VINTAGE, VINTAGES } from '../src/domain/catalog.ts';
 import { VESSEL_CACHE_SECONDS, VESSEL_ROUTE, vesselPageUrl } from '../src/domain/vessels.ts';
@@ -63,6 +63,8 @@ interface ExecutionContext {
 
 interface Upstream {
   url: string;
+  /** Sources équivalentes, essayées dans l'ordre quand elles existent ; celle qui répond est nommée dans la réponse. */
+  alternatives?: readonly { name: string; url: string }[];
   /** Type attendu : ArcGIS signale ses erreurs en JSON avec un statut 200. */
   contentType: string;
   cacheControl: string;
@@ -110,7 +112,8 @@ function flightsUpstream(path: string): Upstream | null {
 function aircraftUpstream(path: string): Upstream | null {
   if (path !== AIRCRAFT_EDGE_PATH) return null;
   return {
-    url: aircraftFeedUrl(),
+    url: AIRCRAFT_FEEDS[0]!.url,
+    alternatives: AIRCRAFT_FEEDS,
     contentType: 'application/json',
     cacheControl: `public, max-age=${AIRCRAFT_CACHE_SECONDS}, s-maxage=${AIRCRAFT_CACHE_SECONDS}`,
   };
@@ -184,11 +187,27 @@ function streetSearchUpstream(path: string): Upstream | null {
 const refusal = (status: number, message: string): Response =>
   new Response(message, { status, headers: { 'Cache-Control': 'no-store', 'Content-Type': 'text/plain; charset=utf-8' } });
 
-/** Demande une ressource à sa source ; `null` si la réponse n'est pas celle attendue. */
-async function fetchUpstream(upstream: Upstream): Promise<Response | null> {
+/**
+ * Demande une ressource à sa source ; `null` si la réponse n'est pas celle attendue. `refusals` recueille alors
+ * ce que la source a répondu : sans journal sous la main, c'est la seule façon de savoir pourquoi elle refuse.
+ */
+async function fetchUpstream(upstream: Upstream, refusals: string[] = []): Promise<Response | null> {
+  if (upstream.alternatives) {
+    for (const { name, url } of upstream.alternatives) {
+      const { alternatives: _others, ...single } = upstream;
+      const tried: string[] = [];
+      const response = await fetchUpstream({ ...single, url }, tried).catch((error: unknown) => { tried.push(String(error)); return null; });
+      if (response) { response.headers.set(AIRCRAFT_SOURCE_HEADER, name); return response; }
+      refusals.push(`${name} : ${tried.join(' ') || 'réponse illisible'}`);
+    }
+    return null;
+  }
   const answer = await fetch(upstream.url, { headers: { Accept: upstream.contentType } });
   const type = answer.headers.get('Content-Type') ?? '';
-  if (!answer.ok || !type.startsWith(upstream.contentType)) return null;
+  if (!answer.ok || !type.startsWith(upstream.contentType)) {
+    refusals.push(`statut ${answer.status}, type ${type || 'absent'}`);
+    return null;
+  }
   const body = upstream.reshape ? upstream.reshape.convert(await answer.text()) : answer.body;
   if (body === null) return null;
   return new Response(body, {
@@ -239,8 +258,9 @@ async function relay(request: Request, context: ExecutionContext): Promise<Respo
   // déjà en cache : ses millésimes voisins ont été préparés avec elle
   if (cached) return cached;
 
-  const response = await fetchUpstream(upstream);
-  if (!response) return refusal(502, 'La source n’a pas rendu cette ressource');
+  const refusals: string[] = [];
+  const response = await fetchUpstream(upstream, refusals);
+  if (!response) return refusal(502, `La source n’a pas rendu cette ressource (${refusals.join(' ; ') || 'réponse inattendue'})`);
 
   context.waitUntil(cache.put(key, response.clone()));
   if (searchParams.has(WARM_FLAG)) context.waitUntil(warmSiblings(cache, origin, route));

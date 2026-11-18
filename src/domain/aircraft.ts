@@ -25,6 +25,18 @@ export const AIRCRAFT_FEED = { lat: 50.2, lon: 5.0, radiusNm: 100 } as const;
 export const aircraftFeedUrl = (): string =>
   `https://opendata.adsb.fi/api/v2/lat/${AIRCRAFT_FEED.lat}/lon/${AIRCRAFT_FEED.lon}/dist/${AIRCRAFT_FEED.radiusNm}`;
 
+/**
+ * Réseaux interrogés, dans l'ordre : le relais passe au suivant quand l'un refuse. Tous rendent le même format.
+ * Ces réseaux bénévoles limitent les appels par adresse, et le relais partage les siennes avec d'autres :
+ * aucun n'est sûr de répondre à tout instant.
+ */
+export const AIRCRAFT_FEEDS: readonly { name: string; url: string }[] = [
+  { name: 'adsb.fi', url: aircraftFeedUrl() },
+  { name: 'adsb.lol', url: `https://api.adsb.lol/v2/lat/${AIRCRAFT_FEED.lat}/lon/${AIRCRAFT_FEED.lon}/dist/${AIRCRAFT_FEED.radiusNm}` },
+];
+/** En-tête par lequel le relais dit quel réseau a répondu. */
+export const AIRCRAFT_SOURCE_HEADER = 'X-Louy-Source';
+
 /** Chemin du relais, sous le préfixe `edge`. */
 export const AIRCRAFT_EDGE_PATH = '/aircraft.json';
 /** Durée pendant laquelle le relais ressert la même réponse, en secondes. */
