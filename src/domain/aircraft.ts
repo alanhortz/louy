@@ -2,8 +2,9 @@
  * Avions au-dessus de la Wallonie, en direct.
  *
  * Les positions viennent des transpondeurs ADS-B des appareils, captées par les
- * récepteurs bénévoles du réseau adsb.lol (données ouvertes, ODbL). Le site ne
- * les interroge pas directement : il passe par son propre relais, qui garde
+ * récepteurs bénévoles du réseau adsb.fi, dont les données ouvertes sont réservées
+ * à un usage personnel et non commercial, à raison d'une requête par seconde au plus.
+ * Le site ne les interroge pas directement : il passe par son propre relais, qui garde
  * chaque réponse quelques secondes — mille visiteurs ne font pas mille requêtes.
  *
  * Tout est converti ici, une fois : pieds, nœuds et pieds par minute deviennent
@@ -22,7 +23,7 @@ const DEG = Math.PI / 180;
 /** Cercle interrogé : centré sur la Wallonie, assez large pour couvrir ses pointes. */
 export const AIRCRAFT_FEED = { lat: 50.2, lon: 5.0, radiusNm: 100 } as const;
 export const aircraftFeedUrl = (): string =>
-  `https://api.adsb.lol/v2/lat/${AIRCRAFT_FEED.lat}/lon/${AIRCRAFT_FEED.lon}/dist/${AIRCRAFT_FEED.radiusNm}`;
+  `https://opendata.adsb.fi/api/v2/lat/${AIRCRAFT_FEED.lat}/lon/${AIRCRAFT_FEED.lon}/dist/${AIRCRAFT_FEED.radiusNm}`;
 
 /** Chemin du relais, sous le préfixe `edge`. */
 export const AIRCRAFT_EDGE_PATH = '/aircraft.json';
@@ -101,11 +102,15 @@ const inWallonia = (x: number, y: number): boolean =>
 
 /** Lit la réponse du réseau ; tolérant : tout appareil sans position exploitable est écarté. */
 export function parseAircraft(payload: unknown): Aircraft[] {
-  const root = payload as { ac?: unknown; now?: unknown } | null;
-  if (!root || !Array.isArray(root.ac)) return [];
-  const now = number(root.now) ?? Date.now();
+  // la liste s'appelle `aircraft` chez adsb.fi, `ac` chez les réseaux du même format : les deux sont lues
+  const root = payload as { aircraft?: unknown; ac?: unknown; now?: unknown } | null;
+  const entries = root && (Array.isArray(root.aircraft) ? root.aircraft : Array.isArray(root.ac) ? root.ac : null);
+  if (!root || !entries) return [];
+  // l'heure du relevé : en secondes chez adsb.fi, en millisecondes chez d'autres — ramenée en millisecondes
+  const stamp = number(root.now);
+  const now = stamp === null ? Date.now() : stamp < 1e11 ? stamp * 1000 : stamp;
   const list: Aircraft[] = [];
-  for (const entry of root.ac as Record<string, unknown>[]) {
+  for (const entry of entries as Record<string, unknown>[]) {
     const id = text(entry.hex);
     const lat = number(entry.lat), lon = number(entry.lon);
     if (!id || lat === null || lon === null) continue;

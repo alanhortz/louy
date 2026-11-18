@@ -43,7 +43,7 @@ export function AboutPanel() {
         <li>Noms de lieux et sites touristiques : contributeurs <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>, ODbL.</li>
         <li>
           Avions : positions ADS-B captées par la communauté{' '}
-          <a href="https://adsb.lol" target="_blank" rel="noreferrer">adsb.lol</a>, ODbL, relayées avec quelques secondes de retard.
+          <a href="https://adsb.fi" target="_blank" rel="noreferrer">adsb.fi</a>, données ouvertes pour un usage non commercial, relayées avec quelques secondes de retard.
         </li>
         <li>Caméras : SPW Trafiroutes, placées au point kilométrique lu sur leur image ; à défaut, sur la localité nommée.</li>
         {scans.map((scan) => (

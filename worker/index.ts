@@ -16,7 +16,7 @@
  * longue. Une campagne LiDAR datée ne change plus : sa tuile est immuable.
  *
  * Il relaie aussi `/edge/v1/aircraft.json`, les avions en vol : la réponse du
- * réseau adsb.lol est gardée quelques secondes, de sorte que le nombre de
+ * réseau adsb.fi est gardée quelques secondes, de sorte que le nombre de
  * requêtes vers ce réseau bénévole ne dépende pas du nombre de visiteurs.
  * De même `/edge/v1/aircraft/route/<indicatif>.json`, la liaison que dessert
  * un indicatif, demandée à la base ouverte adsbdb et gardée un jour.

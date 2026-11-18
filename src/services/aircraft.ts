@@ -3,7 +3,7 @@ import { AIRCRAFT_EDGE_PATH, parseAircraft, type Aircraft } from '../domain/airc
 import { parseRoute, routeEdgePath, type FlightRoute } from '../domain/flightRoute.ts';
 import { AIRCRAFT_PHOTOS_PATH, parseAircraftPhotos, type AircraftPhoto } from '../domain/aircraftPhotos.ts';
 
-export const AIRCRAFT_SOURCE = 'adsb.lol';
+export const AIRCRAFT_SOURCE = 'adsb.fi';
 
 /**
  * Avions actuellement au-dessus de la Wallonie. Toujours par le relais du site :
