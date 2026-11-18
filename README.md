@@ -190,7 +190,7 @@ par-dessus le relief, sans être masqués par lui.
 
 Le calque « Avions en direct » montre les appareils au-dessus de la Wallonie, à leur
 altitude réelle, d'après les transpondeurs ADS-B captés par le réseau bénévole
-[adsb.lol](https://adsb.lol) (données ouvertes, ODbL). Le site ne l'interroge jamais
+[adsb.fi](https://adsb.fi) (données ouvertes, usage non commercial). Le site ne l'interroge jamais
 directement : le Worker relaie `/edge/v1/aircraft.json` et garde chaque réponse cinq
 secondes, si bien que la charge sur ce réseau ne dépend pas du nombre de visiteurs.
 

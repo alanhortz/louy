@@ -277,3 +277,14 @@ describe('avions : vue partageable', () => {
     expect(decodeView(encodeView(view)).overlays.aircraft).toBe(true);
   });
 });
+
+describe('source des avions', () => {
+  it('lit la liste sous le nom que lui donne adsb.fi comme sous celui des autres réseaux', async () => {
+    const { parseAircraft, aircraftFeedUrl } = await import('../src/domain/aircraft.ts');
+    const plane = { hex: '4cae69', lat: 50.46, lon: 4.86, alt_baro: 28250, gs: 437, track: 90, flight: 'RYR79FC ' };
+    expect(parseAircraft({ now: 1, aircraft: [plane] })).toHaveLength(1);
+    expect(parseAircraft({ now: 1, ac: [plane] })).toHaveLength(1);
+    expect(parseAircraft({ now: 1 })).toEqual([]);
+    expect(new URL(aircraftFeedUrl()).hostname).toBe('opendata.adsb.fi');
+  });
+});
