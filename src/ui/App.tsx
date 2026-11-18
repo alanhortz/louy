@@ -4,6 +4,7 @@ import { useApp } from './actors.ts';
 import { AboutPanel } from './components/AboutPanel.tsx';
 import { AircraftPanel } from './components/AircraftPanel.tsx';
 import { VesselPanel } from './components/VesselPanel.tsx';
+import { SHELVED_LAYERS } from '../machines/scans.layer.ts';
 import { CloudPanel, ImageryPanel, OrthophotoPanel } from './components/ImageryPanel.tsx';
 import { DronePanel } from './components/DronePanel.tsx';
 import { SettingsPanel } from './components/SettingsPanel.tsx';
@@ -76,8 +77,9 @@ export function App() {
         <aside className="stack stack-right">
           <CameraPanel />
           <ImageryPanel />
-          <OrthophotoPanel />
-          <CloudPanel />
+          {/* les calques mis de côté n'ont pas de panneau non plus */}
+          {!SHELVED_LAYERS.includes('orthophoto') && <OrthophotoPanel />}
+          {!SHELVED_LAYERS.includes('clouds') && <CloudPanel />}
           <DronePanel />
           <SettingsPanel />
           <AircraftPanel />

@@ -16,7 +16,7 @@
 import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom, enqueueActions } from 'xstate';
 import { PROJECT } from '../config/project.ts';
 import { QUALITY_PROFILES } from '../domain/quality.ts';
-import { fitFlyover, scanFlyover, type Scan } from '../domain/scans.ts';
+import { fitFlyover, scanFlyover, type Scan, scansWorthPreloading } from '../domain/scans.ts';
 import { resolveScene } from '../domain/scene.ts';
 import { timelineSteps, timelineTint, type FilmFraming } from '../domain/timeline.ts';
 import { HOME_IMAGERY, PINNED_IMAGERY, encodeView, homePose, viewUrl, type View } from '../domain/view.ts';
@@ -622,7 +622,8 @@ export const appMachine = setup({
             guard: ({ context, event }) => event.layer === AERIAL_LAYER && context.view.overlays.scans,
             actions: [
               assign({ places: ({ event }) => event.items }),
-              sendTo('viewer', ({ event }) => ({ type: 'viewer.scansPreloaded', scans: event.items })),
+              // seulement les lieux proches de la vue : les autres attendront qu'on s'en approche
+              sendTo('viewer', ({ context, event }) => ({ type: 'viewer.scansPreloaded', scans: scansWorthPreloading(event.items as Scan[], context.view.pose) })),
             ],
           },
           { guard: ({ event }) => event.layer === AERIAL_LAYER, actions: [assign({ places: ({ event }) => event.items }), 'drawImagery'] },
@@ -823,6 +824,7 @@ export const appMachine = setup({
           ],
         },
         'tour.playChanged': { actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.tourPlayChanged', playing: event.playing })) },
+        'tour.sightChanged': { actions: sendTo('viewer', ({ event }) => ({ type: 'viewer.droneSightChanged', visible: event.visible })) },
         'tour.ended': {
           actions: [
             assign({ tour: null, tourScanId: null, view: ({ context }) => { const { cockpit: _left, ...view } = context.view; return view; } }),

@@ -14,7 +14,7 @@
 
 import { dyno, SparkRenderer, SplatEdit, SplatEditRgbaBlendMode, SplatEditSdf, SplatEditSdfType, SplatMesh } from '@sparkjsdev/spark';
 import { Scene as ThreeScene, Vector3, type PerspectiveCamera, type WebGLRenderer } from 'three';
-import type { Scan } from '../domain/scans.ts';
+import { nearestFirst, type Scan } from '../domain/scans.ts';
 import * as T from '../domain/tiling.ts';
 import { buildGround, type WalkGround } from '../domain/walk.ts';
 
@@ -36,6 +36,8 @@ const STROKE_CUT = 1.6;
 const LANDING_HEIGHT = 6000;
 /** L'avancement est annoncé par pas de 5 % : assez pour le lire, sans noyer le journal. */
 const PROGRESS_STEPS = 20;
+/** Fichiers complets téléchargés et décodés en même temps. */
+const ARRIVING_AT_ONCE = 2;
 
 export class SplatLayer {
   readonly #renderer: WebGLRenderer;
@@ -60,8 +62,14 @@ export class SplatLayer {
   readonly #strokes = new Map<SplatMesh, { width: number; floor: number; factor: ReturnType<typeof dyno.dynoFloat> }>();
   /** Finesses plus grossières des tracés, à montrer à mesure que l'on s'éloigne. */
   readonly #levels = new Map<string, { mesh: SplatMesh; beyond: number }[]>();
-  /** Fichier chargé pour chaque relevé : il change avec la définition choisie. */
+  /** Fichier voulu pour chaque relevé, chargé ou encore en file : il change avec la définition choisie. */
   readonly #urls = new Map<string, string>();
+  /** Aperçus à l'écran, en attendant le fichier complet. */
+  readonly #previews = new Map<string, SplatMesh>();
+  /** Relevés dont le fichier complet attend son tour, et ceux qui sont en train d'arriver. */
+  #queue: Scan[] = [];
+  readonly #arriving = new Set<string>();
+  #focus = { x: 0, y: 0 };
   readonly #onDirty: () => void;
   readonly #onProgress: (progress: ScanProgress) => void;
 
@@ -74,49 +82,122 @@ export class SplatLayer {
     this.#onDirty = onDirty;
   }
 
-  setScans(scans: readonly Scan[]): void {
+  /**
+   * `focus` : le point regardé, dans le repère des relevés (Lambert). Il fixe l'ordre de chargement — le lieu
+   * le plus proche d'abord.
+   */
+  setScans(scans: readonly Scan[], focus?: { x: number; y: number }): void {
+    if (focus) this.#focus = focus;
     const wanted = new Map(scans.map((scan) => [scan.id, scan]));
-    for (const [id, mesh] of this.#meshes) {
+    for (const [id, url] of this.#urls) {
       // même relevé, même fichier : rien à faire ; un autre fichier (une autre définition) le remplace
-      if (wanted.get(id)?.splats === this.#urls.get(id)) continue;
-      this.#urls.delete(id);
-      mesh.removeFromParent();
-      mesh.dispose();
-      this.#meshes.delete(id);
-      this.#loaded.delete(id);
-      this.#grounds.delete(id);
-      this.#strokes.delete(mesh);
-      for (const level of this.#levels.get(id) ?? []) { level.mesh.removeFromParent(); level.mesh.dispose(); this.#strokes.delete(level.mesh); }
-      this.#levels.delete(id);
+      if (wanted.get(id)?.splats !== url) this.#drop(id);
     }
     for (const scan of scans) {
-      if (this.#meshes.has(scan.id)) continue;
-      if (!scan.splats) continue;
-      let step = -1;
-      const mesh = new SplatMesh({
-        url: scan.splats,
-        // un tracé couvre des centaines de kilomètres : ses positions ne tiennent pas dans l'encodage compact
-        ...(scan.trace ? { extSplats: true } : {}),
-        onProgress: (event) => {
-          if (!event.lengthComputable || !this.#meshes.has(scan.id)) return;
-          const fraction = event.loaded / event.total;
-          const reached = Math.floor(fraction * PROGRESS_STEPS);
-          if (reached === step) return;
-          step = reached;
-          this.#onProgress({ id: scan.id, phase: 'loading', fraction });
-        },
-        onLoad: (loaded) => this.#build(scan.id, loaded, scan.trace === true),
-      });
-      // de près, le trait n'est jamais plus fin que la route elle-même
-      if (scan.trace && scan.width) this.#followZoom(mesh, scan.width, 1);
-      this.#addLevels(scan);
-      this.#onProgress({ id: scan.id, phase: 'loading', fraction: 0 });
-      // le fichier est déjà dans le repère du viewer : il ne reste qu'à le poser sur son ancrage
-      mesh.position.set(scan.x - T.ORIGIN.x, 0, -(scan.y - T.ORIGIN.y));
-      (scan.trace ? this.#traceScene() : scan.orthophoto ? this.#coverScene() : this.#scene).add(mesh);
-      this.#meshes.set(scan.id, mesh);
+      if (this.#urls.has(scan.id) || !scan.splats) continue;
       this.#urls.set(scan.id, scan.splats);
+      this.#onProgress({ id: scan.id, phase: 'loading', fraction: 0 });
+      // un tracé n'attend pas son tour : il est léger, et c'est lui qui situe le reste
+      if (scan.trace) { this.#open(scan); continue; }
+      if (scan.preview) this.#openPreview(scan, scan.preview);
+      this.#queue.push(scan);
     }
+    this.#pump();
+  }
+
+  /** Retire un relevé : son fichier, son aperçu, ses finesses, et sa place dans la file. */
+  #drop(id: string): void {
+    this.#urls.delete(id);
+    this.#queue = this.#queue.filter((scan) => scan.id !== id);
+    this.#arriving.delete(id);
+    const mesh = this.#meshes.get(id);
+    if (mesh) { mesh.removeFromParent(); mesh.dispose(); this.#strokes.delete(mesh); }
+    this.#meshes.delete(id);
+    this.#closePreview(id);
+    this.#loaded.delete(id);
+    this.#grounds.delete(id);
+    for (const level of this.#levels.get(id) ?? []) { level.mesh.removeFromParent(); level.mesh.dispose(); this.#strokes.delete(level.mesh); }
+    this.#levels.delete(id);
+  }
+
+  /**
+   * Les fichiers complets arrivent deux par deux, le plus proche du point regardé d'abord. Tous à la fois,
+   * ils se partageraient la liaison, et leur décodage simultané ferait saccader la carte.
+   */
+  #pump(): void {
+    while (this.#arriving.size < ARRIVING_AT_ONCE && this.#queue.length > 0) {
+      const [next] = nearestFirst(this.#queue, this.#focus);
+      this.#queue = this.#queue.filter((scan) => scan !== next);
+      this.#arriving.add(next!.id);
+      this.#open(next!);
+    }
+  }
+
+  #sceneOf(scan: Scan): ThreeScene {
+    return scan.trace ? this.#traceScene() : scan.orthophoto ? this.#coverScene() : this.#scene;
+  }
+
+  /** Demande le fichier complet d'un relevé. */
+  #open(scan: Scan): void {
+    let step = -1;
+    const mesh = new SplatMesh({
+      url: scan.splats!,
+      // un tracé couvre des centaines de kilomètres : ses positions ne tiennent pas dans l'encodage compact
+      ...(scan.trace ? { extSplats: true } : {}),
+      onProgress: (event) => {
+        if (!event.lengthComputable || this.#meshes.get(scan.id) !== mesh) return;
+        const fraction = event.loaded / event.total;
+        const reached = Math.floor(fraction * PROGRESS_STEPS);
+        if (reached === step) return;
+        step = reached;
+        this.#onProgress({ id: scan.id, phase: 'loading', fraction });
+      },
+      onLoad: (loaded) => this.#arrived(scan, loaded),
+    });
+    // de près, le trait n'est jamais plus fin que la route elle-même
+    if (scan.trace && scan.width) this.#followZoom(mesh, scan.width, 1);
+    this.#addLevels(scan);
+    // le fichier est déjà dans le repère du viewer : il ne reste qu'à le poser sur son ancrage
+    mesh.position.set(scan.x - T.ORIGIN.x, 0, -(scan.y - T.ORIGIN.y));
+    // tant que l'aperçu tient la place, le fichier complet reste caché : il n'apparaît qu'entier
+    mesh.visible = !this.#previews.has(scan.id);
+    this.#sceneOf(scan).add(mesh);
+    this.#meshes.set(scan.id, mesh);
+    // un fichier qui n'arrive pas ne doit pas bloquer les suivants
+    void mesh.initialized.catch(() => { if (this.#meshes.get(scan.id) === mesh) { this.#arriving.delete(scan.id); this.#pump(); } });
+  }
+
+  /** Le fichier complet est là : il remplace son aperçu d'un coup, ou se construit s'il n'en avait pas. */
+  #arrived(scan: Scan, mesh: SplatMesh): void {
+    if (this.#meshes.get(scan.id) !== mesh) return;
+    this.#arriving.delete(scan.id);
+    if (this.#previews.has(scan.id)) {
+      this.#closePreview(scan.id);
+      mesh.visible = true;
+      this.#loaded.add(scan.id);
+      this.#onProgress({ id: scan.id, phase: 'ready', fraction: 1 });
+      this.#onDirty();
+    } else {
+      this.#build(scan.id, mesh, scan.trace === true);
+    }
+    this.#pump();
+  }
+
+  /** L'aperçu d'un relevé : demandé tout de suite, hors file — il est là pour qu'on n'attende pas. */
+  #openPreview(scan: Scan, url: string): void {
+    const mesh = new SplatMesh({ url, onLoad: (loaded) => this.#build(scan.id, loaded, false, 'preview') });
+    mesh.position.set(scan.x - T.ORIGIN.x, 0, -(scan.y - T.ORIGIN.y));
+    this.#sceneOf(scan).add(mesh);
+    this.#previews.set(scan.id, mesh);
+  }
+
+  #closePreview(id: string): void {
+    const preview = this.#previews.get(id);
+    if (!preview) return;
+    preview.onFrame = undefined;
+    preview.removeFromParent();
+    preview.dispose();
+    this.#previews.delete(id);
   }
 
   /**
@@ -124,11 +205,13 @@ export class SplatLayer {
    * et seuls les splats qu'elle a atteints sont visibles. Son bord est flou, pour
    * que le lieu semble se déposer plutôt que se découper.
    */
-  #build(id: string, mesh: SplatMesh, lands = false, level = false): void {
-    // une finesse d'un tracé se dévoile comme lui, mais sans rien annoncer : c'est le tracé qui parle
-    const announce = level ? () => {} : this.#onProgress;
-    if (level ? !this.#levels.get(id)?.some((other) => other.mesh === mesh) : this.#meshes.get(id) !== mesh) return;
-    if (!level) this.#loaded.add(id);
+  #build(id: string, mesh: SplatMesh, lands = false, role: 'scan' | 'level' | 'preview' = 'scan'): void {
+    // une finesse d'un tracé se dévoile comme lui, mais sans rien annoncer : c'est le tracé qui parle ;
+    // un aperçu non plus : le relevé n'est prêt que lorsque son fichier complet est là
+    const announce = role === 'scan' ? this.#onProgress : () => {};
+    const expected = role === 'level' ? this.#levels.get(id)?.some((other) => other.mesh === mesh) : (role === 'preview' ? this.#previews : this.#meshes).get(id) === mesh;
+    if (!expected) return;
+    if (role === 'scan') this.#loaded.add(id);
     const box = mesh.getBoundingBox(true);
     const reach = box.getSize(new Vector3()).length() / 2;
     const veil = new SplatEditSdf({ type: SplatEditSdfType.SPHERE, radius: 0, opacity: 0 });
@@ -190,7 +273,7 @@ export class SplatLayer {
   #addLevels(scan: Scan): void {
     if (!scan.levels) return;
     this.#levels.set(scan.id, scan.levels.map(({ splats, beyond, width }) => {
-      const mesh = new SplatMesh({ url: splats, extSplats: true, onLoad: (loaded) => this.#build(scan.id, loaded, true, true) });
+      const mesh = new SplatMesh({ url: splats, extSplats: true, onLoad: (loaded) => this.#build(scan.id, loaded, true, 'level') });
       if (width) this.#followZoom(mesh, width, 0);
       mesh.position.set(scan.x - T.ORIGIN.x, 0, -(scan.y - T.ORIGIN.y));
       mesh.visible = false;
@@ -271,7 +354,7 @@ export class SplatLayer {
 
   /** À appeler après la passe du relief : dessine par-dessus, sans rien effacer. `distance` : éloignement de la vue. */
   render(camera: PerspectiveCamera, distance = 0, viewportHeight = 1, { immersive = false } = {}): void {
-    if (this.#meshes.size === 0) return;
+    if (this.#meshes.size === 0 && this.#previews.size === 0) return;
     this.#pickLevels(distance);
     this.#sizeStrokes((2 * distance * Math.tan((camera.fov * Math.PI) / 360)) / viewportHeight);
     const autoClear = this.#renderer.autoClear;

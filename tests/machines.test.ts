@@ -305,3 +305,28 @@ describe('machine d’activité', () => {
     expect(actor.getSnapshot().value).toBe('loading');
   });
 });
+
+describe('champ de la caméra du drone', () => {
+  it('est montré d’office, et se cache puis se remontre à la demande, en l’annonçant', async () => {
+    const { createActor, createMachine } = await import('xstate');
+    const { tourMachine, tourSight } = await import('../src/machines/tour.machine.ts');
+    // la machine parle à son parent : on lui en donne un, qui note ce qu'il reçoit
+    const heard: boolean[] = [];
+    const host = createActor(createMachine({
+      invoke: { id: 'tour', src: tourMachine },
+      on: { 'tour.sightChanged': { actions: ({ event }) => { heard.push((event as unknown as { visible: boolean }).visible); } } },
+    })).start();
+    const tour = host.getSnapshot().children.tour!;
+    expect(tourSight(tour.getSnapshot() as never)).toBe(true);
+    tour.send({ type: 'tour.sightToggled' });
+    expect(tourSight(tour.getSnapshot() as never)).toBe(false);
+    tour.send({ type: 'tour.sightToggled' });
+    expect(heard).toEqual([false, true]);
+    // le champ est une région à part : entrer au cockpit puis en sortir ne le change pas
+    tour.send({ type: 'tour.sightToggled' });
+    tour.send({ type: 'tour.requested', flight: { id: 'v', name: 'v', x: 0, y: 0, drone: 'd', fov: 40, aspect: 1.78, credit: { author: 'a', title: 't', url: 'https://exemple.be', licence: 'CC BY' }, track: [] } } as never);
+    expect(tour.getSnapshot().matches({ visit: { touring: 'playing' }, sight: 'hidden' } as never)).toBe(true);
+    tour.send({ type: 'tour.left' });
+    expect(tour.getSnapshot().matches({ visit: 'idle', sight: 'hidden' } as never)).toBe(true);
+  });
+});

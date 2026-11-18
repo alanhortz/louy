@@ -66,6 +66,11 @@ export interface Scan {
   /** Le même relevé en haute définition, quand il existe : c'est le réglage de l'application qui choisit. */
   hd?: { splats: string };
   /**
+   * Aperçu du relevé : le même lieu en dix fois moins de splats. Il s'affiche en premier, le temps que le
+   * fichier complet arrive, puis lui cède la place.
+   */
+  preview?: string;
+  /**
    * Où poser le marqueur, quand ce n'est pas sur l'ancrage : plusieurs relevés d'un même lieu
    * (volume, orthophoto, nuage de points) ont le même ancrage, et leurs marqueurs se recouvriraient.
    */
@@ -186,6 +191,7 @@ const isScan = (value: unknown): value is Scan => {
     && (scan.span === undefined || (typeof scan.splats === 'string' && Number.isFinite(scan.span) && scan.span > 0))
     && (scan.orthophoto === undefined || (typeof scan.splats === 'string' && typeof scan.orthophoto === 'boolean'))
     && (scan.hd === undefined || (typeof scan.splats === 'string' && typeof scan.hd?.splats === 'string' && /^\/(?!\/)/.test(scan.hd.splats)))
+    && (scan.preview === undefined || (typeof scan.splats === 'string' && typeof scan.preview === 'string' && /^\/(?!\/)/.test(scan.preview)))
     && (scan.cloud === undefined || (typeof scan.splats === 'string' && typeof scan.cloud === 'boolean'))
     && (scan.marker === undefined || (Number.isFinite(scan.marker?.x) && Number.isFinite(scan.marker?.y)))
     && (scan.legend === undefined || (Array.isArray(scan.legend)
@@ -305,3 +311,18 @@ export function fitFlyover(scans: readonly Scan[]) {
  */
 export const parseScans = (manifest: unknown): Scan[] =>
   Array.isArray(manifest) ? manifest.filter((entry) => (entry as { disabled?: unknown } | null)?.disabled !== true).filter(isScan) : [];
+
+/** Au-delà de cette distance de la vue, un relevé n'est pas téléchargé d'avance : on n'y sera pas de sitôt. */
+export const PRELOAD_RADIUS = 3000;
+
+/**
+ * Relevés à télécharger d'avance, pour qu'ils s'affichent sans attente quand on y arrive : ceux qui sont
+ * proches du point regardé, et seulement ceux-là. Un lieu à cinquante kilomètres coûterait ses mégaoctets
+ * à un visiteur qui ne le verra peut-être jamais.
+ */
+export const scansWorthPreloading = <T extends { x: number; y: number }>(scans: readonly T[], at: { x: number; y: number }): T[] =>
+  scans.filter((scan) => Math.hypot(scan.x - at.x, scan.y - at.y) <= PRELOAD_RADIUS);
+
+/** Ordre de chargement : le relevé le plus proche du point regardé d'abord. */
+export const nearestFirst = <T extends { x: number; y: number }>(scans: readonly T[], at: { x: number; y: number }): T[] =>
+  [...scans].sort((a, b) => Math.hypot(a.x - at.x, a.y - at.y) - Math.hypot(b.x - at.x, b.y - at.y));

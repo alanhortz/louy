@@ -223,6 +223,7 @@ export class SceneEngine {
   #scans: readonly Scan[] = [];
   /** Fichiers de scans à faire venir d'avance, dès que le relief de la vue est chargé. */
   #preload: string[] = [];
+  #droneSight = true;
   #splats: SplatLayer | null = null;
   #disposed = false;
   #follow: FollowTarget | null = null;
@@ -800,7 +801,9 @@ export class SceneEngine {
   }
 
   #prewarm(): void {
-    const urls = this.#preload;
+    // ce qui se dessine déjà est en train d'arriver par son propre chemin : le redemander le téléchargerait deux fois
+    const drawn = new Set(this.#scans.flatMap((scan) => (scan.splats ? [scan.splats] : [])));
+    const urls = this.#preload.filter((url) => !drawn.has(url));
     this.#preload = [];
     // le visiteur a demandé d'économiser ses données, ou sa liaison est trop lente : on ne télécharge rien d'avance
     const link = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
@@ -854,9 +857,16 @@ export class SceneEngine {
     this.#wake();
   }
 
+  /** Montre ou cache le champ que filme la caméra des drones. */
+  setDroneSight(visible: boolean): void {
+    this.#droneSight = visible;
+    this.#drones?.setSight(visible);
+    this.#wake();
+  }
+
   /** Vols de drone à montrer en vol dans la carte. */
   setDroneFlights(flights: readonly DroneFlight[]): void {
-    if (flights.length > 0) this.#drones ??= new DroneLayer(this.#renderer, this.#overlayRoot);
+    if (flights.length > 0 && !this.#drones) { this.#drones = new DroneLayer(this.#renderer, this.#overlayRoot); this.#drones.setSight(this.#droneSight); }
     this.#drones?.setFlights(flights);
     this.#wake();
   }
@@ -881,7 +891,7 @@ export class SceneEngine {
     // annoncé tout de suite : le moteur de splats lui-même met un instant à arriver
     if (!this.#splats && scans[0]) this.#listeners.onScanProgress({ id: scans[0].id, phase: 'loading', fraction: 0 });
     if (this.#splats) {
-      this.#splats.setScans(scans);
+      this.#splats.setScans(scans, this.#lookedAt());
       this.#wake();
     } else if (scans.length > 0) {
       void this.#loadSplats();
@@ -939,8 +949,13 @@ export class SceneEngine {
     const { SplatLayer } = await import('./SplatLayer.ts');
     if (this.#disposed || this.#splats) return;
     this.#splats = new SplatLayer(this.#renderer, () => this.#wake(), (progress) => this.#listeners.onScanProgress(progress));
-    this.#splats.setScans(this.#scans);
+    this.#splats.setScans(this.#scans, this.#lookedAt());
     this.#wake();
+  }
+
+  /** Le point que la vue regarde, en Lambert : il fixe l'ordre dans lequel les relevés arrivent. */
+  #lookedAt(): { x: number; y: number } {
+    return { x: this.#controls.target.x + T.ORIGIN.x, y: T.ORIGIN.y - this.#controls.target.z };
   }
 
   /** Force quelques images : quelque chose a changé hors de la navigation. */

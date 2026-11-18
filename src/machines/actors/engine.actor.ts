@@ -68,6 +68,8 @@ export type EngineCommand =
   | { type: 'viewer.tourRequested'; flight: { id?: string; fov: number; track: ClipKey[] } }
   /** Vols de drone à montrer en vol dans la carte. */
   | { type: 'viewer.droneFlightsChanged'; flights: DroneFlight[] }
+  /** Montrer ou cacher le champ que filme la caméra des drones. */
+  | { type: 'viewer.droneSightChanged'; visible: boolean }
   | { type: 'viewer.tourPlayChanged'; playing: boolean }
   | { type: 'viewer.tourStopped' }
   | { type: 'viewer.tourRestarted' }
@@ -114,6 +116,7 @@ export interface EngineInput {
   satellite: SatelliteImage[] | null;
   clips: ScanClip[];
   droneFlights: DroneFlight[];
+  droneSight: boolean;
 }
 
 const OVERLAYS: readonly OverlayName[] = ['streets', 'places', 'cameras', 'scans', 'objects', 'survival', 'fun', 'art', 'vessels', 'aircraft', 'films', 'location', 'motorways', 'orthophoto', 'clouds', 'sports', 'backed', 'drones'];
@@ -189,6 +192,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
     engine.setCameraProjection(input.cameraProjection);
     engine.setSatellite(input.satellite);
     engine.setExtraClips(input.clips);
+    engine.setDroneSight(input.droneSight);
     engine.setDroneFlights(input.droneFlights);
 
     receive((command) => {
@@ -219,6 +223,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
         case 'viewer.tourPlayChanged': return engine.setTourPlaying(command.playing);
         case 'viewer.tourStopped': return engine.stopTour();
         case 'viewer.droneFlightsChanged': return engine.setDroneFlights(command.flights);
+        case 'viewer.droneSightChanged': return engine.setDroneSight(command.visible);
         case 'viewer.tourRestarted': return engine.restartTour();
         case 'viewer.vrRequested': return void engine.enterVr();
         case 'viewer.poseCaptureRequested':

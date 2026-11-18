@@ -5,6 +5,7 @@
     "x": 685265,
     "y": 627878,
     "splats": "/scans/namur.spz",
+    "preview": "/scans/namur-apercu.spz",
     "credit": {
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
@@ -105,6 +106,7 @@
     "x": 685412.0,
     "y": 628032.0,
     "splats": "/scans/namur-sambre.spz",
+    "preview": "/scans/namur-sambre-apercu.spz",
     "note": "Un vol bas en oblique au-dessus de la Sambre, reconstruit en volume et calé sur le relief LiDAR.",
     "credit": {
       "author": "Joeys Journeys",
@@ -356,6 +358,7 @@
     "x": 684783,
     "y": 627522,
     "splats": "/scans/esplanade-citadelle-namur.spz",
+    "preview": "/scans/esplanade-citadelle-namur-apercu.spz",
     "credit": {
       "author": "Mathis Hortz",
       "title": "Prises de vue au drone du 14 novembre 2026",

@@ -253,3 +253,22 @@ describe('vue d’accueil', () => {
     expect(hasPose('#c=685070,627918,1800,0,58')).toBe(true);
   });
 });
+
+describe('chargement des relevés', () => {
+  it('ne prépare d’avance que les lieux proches de la vue, et charge le plus proche d’abord', async () => {
+    const { PRELOAD_RADIUS, nearestFirst, scansWorthPreloading } = await import('../src/domain/scans.ts');
+    const here = { x: 685000, y: 628000 };
+    const scans = [{ id: 'loin', x: 636186, y: 619125 }, { id: 'voisin', x: 685900, y: 628000 }, { id: 'ici', x: 685100, y: 628050 }];
+    expect(scansWorthPreloading(scans, here).map((scan) => scan.id)).toEqual(['voisin', 'ici']);
+    expect(scansWorthPreloading([{ x: here.x + PRELOAD_RADIUS + 1, y: here.y }], here)).toEqual([]);
+    expect(nearestFirst(scans, here).map((scan) => scan.id)).toEqual(['ici', 'voisin', 'loin']);
+  });
+
+  it('accepte un aperçu, à une adresse du site seulement', async () => {
+    const { parseScans } = await import('../src/domain/scans.ts');
+    const credit = { author: 'a', title: 't', url: 'https://exemple.be', licence: 'CC BY' };
+    const scan = { id: 'lieu', name: 'Lieu', x: 1, y: 2, splats: '/scans/lieu.spz', credit };
+    expect(parseScans([{ ...scan, preview: '/scans/lieu-apercu.spz' }])).toHaveLength(1);
+    expect(parseScans([{ ...scan, preview: 'https://ailleurs.example/x.spz' }])).toHaveLength(0);
+  });
+});
