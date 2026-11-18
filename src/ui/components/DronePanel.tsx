@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import { DRONES_LABEL, flightDuration, flightSummary, flightTime, type DroneFlight } from '../../domain/droneFlights.ts';
 import { DRONES_LAYER } from '../../machines/scans.layer.ts';
 import { layerFeed, layerSelection } from '../../machines/selectionLayer.machine.ts';
-import { tourPhase } from '../../machines/tour.machine.ts';
+import { tourPhase, tourSight } from '../../machines/tour.machine.ts';
 import { useChild, useLayer } from '../actors.ts';
 import { Panel } from './Panel.tsx';
 
@@ -39,6 +39,17 @@ function CameraFeed({ flight }: { flight: DroneFlight }) {
   return <video ref={video} className="drone-feed" src={flight.video} muted playsInline preload="auto" aria-label="Ce que voit la caméra du drone" />;
 }
 
+/** Le champ de la caméra : un cône qui part du drone et découpe son emprise sur le territoire. */
+function SightIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="4.200" r="1.700" fill="currentColor" stroke="none" />
+      <path d="M12 5.500 4.500 17.500M12 5.500l7.500 12" />
+      <path d="M4.500 17.500 8 15h8l3.500 2.500L16 20.500H8z" fill="currentColor" fillOpacity="0.22" />
+    </svg>
+  );
+}
+
 /** Vols de drone : la fiche du vol actif, ce que voit sa caméra, et l'entrée dans cette caméra. */
 export function DronePanel() {
   const layers = useChild('layers');
@@ -48,6 +59,7 @@ export function DronePanel() {
   const flights = useSelector(layer, (snapshot) => snapshot.context.items);
   const flight = useSelector(layer, layerSelection);
   const inCockpit = useSelector(tour, (snapshot) => tourPhase(snapshot) !== 'idle');
+  const sight = useSelector(tour, tourSight);
   const enabled = feed !== 'off';
   const send = (event: { type: 'layers.toggled' } | { type: 'layers.dismissed' } | { type: 'layers.picked'; id: string }) =>
     layers.send({ ...event, layer: DRONES_LAYER });
@@ -69,6 +81,16 @@ export function DronePanel() {
               <span className="imagery-kicker">{flight.drone}</span>
               <span className="imagery-name">{flight.name}</span>
             </div>
+            <button
+              type="button"
+              className={sight ? 'drone-tool active' : 'drone-tool'}
+              aria-pressed={sight}
+              aria-label="Champ de la caméra sur la carte"
+              title={sight ? 'Cacher le champ de la caméra' : 'Montrer le champ de la caméra'}
+              onClick={() => tour.send({ type: 'tour.sightToggled' })}
+            >
+              <SightIcon />
+            </button>
             <button type="button" className="panel-collapse-btn" aria-label="Désélectionner ce vol" onClick={() => send({ type: 'layers.dismissed' })}>×</button>
           </header>
           {flight.video && <CameraFeed flight={flight} />}

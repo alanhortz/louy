@@ -76,6 +76,31 @@ describe('gestes tactiles sur la carte', () => {
 
   const turned = (before: number, after: number) => ((after - before + 540) % 360) - 180;
 
+  it('oublie un doigt dont le « levé » s’est perdu : le toucher suivant déplace la carte au lieu de pincer', () => {
+    // un doigt se pose, puis le système le reprend sans prévenir : aucun pointerup n'arrive
+    canvas.dispatchEvent(Object.assign(pointer('pointerdown', 1, around(Math.PI)), { isPrimary: true }));
+    const distance = controls.distance;
+    const before = controls.target.clone();
+    // un nouveau geste, à un seul doigt
+    canvas.dispatchEvent(Object.assign(pointer('pointerdown', 2, CENTRE), { isPrimary: true }));
+    for (let step = 1; step <= 10; step++) { canvas.dispatchEvent(pointer('pointermove', 2, { x: CENTRE.x + step * 8, y: CENTRE.y })); controls.update(1 / 60); }
+    canvas.dispatchEvent(pointer('pointerup', 2, { x: CENTRE.x + 80, y: CENTRE.y }));
+    settle();
+    expect(controls.distance).toBeCloseTo(distance, 3);                      // pas de zoom : ce n'était pas un pincement
+    expect(controls.target.distanceTo(before)).toBeGreaterThan(10);          // la carte a suivi le doigt
+  });
+
+  it('libère un doigt quand sa capture est perdue', () => {
+    canvas.dispatchEvent(pointer('pointerdown', 1, around(Math.PI)));
+    canvas.dispatchEvent(pointer('lostpointercapture', 1, around(Math.PI)));
+    const distance = controls.distance;
+    canvas.dispatchEvent(pointer('pointerdown', 2, CENTRE));
+    for (let step = 1; step <= 10; step++) { canvas.dispatchEvent(pointer('pointermove', 2, { x: CENTRE.x, y: CENTRE.y + step * 8 })); controls.update(1 / 60); }
+    canvas.dispatchEvent(pointer('pointerup', 2, { x: CENTRE.x, y: CENTRE.y + 80 }));
+    settle();
+    expect(controls.distance).toBeCloseTo(distance, 3);
+  });
+
   it('fait tourner la carte dans le sens des doigts : anti-horaire', () => {
     const before = landmarkBearing();
     twoFingers(-25);

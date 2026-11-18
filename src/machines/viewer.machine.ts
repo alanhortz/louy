@@ -73,13 +73,14 @@ function remembered(context: ViewerContext, event: ViewerEvent): Partial<ViewerC
     case 'viewer.satelliteChanged': return { satellite: event.images };
     case 'viewer.clipsChanged': return { clips: event.clips };
     case 'viewer.droneFlightsChanged': return { droneFlights: event.flights };
+    case 'viewer.droneSightChanged': return { droneSight: event.visible };
     default: return {};
   }
 }
 
 const COMMANDS = [
   'viewer.sceneChanged', 'viewer.overlayChanged', 'viewer.overlayActivated', 'viewer.scansChanged',
-  'viewer.scansPreloaded', 'viewer.cameraProjected', 'viewer.satelliteChanged', 'viewer.clipsChanged', 'viewer.droneFlightsChanged',
+  'viewer.scansPreloaded', 'viewer.cameraProjected', 'viewer.satelliteChanged', 'viewer.clipsChanged', 'viewer.droneFlightsChanged', 'viewer.droneSightChanged',
   'viewer.poseApplied',
 ] as const;
 
@@ -113,6 +114,7 @@ export const viewerMachine = viewer.createMachine({
     satellite: null,
     clips: [],
     droneFlights: [],
+    droneSight: true,
     scanBuild: null,
     immersive: false,
     loading: true,

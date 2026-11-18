@@ -45,6 +45,7 @@ export class DroneLayer {
   readonly #ray = new Vector3();
   readonly #eye = new Vector3();
   #hidden: string | null = null;
+  #sightShown = true;
 
   readonly #host: HTMLElement;
 
@@ -57,6 +58,9 @@ export class DroneLayer {
   }
 
   get count(): number { return this.#entries.size; }
+
+  /** Montre ou cache le champ de la caméra ; le trajet, le drone et son pointeur restent. */
+  setSight(visible: boolean): void { this.#sightShown = visible; }
 
   /** Vol dont on occupe la caméra : on ne se dessine pas soi-même. */
   hide(id: string | null): void { this.#hidden = id; }
@@ -122,6 +126,8 @@ export class DroneLayer {
       while (reached < flight.track.length - 1 && flight.track[reached + 1]!.t <= t) reached++;
       past.geometry.setDrawRange(0, reached + 1);
       future.geometry.setDrawRange(reached, flight.track.length - reached);
+      view.visible = this.#sightShown;
+      if (!view.visible) continue;
       // le champ de la caméra : quatre arêtes jusqu'au sol, et l'emprise qu'elles y découpent
       const floor = ground(this.#eye.x, this.#eye.z) ?? this.#eye.y - 60;
       const at = view.geometry.getAttribute('position') as BufferAttribute;

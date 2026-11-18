@@ -85,6 +85,10 @@ export class MapControls {
     d.addEventListener('pointermove', (e) => this.#move(e), { signal });
     d.addEventListener('pointerup', (e) => this.#up(e), { signal });
     d.addEventListener('pointercancel', (e) => this.#up(e), { signal });
+    // Sur telephone, un doigt peut etre repris par le systeme (geste de bord, bascule d'application) sans
+    // qu'aucun « leve » n'arrive : la capture est simplement perdue. Sans cela, ce doigt fantome restait
+    // compte, et le toucher suivant etait pris pour un pincement — la carte ne se deplacait plus.
+    d.addEventListener('lostpointercapture', (e) => this.#up(e), { signal });
     // La molette est ecoutee sur le conteneur du canvas : les entites posees sur la
     // carte (marqueurs, etiquettes) sont ses voisines, et zoomer au-dessus d'un
     // marqueur doit zoomer la carte.
@@ -106,6 +110,9 @@ export class MapControls {
   #down(e) {
     if (!this.enabled) return;
     this.onUserInput();
+    // Le premier doigt d'un nouveau geste repart d'une ardoise propre : s'il restait un doigt d'un geste
+    // precedent dont le « leve » s'est perdu, il est oublie ici.
+    if (e.isPrimary) this._ptr.clear();
     this.dom.setPointerCapture(e.pointerId);
     this._ptr.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (this._ptr.size === 1) {
@@ -173,7 +180,7 @@ export class MapControls {
   }
 
   #up(e) {
-    this._ptr.delete(e.pointerId);
+    if (!this._ptr.delete(e.pointerId)) return;
     if (this._ptr.size === 0) this._mode = null;
     else if (this._ptr.size === 1) { this._mode = 'pan'; const p = [...this._ptr.values()][0]; this._last = { x: p.x, y: p.y }; }
   }
