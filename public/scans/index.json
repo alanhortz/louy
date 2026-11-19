@@ -5,12 +5,15 @@
     "x": 685265,
     "y": 627878,
     "splats": "/scans/namur.spz",
+    "hd": {
+      "splats": "/scans/namur-hd.spz"
+    },
     "preview": "/scans/namur-apercu.spz",
     "credit": {
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "CC BY"
+      "licence": "© Joeys Journeys, avec son accord"
     },
     "view": {
       "x": 685325,
@@ -70,7 +73,7 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "CC BY"
+      "licence": "© Joeys Journeys, avec son accord"
     },
     "view": {
       "x": 685424,
@@ -91,7 +94,7 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "CC BY"
+      "licence": "© Joeys Journeys, avec son accord"
     },
     "view": {
       "x": 685103.0,
@@ -112,7 +115,7 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "CC BY"
+      "licence": "© Joeys Journeys, avec son accord"
     },
     "view": {
       "x": 685412.0,
@@ -138,7 +141,7 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "CC BY"
+      "licence": "© Joeys Journeys, avec son accord"
     },
     "view": {
       "x": 685424,
@@ -164,7 +167,7 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "CC BY"
+      "licence": "© Joeys Journeys, avec son accord"
     },
     "view": {
       "x": 685103,
@@ -210,7 +213,7 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "CC BY"
+      "licence": "© Joeys Journeys, avec son accord"
     },
     "view": {
       "x": 685265.0,
@@ -289,7 +292,7 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "CC BY"
+      "licence": "© Joeys Journeys, avec son accord"
     },
     "view": {
       "x": 685424.0,
@@ -318,7 +321,7 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "CC BY"
+      "licence": "© Joeys Journeys, avec son accord"
     },
     "view": {
       "x": 685103.0,
@@ -343,7 +346,7 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "CC BY"
+      "licence": "© Joeys Journeys, avec son accord"
     },
     "view": {
       "x": 685412.0,

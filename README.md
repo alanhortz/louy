@@ -264,5 +264,5 @@ d'interface repris de God's Eye View restent sous licence MIT — voir
 ## Crédits
 
 Données © Service public de Wallonie (CC-BY 4.0) et © contributeurs OpenStreetMap
-(ODbL). Imagerie 3D de la citadelle de Namur d’après une vidéo de Joeys Journeys (CC BY). Interface inspirée de [God’s Eye View](https://github.com/bilawalsidhu/gods-eye-view)
+(ODbL). Imagerie 3D de la citadelle de Namur d’après une vidéo de Joeys Journeys, reproduite avec l’accord de son auteur. Interface inspirée de [God’s Eye View](https://github.com/bilawalsidhu/gods-eye-view)
 de Bilawal Sidhu (MIT). Détail dans [`NOTICE.md`](NOTICE.md).
