@@ -622,8 +622,8 @@ export const appMachine = setup({
             guard: ({ context, event }) => event.layer === AERIAL_LAYER && context.view.overlays.scans,
             actions: [
               assign({ places: ({ event }) => event.items }),
-              // seulement les lieux proches de la vue : les autres attendront qu'on s'en approche
-              sendTo('viewer', ({ context, event }) => ({ type: 'viewer.scansPreloaded', scans: scansWorthPreloading(event.items as Scan[], context.view.pose) })),
+              // seulement les lieux proches de la vue, et dans la définition choisie : préparer l'autre serait la télécharger pour rien
+              sendTo('viewer', ({ context, event }) => ({ type: 'viewer.scansPreloaded', scans: scansWorthPreloading(event.items as Scan[], context.view.pose).map((scan) => scanIn(scan, context.definition)) })),
             ],
           },
           { guard: ({ event }) => event.layer === AERIAL_LAYER, actions: [assign({ places: ({ event }) => event.items }), 'drawImagery'] },

@@ -13,8 +13,8 @@
 
 import { isWalkable, type Scan } from './scans.ts';
 
-/** Hauteur des yeux du promeneur au-dessus du sol. */
-export const EYE_HEIGHT = 1.7;
+/** Hauteur de la caméra de visite au-dessus du sol : plus haute que des yeux, pour voir par-dessus les passants et les voitures. */
+export const EYE_HEIGHT = 2.8;
 /** Côté d'une case de la grille du sol. */
 const CELL = 1.5;
 /** Au-delà, la grille est dégrossie : un lieu immense ne doit pas coûter plus qu'un grand. */
