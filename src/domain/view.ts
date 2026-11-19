@@ -21,7 +21,7 @@ export interface Pose {
   tilt: number;
 }
 
-export type OverlayId = 'places' | 'cameras' | 'aircraft' | 'scans' | 'objects' | 'survival' | 'fun' | 'art' | 'streets' | 'vessels' | 'motorways' | 'orthophoto' | 'clouds' | 'sports' | 'backed' | 'drones';
+export type OverlayId = 'places' | 'cameras' | 'aircraft' | 'scans' | 'objects' | 'survival' | 'fun' | 'art' | 'streets' | 'vessels' | 'motorways' | 'orthophoto' | 'clouds' | 'sports' | 'backed' | 'drones' | 'videos';
 export type OverlayVisibility = Record<OverlayId, boolean>;
 
 export interface View {
@@ -48,7 +48,7 @@ export const POSE_LIMITS = {
 export const DEFAULT_VIEW: View = {
   pose: { x: 685443, y: 627963, distance: 279, azimuth: 288, tilt: 60 },
   scene: DEFAULT_SCENE,
-  overlays: { places: true, cameras: false, aircraft: false, scans: true, objects: true, survival: true, fun: false, art: false, streets: false, vessels: false, motorways: false, orthophoto: false, clouds: false, sports: false, backed: true, drones: false },
+  overlays: { places: true, cameras: false, aircraft: false, scans: true, objects: true, survival: true, fun: false, art: false, streets: false, vessels: false, motorways: false, orthophoto: false, clouds: false, sports: false, backed: true, drones: false, videos: true },
   cameraId: null,
 };
 
@@ -76,7 +76,7 @@ export function homePose(aspect: number): Pose {
   return { ...DEFAULT_VIEW.pose, distance: Math.round(DEFAULT_VIEW.pose.distance * narrow) };
 }
 
-const OVERLAY_CODES: Record<OverlayId, string> = { places: 'p', cameras: 'c', aircraft: 'a', scans: 'i', objects: 'o', survival: 'd', fun: 'f', art: 't', streets: 'r', vessels: 'b', motorways: 'm', orthophoto: 's', clouds: 'n', sports: 'k', backed: 'w', drones: 'v' };
+const OVERLAY_CODES: Record<OverlayId, string> = { places: 'p', cameras: 'c', aircraft: 'a', scans: 'i', objects: 'o', survival: 'd', fun: 'f', art: 't', streets: 'r', vessels: 'b', motorways: 'm', orthophoto: 's', clouds: 'n', sports: 'k', backed: 'w', drones: 'v', videos: 'u' };
 /**
  * L'imagerie aérienne, les objets scannés et les équipements de survie sont nés après les premiers liens
  * partagés : un lien qui ne les mentionne pas ne les a pas éteints, il les
@@ -162,6 +162,7 @@ export function decodeView(fragment: string, fallback: View = DEFAULT_VIEW): Vie
         sports: codes.includes(OVERLAY_CODES.sports),
         backed: codes.includes(OVERLAY_CODES.backed),
         drones: codes.includes(OVERLAY_CODES.drones),
+        videos: codes.includes(OVERLAY_CODES.videos),
       },
     cameraId: cameraId && /^\d{1,6}$/.test(cameraId) ? cameraId : null,
     ...(sel.length > 0 ? { active: Object.fromEntries(sel) } : {}),
