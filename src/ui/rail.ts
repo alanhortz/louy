@@ -7,7 +7,7 @@
  */
 
 import {
-  Cog6ToothIcon, GlobeEuropeAfricaIcon, HandRaisedIcon, InformationCircleIcon, LifebuoyIcon, PaperAirplaneIcon, PhotoIcon, Square3Stack3DIcon, SwatchIcon,
+  Cog6ToothIcon, GlobeEuropeAfricaIcon, HandRaisedIcon, InformationCircleIcon, LifebuoyIcon, PaperAirplaneIcon, PhotoIcon, PlayCircleIcon, Square3Stack3DIcon, SwatchIcon,
   VideoCameraIcon,
 } from '@heroicons/react/24/outline';
 import type { ComponentType, SVGProps } from 'react';
@@ -31,6 +31,7 @@ export const RAIL_ITEMS: readonly RailItem[] = [
   { panel: 'orthophoto', label: 'Ortho drone', Icon: GlobeEuropeAfricaIcon },
   { panel: 'clouds', label: 'Nuages de points', Icon: PointCloudIcon },
   { panel: 'drones', label: 'Vols de drone', Icon: DroneIcon },
+  { panel: 'videos', label: 'Vidéos', Icon: PlayCircleIcon },
   { panel: 'aircraft', label: 'Avions', Icon: PaperAirplaneIcon },
   { panel: 'vessels', label: 'Bateaux', Icon: LifebuoyIcon },
   { panel: 'settings', label: 'Réglages', Icon: Cog6ToothIcon },

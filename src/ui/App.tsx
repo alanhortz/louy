@@ -5,6 +5,7 @@ import { AboutPanel } from './components/AboutPanel.tsx';
 import { AircraftPanel } from './components/AircraftPanel.tsx';
 import { VesselPanel } from './components/VesselPanel.tsx';
 import { SHELVED_LAYERS } from '../machines/scans.layer.ts';
+import { VideoPanel } from './components/VideoPanel.tsx';
 import { CloudPanel, ImageryPanel, OrthophotoPanel } from './components/ImageryPanel.tsx';
 import { DronePanel } from './components/DronePanel.tsx';
 import { SettingsPanel } from './components/SettingsPanel.tsx';
@@ -81,6 +82,7 @@ export function App() {
           {!SHELVED_LAYERS.includes('orthophoto') && <OrthophotoPanel />}
           {!SHELVED_LAYERS.includes('clouds') && <CloudPanel />}
           <DronePanel />
+          <VideoPanel />
           <SettingsPanel />
           <AircraftPanel />
           <VesselPanel />

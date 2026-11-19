@@ -36,8 +36,8 @@ import { objectMachine, type ObjectEmitted } from './object.machine.ts';
 import { placesMachine, type PlacesEmitted } from './places.machine.ts';
 import { createLayersMachine, type LayersEmitted } from './layers.machine.ts';
 import {
-  AERIAL_LAYER, ART_LAYER, BACKED_LAYER, CLOUD_LAYER, DRONES_LAYER, DRAWN_LAYERS, FUN_LAYER, OBJECTS_LAYER, ORTHO_LAYER, SPORTS_LAYER, SURVIVAL_LAYER,
-  aerialLayer, artLayer, backedLayer, cloudLayer, dronesLayer, drawnScans, funLayer, objectsLayer, orthoLayer, sportsLayer, survivalLayer,
+  AERIAL_LAYER, ART_LAYER, BACKED_LAYER, CLOUD_LAYER, DRONES_LAYER, DRAWN_LAYERS, FUN_LAYER, OBJECTS_LAYER, ORTHO_LAYER, SPORTS_LAYER, SURVIVAL_LAYER, VIDEOS_LAYER,
+  aerialLayer, artLayer, backedLayer, cloudLayer, dronesLayer, drawnScans, funLayer, objectsLayer, orthoLayer, sportsLayer, survivalLayer, videosLayer,
 } from './scans.layer.ts';
 import type { OverlayName } from './actors/engine.actor.ts';
 import { filmsMachine, type FilmsEmitted } from './films.machine.ts';
@@ -208,7 +208,7 @@ export const appMachine = setup({
     streetSearch: streetSearchMachine,
     recents: recentsMachine,
     // les calques à sélection naissent tous du même état générique, sous un orchestrateur
-    layers: createLayersMachine([aerialLayer, orthoLayer, cloudLayer, dronesLayer, sportsLayer, objectsLayer, backedLayer, artLayer, survivalLayer, funLayer]),
+    layers: createLayersMachine([aerialLayer, orthoLayer, cloudLayer, dronesLayer, videosLayer, sportsLayer, objectsLayer, backedLayer, artLayer, survivalLayer, funLayer]),
     object: objectMachine,
     aircraft: aircraftMachine,
     vessels: vesselsMachine,
@@ -362,6 +362,7 @@ export const appMachine = setup({
               [CLOUD_LAYER]: context.view.overlays.clouds,
               [SPORTS_LAYER]: context.view.overlays.sports,
               [DRONES_LAYER]: context.view.overlays.drones,
+              [VIDEOS_LAYER]: context.view.overlays.videos,
             },
             // à l'accueil, la citadelle est déjà là, reconstruite, sous la caméra qui en fait le tour
             selected: context.view.active,
@@ -530,7 +531,7 @@ export const appMachine = setup({
           },
           {
             // imagerie aérienne ou objets scannés : le calque reçoit ce que le marqueur touché rassemble
-            guard: ({ event }) => [...DRAWN_LAYERS, SPORTS_LAYER, DRONES_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER, FUN_LAYER, ART_LAYER, BACKED_LAYER].includes(event.layer),
+            guard: ({ event }) => [...DRAWN_LAYERS, SPORTS_LAYER, DRONES_LAYER, VIDEOS_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER, FUN_LAYER, ART_LAYER, BACKED_LAYER].includes(event.layer),
             actions: sendTo('layers', ({ event }) =>
               ({ type: 'layers.picked', layer: event.layer, id: event.id, members: event.members })),
           },
@@ -655,6 +656,16 @@ export const appMachine = setup({
                 enqueue.sendTo('tour', { type: 'tour.requested', flight: event.item as DroneFlight });
               }),
               sendTo('chrome', ({ event }) => ({ type: event.item ? 'chrome.revealed' : 'chrome.dismissed', panel: 'drones' })),
+              'rememberActive', 'syncUrl',
+            ],
+          },
+          {
+            // une vidéo signalée : son marqueur s'allume et sa fiche s'ouvre ; rien n'est chargé depuis son hébergeur
+            guard: ({ event }) => event.layer === VIDEOS_LAYER,
+            actions: [
+              sendTo('viewer', ({ event }) =>
+                ({ type: 'viewer.overlayActivated', layer: event.layer as OverlayName, id: event.markerId })),
+              sendTo('chrome', ({ event }) => ({ type: event.item ? 'chrome.revealed' : 'chrome.dismissed', panel: 'videos' })),
               'rememberActive', 'syncUrl',
             ],
           },

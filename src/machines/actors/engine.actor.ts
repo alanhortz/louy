@@ -24,14 +24,14 @@ import { streetLabelStyle } from '../../engine/overlays/streetLabels.ts';
 import { filmMarkerStyle } from '../../engine/overlays/filmMarkers.ts';
 import { locationMarkerStyle } from '../../engine/overlays/locationMarker.ts';
 import { roadShieldStyle } from '../../engine/overlays/roadShields.ts';
-import { aerialMarkerStyle, artMarkerStyle, backedMarkerStyle, droneMarkerStyle, cloudMarkerStyle, funMarkerStyle, sportsMarkerStyle, orthoMarkerStyle, objectMarkerStyle, survivalMarkerStyle } from '../../engine/overlays/scanMarkers.ts';
+import { aerialMarkerStyle, artMarkerStyle, backedMarkerStyle, droneMarkerStyle, videoMarkerStyle, cloudMarkerStyle, funMarkerStyle, sportsMarkerStyle, orthoMarkerStyle, objectMarkerStyle, survivalMarkerStyle } from '../../engine/overlays/scanMarkers.ts';
 import type { ClipKey, ScanClip } from '../../domain/clips.ts';
 import type { DroneFlight } from '../../domain/droneFlights.ts';
 import type { SatelliteImage } from '../../domain/satellite.ts';
 import type { CameraProjection } from '../../engine/CameraViewLayer.ts';
 import { SceneEngine, type Altimeter, type Flyover, type FollowTarget } from '../../engine/SceneEngine.ts';
 
-export type OverlayName = 'streets' | 'places' | 'cameras' | 'scans' | 'objects' | 'survival' | 'fun' | 'art' | 'vessels' | 'aircraft' | 'films' | 'location' | 'motorways' | 'orthophoto' | 'clouds' | 'sports' | 'backed' | 'drones';
+export type OverlayName = 'streets' | 'places' | 'cameras' | 'scans' | 'objects' | 'survival' | 'fun' | 'art' | 'vessels' | 'aircraft' | 'films' | 'location' | 'motorways' | 'orthophoto' | 'clouds' | 'sports' | 'backed' | 'drones' | 'videos';
 
 export interface ViewerMount {
   canvas: HTMLCanvasElement;
@@ -119,7 +119,7 @@ export interface EngineInput {
   droneSight: boolean;
 }
 
-const OVERLAYS: readonly OverlayName[] = ['streets', 'places', 'cameras', 'scans', 'objects', 'survival', 'fun', 'art', 'vessels', 'aircraft', 'films', 'location', 'motorways', 'orthophoto', 'clouds', 'sports', 'backed', 'drones'];
+const OVERLAYS: readonly OverlayName[] = ['streets', 'places', 'cameras', 'scans', 'objects', 'survival', 'fun', 'art', 'vessels', 'aircraft', 'films', 'location', 'motorways', 'orthophoto', 'clouds', 'sports', 'backed', 'drones', 'videos'];
 
 export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport>(
   ({ input, sendBack, receive }) => {
@@ -171,6 +171,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
     engine.addOverlay('art', artMarkerStyle);
     engine.addOverlay('backed', backedMarkerStyle);
     engine.addOverlay('drones', droneMarkerStyle);
+    engine.addOverlay('videos', videoMarkerStyle);
     engine.addOverlay('orthophoto', orthoMarkerStyle);
     engine.addOverlay('clouds', cloudMarkerStyle);
     engine.addOverlay('sports', sportsMarkerStyle);

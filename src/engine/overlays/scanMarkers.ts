@@ -6,6 +6,7 @@
  * représente et porte leur nombre.
  */
 
+import { VIDEOS_LABEL } from '../../domain/videos.ts';
 import { AERIAL_LABEL, ART_LABEL, BACKED_LABEL, CLOUD_LABEL, FUN_LABEL, OBJECTS_LABEL, ORTHO_LABEL, SURVIVAL_LABEL } from '../../domain/scans.ts';
 import { DRONES_LABEL } from '../../domain/droneFlights.ts';
 import { SPORTS_LABEL } from '../../domain/sports.ts';
@@ -156,6 +157,17 @@ const DRONE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="3
 
 export const droneMarkerStyle = scanMarker({
   className: 'overlay-drones', kicker: DRONES_LABEL, plural: (count) => `${count} vols`, icon: DRONE_ICON,
+});
+
+/** Un écran et son triangle de lecture : la vidéo se regarde ailleurs, ce marqueur dit seulement où elle a été tournée. */
+const VIDEO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <circle cx="18" cy="18" r="16" fill="#0e1720" fill-opacity="0.92" stroke="#75e7ff" stroke-width="1.600"/>
+  <rect x="8.500" y="11.500" width="19" height="13" rx="3.600" fill="none" stroke="#75e7ff" stroke-width="2"/>
+  <path d="M16 15.200v5.600l5-2.800z" fill="#c9f6ff"/>
+</svg>`;
+
+export const videoMarkerStyle = scanMarker({
+  className: 'overlay-videos', kicker: VIDEOS_LABEL, plural: (count) => `${count} vidéos`, icon: VIDEO_ICON,
 });
 
 export const aerialMarkerStyle = scanMarker({

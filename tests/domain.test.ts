@@ -110,7 +110,7 @@ describe('vue partageable', () => {
   const view: View = {
     pose: { x: 688879, y: 605554, distance: 426, azimuth: 137, tilt: 58 },
     scene: { campaign: '2013-2014', surface: 'mnt', tint: 'infrared', vintage: '2019' },
-    overlays: { places: false, cameras: true, aircraft: true, scans: true, objects: true, survival: true, fun: true, art: true, streets: true, vessels: true, motorways: true, orthophoto: true, clouds: true, sports: true, backed: true, drones: true },
+    overlays: { places: false, cameras: true, aircraft: true, scans: true, objects: true, survival: true, fun: true, art: true, streets: true, vessels: true, motorways: true, orthophoto: true, clouds: true, sports: true, backed: true, drones: true, videos: true },
     cameraId: '519',
   };
 
@@ -123,7 +123,7 @@ describe('vue partageable', () => {
   });
 
   it('produit un lien lisible', () => {
-    expect(encodeView(view)).toBe('c=688879,605554,426,137,58&s=2013-2014.mnt.infrared.2019&o=caiodftrbmsnkwv&cam=519');
+    expect(encodeView(view)).toBe('c=688879,605554,426,137,58&s=2013-2014.mnt.infrared.2019&o=caiodftrbmsnkwvu&cam=519');
   });
 
   it('garde l’imagerie et les objets allumés pour un lien d’avant leur existence, et éteints si le lien le dit', () => {
@@ -133,13 +133,13 @@ describe('vue partageable', () => {
     expect([old.overlays.fun, old.overlays.art]).toEqual([false, false]);
     expect([DEFAULT_VIEW.overlays.fun, DEFAULT_VIEW.overlays.art]).toEqual([false, false]);
     const off = encodeView({ ...view, overlays: { ...view.overlays, scans: false, objects: false, survival: false } });
-    expect(off).toContain('o=caftrbmsnkwvxyz');
+    expect(off).toContain('o=caftrbmsnkwvuxyz');
     expect(decodeView(off).overlays.art).toBe(true);
     expect(decodeView(off).overlays.fun).toBe(true);
     expect(decodeView(off).overlays.survival).toBe(false);
     expect([decodeView(off).overlays.scans, decodeView(off).overlays.objects]).toEqual([false, false]);
     const onlyObjects = encodeView({ ...view, overlays: { ...view.overlays, scans: false } });
-    expect(onlyObjects).toContain('o=caodftrbmsnkwvx');
+    expect(onlyObjects).toContain('o=caodftrbmsnkwvux');
     expect([decodeView(onlyObjects).overlays.scans, decodeView(onlyObjects).overlays.objects]).toEqual([false, true]);
   });
 
@@ -270,5 +270,25 @@ describe('chargement des relevés', () => {
     const scan = { id: 'lieu', name: 'Lieu', x: 1, y: 2, splats: '/scans/lieu.spz', credit };
     expect(parseScans([{ ...scan, preview: '/scans/lieu-apercu.spz' }])).toHaveLength(1);
     expect(parseScans([{ ...scan, preview: 'https://ailleurs.example/x.spz' }])).toHaveLength(0);
+  });
+});
+
+describe('vidéos signalées', () => {
+  it('n’accepte qu’un identifiant YouTube, et construit elle-même l’adresse de la page', async () => {
+    const { isWebVideo, videoPageUrl } = await import('../src/domain/videos.ts');
+    const credit = { author: 'a', title: 't', url: 'https://exemple.be', licence: '©' };
+    const video = { id: 'v', name: 'Vidéo', x: 1, y: 2, youtube: 'LVxdUiKYWGs', credit };
+    expect(isWebVideo(video)).toBe(true);
+    expect(isWebVideo({ ...video, youtube: 'https://ailleurs.example/x' })).toBe(false);
+    expect(isWebVideo({ ...video, youtube: 'LVxdUiKYWGs&autoplay=1' })).toBe(false);
+    expect(videoPageUrl(video)).toBe('https://www.youtube.com/watch?v=LVxdUiKYWGs');
+    expect(videoPageUrl({ ...video, start: 443.2 })).toBe('https://www.youtube.com/watch?v=LVxdUiKYWGs&t=443s');
+  });
+
+  it('s’écrit dans l’adresse comme les autres calques', async () => {
+    const { DEFAULT_VIEW, decodeView, encodeView } = await import('../src/domain/view.ts');
+    expect(DEFAULT_VIEW.overlays.videos).toBe(true);
+    expect(decodeView(encodeView({ ...DEFAULT_VIEW, overlays: { ...DEFAULT_VIEW.overlays, videos: false } })).overlays.videos).toBe(false);
+    expect(decodeView(encodeView(DEFAULT_VIEW)).overlays.videos).toBe(true);
   });
 });

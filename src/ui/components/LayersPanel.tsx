@@ -1,6 +1,6 @@
 import {
   ClockIcon, CubeTransparentIcon, HeartIcon, LifebuoyIcon, MapIcon, PaintBrushIcon, PaperAirplaneIcon, PhotoIcon, PuzzlePieceIcon, TagIcon, VideoCameraIcon, ViewColumnsIcon,
-  GlobeEuropeAfricaIcon, ShieldCheckIcon, TrophyIcon,
+  GlobeEuropeAfricaIcon, ShieldCheckIcon, TrophyIcon, PlayCircleIcon,
 } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import type { ReactNode } from 'react';
@@ -11,7 +11,7 @@ import { aircraftFeed } from '../../machines/aircraft.machine.ts';
 import { camerasFeed } from '../../machines/cameras.machine.ts';
 import { placesStatus, type LayerFeed } from '../../machines/places.machine.ts';
 import { motorwaysAvailable, motorwaysFeed } from '../../machines/motorways.machine.ts';
-import { AERIAL_LAYER, ART_LAYER, BACKED_LAYER, CLOUD_LAYER, DRONES_LAYER, FUN_LAYER, OBJECTS_LAYER, ORTHO_LAYER, SPORTS_LAYER, SURVIVAL_LAYER } from '../../machines/scans.layer.ts';
+import { AERIAL_LAYER, ART_LAYER, BACKED_LAYER, CLOUD_LAYER, DRONES_LAYER, FUN_LAYER, OBJECTS_LAYER, ORTHO_LAYER, SPORTS_LAYER, SURVIVAL_LAYER, VIDEOS_LAYER } from '../../machines/scans.layer.ts';
 import { layerAvailable, layerFeed } from '../../machines/selectionLayer.machine.ts';
 import { streetsCount, streetsFeed, streetsOutOfRange } from '../../machines/streets.machine.ts';
 import { vesselsFeed } from '../../machines/vessels.machine.ts';
@@ -26,6 +26,7 @@ import { DroneIcon } from './DroneIcon.tsx';
 import { PointCloudIcon } from './PointCloudIcon.tsx';
 import { DRONES_LABEL } from '../../domain/droneFlights.ts';
 import { SPORTS_LABEL } from '../../domain/sports.ts';
+import { VIDEOS_LABEL } from '../../domain/videos.ts';
 
 const FEED_LABEL: Record<LayerFeed, string> = {
   off: 'OFF',
@@ -256,6 +257,7 @@ export function LayersPanel() {
         <ScanLayerRow layer={ORTHO_LAYER} name={ORTHO_LABEL} icon={<GlobeEuropeAfricaIcon aria-hidden="true" />} meta="Prises de vue au drone à la verticale, redressées et posées sur le relief" />
         <ScanLayerRow layer={CLOUD_LAYER} name={CLOUD_LABEL} icon={<PointCloudIcon aria-hidden="true" />} meta="Les points retrouvés dans les images, dont sont tirés les gaussian splats" />
         <ScanLayerRow layer={DRONES_LAYER} name={DRONES_LABEL} icon={<DroneIcon aria-hidden="true" />} meta="Le trajet de chaque drone dans l’espace, et ce que sa caméra voit" />
+        <ScanLayerRow layer={VIDEOS_LAYER} name={VIDEOS_LABEL} icon={<PlayCircleIcon aria-hidden="true" />} meta="Vidéos publiées ailleurs, signalées là où elles ont été tournées" />
         <ScanLayerRow layer={SPORTS_LAYER} name={SPORTS_LABEL} icon={<TrophyIcon aria-hidden="true" />} meta="Séquences filmées, là où elles ont été tournées" />
         <ScanLayerRow layer={OBJECTS_LAYER} name={OBJECTS_LABEL} icon={<CubeTransparentIcon aria-hidden="true" />} meta="Relevés sur place, au téléphone" />
         <ScanLayerRow layer={BACKED_LAYER} name={BACKED_LABEL} icon={<ShieldCheckIcon aria-hidden="true" />} meta="Projets et lieux soutenus par la Wallonie, relevés sur place" />

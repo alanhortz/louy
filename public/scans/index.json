@@ -104,6 +104,25 @@
     }
   },
   {
+    "id": "namur-escalier",
+    "disabled": true,
+    "name": "Escalier au pied de la citadelle, Namur",
+    "x": 685407,
+    "y": 627928,
+    "splats": "/scans/namur-escalier.spz",
+    "credit": {
+      "author": "Joeys Journeys",
+      "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
+      "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
+      "licence": "© Joeys Journeys, avec son accord"
+    },
+    "walk": {
+      "x": 685405.8,
+      "y": 627930.5,
+      "azimuth": 178
+    }
+  },
+  {
     "id": "namur-sambre",
     "name": "La Sambre et la Halle al’Chair, Namur",
     "x": 685412.0,

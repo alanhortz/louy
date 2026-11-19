@@ -132,3 +132,6 @@ body:has(.walk-walking) .stage canvas:active { cursor: grabbing; }
 .drone-tool svg { width: 18px; height: 18px; }
 .drone-tool.active { color: var(--accent); border-color: rgba(0, 212, 255, 0.6); background: rgba(0, 212, 255, 0.12); }
 .drone-tool:hover, .drone-tool:focus-visible { border-color: var(--accent); outline: none; }
+
+/* Lien vers une vidéo hébergée ailleurs : un bouton comme les autres, qui est un vrai lien */
+.video-link { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }

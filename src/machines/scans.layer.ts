@@ -21,6 +21,8 @@ import type { SportSequence } from '../domain/sports.ts';
 import { loadSports } from '../services/sports.ts';
 import type { DroneFlight } from '../domain/droneFlights.ts';
 import { loadDroneFlights } from '../services/droneFlights.ts';
+import type { WebVideo } from '../domain/videos.ts';
+import { loadVideos } from '../services/videos.ts';
 import type { SelectionLayerSpec } from './selectionLayer.machine.ts';
 
 export const AERIAL_LAYER = 'scans';
@@ -33,6 +35,7 @@ export const ORTHO_LAYER = 'orthophoto';
 export const CLOUD_LAYER = 'clouds';
 export const SPORTS_LAYER = 'sports';
 export const DRONES_LAYER = 'drones';
+export const VIDEOS_LAYER = 'videos';
 
 /** Calques dont l'élément sélectionné est dessiné dans la carte, avec sa fiche dans le panneau « Imagerie ». */
 export const DRAWN_LAYERS: readonly string[] = [AERIAL_LAYER, ORTHO_LAYER, CLOUD_LAYER];
@@ -137,6 +140,14 @@ export const sportsLayer: SelectionLayerSpec<SportSequence> = {
 export const dronesLayer: SelectionLayerSpec<DroneFlight> = {
   name: DRONES_LAYER,
   load: (signal) => loadDroneFlights(signal),
+  markers: (items) => items.map((item): ScanFeature => ({ id: item.id, x: item.x, y: item.y, label: item.name, rank: 1 })),
+  opensTogether: (members) => members.length === 1,
+};
+
+/** Vidéos : des vidéos publiées ailleurs, signalées à l'endroit qu'elles montrent ; leur fiche renvoie vers leur page. */
+export const videosLayer: SelectionLayerSpec<WebVideo> = {
+  name: VIDEOS_LAYER,
+  load: (signal) => loadVideos(signal),
   markers: (items) => items.map((item): ScanFeature => ({ id: item.id, x: item.x, y: item.y, label: item.name, rank: 1 })),
   opensTogether: (members) => members.length === 1,
 };
