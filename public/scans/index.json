@@ -361,6 +361,10 @@
     "x": 684783,
     "y": 627522,
     "splats": "/scans/esplanade-citadelle-namur.spz",
+    "hd": {
+      "splats": "/scans/esplanade-citadelle-namur-hd.spz",
+      "more": ["/scans/esplanade-citadelle-namur-hd-2.spz"]
+    },
     "preview": "/scans/esplanade-citadelle-namur-apercu.spz",
     "credit": {
       "author": "Mathis Hortz",

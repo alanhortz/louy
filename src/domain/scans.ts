@@ -64,7 +64,12 @@ export interface Scan {
    */
   cloud?: boolean;
   /** Le même relevé en haute définition, quand il existe : c'est le réglage de l'application qui choisit. */
-  hd?: { splats: string };
+  hd?: { splats: string; more?: string[] };
+  /**
+   * Suite du relevé, quand il pèse plus qu'un seul fichier ne peut porter : `splats` donne l'essentiel du lieu,
+   * ces fichiers y ajoutent le détail, l'un après l'autre.
+   */
+  more?: string[];
   /**
    * Aperçu du relevé : le même lieu en dix fois moins de splats. Il s'affiche en premier, le temps que le
    * fichier complet arrive, puis lui cède la place.
@@ -173,6 +178,10 @@ export type ArtKind = keyof typeof ART_KINDS;
 /** Hauteur de survol à l'ouverture d'un scan sans cadrage propre. */
 export const SCAN_HEIGHT = 110;
 
+/** Une liste d'adresses du site, ou rien. */
+const isSiteList = (value: unknown): boolean =>
+  value === undefined || (Array.isArray(value) && value.every((item) => typeof item === 'string' && /^\/(?!\/)/.test(item)));
+
 const isScan = (value: unknown): value is Scan => {
   const scan = value as Partial<Scan> | null;
   return typeof scan === 'object' && scan !== null
@@ -190,7 +199,8 @@ const isScan = (value: unknown): value is Scan => {
     && (scan.trace === undefined || (typeof scan.splats === 'string' && typeof scan.trace === 'boolean'))
     && (scan.span === undefined || (typeof scan.splats === 'string' && Number.isFinite(scan.span) && scan.span > 0))
     && (scan.orthophoto === undefined || (typeof scan.splats === 'string' && typeof scan.orthophoto === 'boolean'))
-    && (scan.hd === undefined || (typeof scan.splats === 'string' && typeof scan.hd?.splats === 'string' && /^\/(?!\/)/.test(scan.hd.splats)))
+    && (scan.hd === undefined || (typeof scan.splats === 'string' && typeof scan.hd?.splats === 'string' && /^\/(?!\/)/.test(scan.hd.splats) && isSiteList(scan.hd.more)))
+    && (scan.more === undefined || (typeof scan.splats === 'string' && isSiteList(scan.more)))
     && (scan.preview === undefined || (typeof scan.splats === 'string' && typeof scan.preview === 'string' && /^\/(?!\/)/.test(scan.preview)))
     && (scan.cloud === undefined || (typeof scan.splats === 'string' && typeof scan.cloud === 'boolean'))
     && (scan.marker === undefined || (Number.isFinite(scan.marker?.x) && Number.isFinite(scan.marker?.y)))

@@ -64,6 +64,8 @@ export class SplatLayer {
   readonly #levels = new Map<string, { mesh: SplatMesh; beyond: number }[]>();
   /** Fichier voulu pour chaque relevé, chargé ou encore en file : il change avec la définition choisie. */
   readonly #urls = new Map<string, string>();
+  /** Suites des relevés partagés en plusieurs fichiers : le détail qui s'ajoute à l'essentiel. */
+  readonly #extras = new Map<string, SplatMesh[]>();
   /** Aperçus à l'écran, en attendant le fichier complet. */
   readonly #previews = new Map<string, SplatMesh>();
   /** Relevés dont le fichier complet attend son tour, et ceux qui sont en train d'arriver. */
@@ -114,6 +116,8 @@ export class SplatLayer {
     if (mesh) { mesh.removeFromParent(); mesh.dispose(); this.#strokes.delete(mesh); }
     this.#meshes.delete(id);
     this.#closePreview(id);
+    for (const extra of this.#extras.get(id) ?? []) { extra.removeFromParent(); extra.dispose(); }
+    this.#extras.delete(id);
     this.#loaded.delete(id);
     this.#grounds.delete(id);
     for (const level of this.#levels.get(id) ?? []) { level.mesh.removeFromParent(); level.mesh.dispose(); this.#strokes.delete(level.mesh); }
@@ -180,7 +184,28 @@ export class SplatLayer {
     } else {
       this.#build(scan.id, mesh, scan.trace === true);
     }
+    this.#extend(scan, 0);
     this.#pump();
+  }
+
+  /**
+   * La suite d'un relevé partagé en plusieurs fichiers : ils arrivent l'un après l'autre, une fois l'essentiel
+   * à l'écran, et s'y ajoutent sans rien annoncer — le lieu est déjà là, il s'affine.
+   */
+  #extend(scan: Scan, at: number): void {
+    const url = scan.more?.[at];
+    if (!url || this.#urls.get(scan.id) !== scan.splats) return;
+    const mesh = new SplatMesh({
+      url,
+      onLoad: () => {
+        if (!this.#extras.get(scan.id)?.includes(mesh)) return;
+        this.#onDirty();
+        this.#extend(scan, at + 1);
+      },
+    });
+    mesh.position.set(scan.x - T.ORIGIN.x, 0, -(scan.y - T.ORIGIN.y));
+    this.#sceneOf(scan).add(mesh);
+    this.#extras.set(scan.id, [...(this.#extras.get(scan.id) ?? []), mesh]);
   }
 
   /** L'aperçu d'un relevé : demandé tout de suite, hors file — il est là pour qu'on n'attende pas. */
