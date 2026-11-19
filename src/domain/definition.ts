@@ -21,7 +21,7 @@ export const isDefinition = (value: unknown): value is Definition => value === '
 
 /** Le relevé tel qu'il se dessine dans la définition choisie. */
 export const scanIn = (scan: Scan, definition: Definition): Scan =>
-  (definition === 'high' && scan.hd?.splats ? { ...scan, splats: scan.hd.splats } : scan);
+  (definition === 'high' && scan.hd?.splats ? { ...scan, splats: scan.hd.splats, more: scan.hd.more } : scan);
 
 /** De même pour une image de la vue satellite. */
 export const satelliteIn = (image: SatelliteImage, definition: Definition): SatelliteImage =>

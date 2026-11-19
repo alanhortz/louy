@@ -42,3 +42,16 @@ describe('définition des relevés', () => {
     expect(announced.map((event) => event.definition)).toEqual(['standard', 'high', 'standard']);
   });
 });
+
+describe('relevé partagé en plusieurs fichiers', () => {
+  it('en haute définition, le relevé emporte la suite de sa version haute, pas celle de la standard', async () => {
+    const { scanIn } = await import('../src/domain/definition.ts');
+    const { parseScans } = await import('../src/domain/scans.ts');
+    const credit = { author: 'a', title: 't', url: 'https://exemple.be', licence: '©' };
+    const [scan] = parseScans([{ id: 'lieu', name: 'Lieu', x: 1, y: 2, splats: '/scans/lieu.spz', hd: { splats: '/scans/lieu-hd.spz', more: ['/scans/lieu-hd-2.spz'] }, credit }]);
+    expect(scanIn(scan!, 'standard').more).toBeUndefined();
+    expect(scanIn(scan!, 'high')).toMatchObject({ splats: '/scans/lieu-hd.spz', more: ['/scans/lieu-hd-2.spz'] });
+    // une suite hors du site est refusée
+    expect(parseScans([{ id: 'lieu', name: 'Lieu', x: 1, y: 2, splats: '/scans/lieu.spz', more: ['https://ailleurs.example/x.spz'], credit }])).toHaveLength(0);
+  });
+});
