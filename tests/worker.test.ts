@@ -136,3 +136,38 @@ describe('préchauffage du film du temps', () => {
     expect(store.size).toBe(1);
   });
 });
+
+describe('altitudes exactes', () => {
+  const CELL = '/edge/v1/altitudes/MNT/42800/39252.json';
+  const answer = (count: number) => JSON.stringify({ results: Array.from({ length: count }, (_, k) => ({ attributes: { 'Stretch.Pixel Value': k === 0 ? 'NoData' : String(80 + k / 1000) } })) });
+
+  it('demande tout le carré au SPW en une fois, et ne garde que les altitudes en centimètres', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(answer(1024), { headers: { 'Content-Type': 'application/json;charset=UTF-8' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    const response = await call(CELL);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(new URL(url).pathname).toBe('/arcgis/rest/services/RELIEF/WALLONIE_MNT_2021_2022/MapServer/identify');
+    expect(init?.method).toBe('POST');
+    const geometry = JSON.parse(new URLSearchParams(String(init?.body)).get('geometry')!);
+    expect(geometry.points).toHaveLength(1024);
+    expect(geometry.points[0]).toEqual([42800 * 16 + 0.25, 39252 * 16 + 0.25]);
+    const values = await response.json() as (number | null)[];
+    expect(values).toHaveLength(1024);
+    expect(values[0]).toBeNull();
+    expect(values[1]).toBe(8000);
+    expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
+  });
+
+  it('ne garde pas une réponse partielle', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(answer(1000), { headers: { 'Content-Type': 'application/json' } })));
+    expect((await call(CELL)).status).toBe(502);
+    await settle();
+    expect(store.size).toBe(0);
+  });
+
+  it('refuse un carré hors de Wallonie ou une autre campagne', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    expect((await call('/edge/v1/altitudes/MNT/10000/10000.json')).status).toBe(404);
+    expect((await call('/edge/v1/altitudes/MNT_2013_2014/42800/39252.json')).status).toBe(404);
+  });
+});
