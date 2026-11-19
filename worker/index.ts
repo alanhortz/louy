@@ -30,6 +30,9 @@
  * arrière-plan : quand le navigateur y arrive, elles sont déjà là. Le SPW ne
  * reçoit rien de plus que ce que le film lui aurait demandé — seulement plus tôt.
  *
+ * Et `/edge/v1/altitudes/<MNT|MNS>/<cx>/<cy>.json`, les altitudes exactes du LiDAR 2021-2022 sur un carré de
+ * 16 m, demandées d'un coup au SPW (`identify`) et gardées sans fin (voir src/domain/altitudes.ts).
+ *
  * Enfin `/edge/v1/cameras/<identifiant>.jpg`, l'image d'une caméra routière : Trafiroutes
  * ne permet pas à un navigateur d'en lire les pixels, or le viewer en a besoin pour la
  * poser sur le relief. Elle est gardée deux minutes, la source la renouvelant toutes les six.
@@ -39,6 +42,7 @@
  */
 
 import { FLIGHT_CELL, flightDatesUrl } from '../src/domain/acquisition.ts';
+import { altitudeRequest, compactAltitudes, parseAltitudePath } from '../src/domain/altitudes.ts';
 import { AIRCRAFT_CACHE_SECONDS, AIRCRAFT_EDGE_PATH, AIRCRAFT_FEEDS, AIRCRAFT_SOURCE_HEADER } from '../src/domain/aircraft.ts';
 import { CAMERA_EDGE_ROUTE, CAMERA_IMAGE_CACHE_SECONDS, cameraSourceUrl } from '../src/domain/cameraView.ts';
 import { LATEST_VINTAGE, VINTAGES } from '../src/domain/catalog.ts';
@@ -63,6 +67,8 @@ interface ExecutionContext {
 
 interface Upstream {
   url: string;
+  /** Demande à envoyer en POST (formulaire) plutôt qu'en GET : celles du SPW dépassent la longueur d'une adresse. */
+  form?: string;
   /** Sources équivalentes, essayées dans l'ordre quand elles existent ; celle qui répond est nommée dans la réponse. */
   alternatives?: readonly { name: string; url: string }[];
   /** Type attendu : ArcGIS signale ses erreurs en JSON avec un statut 200. */
@@ -152,6 +158,25 @@ function cameraUpstream(path: string): Upstream | null {
   };
 }
 
+/** Altitudes exactes d'un carré de 16 m : la réponse du SPW, réduite aux altitudes en centimètres. */
+function altitudeUpstream(path: string): Upstream | null {
+  const cell = parseAltitudePath(path);
+  if (!cell) return null;
+  const { url, body } = altitudeRequest(cell);
+  return {
+    url,
+    form: body,
+    contentType: 'application/json',
+    cacheControl: IMMUTABLE,
+    reshape: {
+      contentType: 'application/json',
+      convert(text) {
+        try { const values = compactAltitudes(JSON.parse(text)); return values && JSON.stringify(values); } catch { return null; }
+      },
+    },
+  };
+}
+
 /** Noms de rues d'une dalle : la couche « Rues » d'ICAR, réduite à une ligne par rue. Hors de Wallonie, rien. */
 function streetCellUpstream(path: string): Upstream | null {
   const match = STREET_EDGE_ROUTE.exec(path);
@@ -202,7 +227,9 @@ async function fetchUpstream(upstream: Upstream, refusals: string[] = []): Promi
     }
     return null;
   }
-  const answer = await fetch(upstream.url, { headers: { Accept: upstream.contentType } });
+  const answer = await fetch(upstream.url, upstream.form
+    ? { method: 'POST', body: upstream.form, headers: { Accept: upstream.contentType, 'Content-Type': 'application/x-www-form-urlencoded' } }
+    : { headers: { Accept: upstream.contentType } });
   const type = answer.headers.get('Content-Type') ?? '';
   if (!answer.ok || !type.startsWith(upstream.contentType)) {
     refusals.push(`statut ${answer.status}, type ${type || 'absent'}`);
@@ -248,7 +275,7 @@ async function relay(request: Request, context: ExecutionContext): Promise<Respo
   const { origin, pathname, searchParams } = new URL(request.url);
   const route = pathname.slice(PREFIX.length);
   const upstream = tileUpstream(route) ?? flightsUpstream(route) ?? aircraftUpstream(route) ?? routeUpstream(route)
-    ?? streetCellUpstream(route) ?? streetSearchUpstream(route) ?? vesselsUpstream(route) ?? cameraUpstream(route);
+    ?? streetCellUpstream(route) ?? streetSearchUpstream(route) ?? vesselsUpstream(route) ?? cameraUpstream(route) ?? altitudeUpstream(route);
   if (!upstream) return refusal(404, 'Ressource inconnue');
 
   // la clef ignore la chaîne de requête : impossible de fragmenter le cache par des paramètres
