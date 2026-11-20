@@ -66,6 +66,23 @@ async function fetchPixels(url, px, signal) {
   return ctx.getImageData(0, 0, px, px).data;
 }
 
+/**
+ * Altitudes exactes d'une tuile : px x px entiers de 16 bits, premiere ligne au nord. `null` quand elles ne sont
+ * pas disponibles : le relais les prepare encore (202), ou ne les sert pas ici ; `retry` dit si cela vaut la
+ * peine de revenir.
+ */
+async function fetchExact(url, px, signal) {
+  const res = await fetch(url, { signal, credentials: 'omit' });
+  // 202 : le relais prepare la tuile, elle vaudra d'etre redemandee ; de meme s'il a flanche
+  if (res.status === 202 || res.status >= 500) return { values: null, retry: true };
+  if (!res.ok) return { values: null, retry: false };
+  // sans relais (site statique seul), la demande retombe sur la page du site : ce n'est pas un relief
+  if (!(res.headers.get('Content-Type') ?? '').startsWith('application/octet-stream')) return { values: null, retry: false };
+  const values = new Uint16Array(await res.arrayBuffer());
+  if (values.length !== px * px) throw new Error('relief exact : taille inattendue');
+  return { values, retry: false };
+}
+
 /* ------------------------------------------ reconstruction de la surface --- */
 
 /**
@@ -222,9 +239,103 @@ function rememberSurface(key, surface) {
   if (surfaces.size > SURFACE_LIMIT) surfaces.delete(surfaces.keys().next().value);
 }
 
+/**
+ * Le relief d'une tuile pour une source : altitudes sur la tuile elargie de TILE_PAD, ou EMPTY_SURFACE, avec
+ * `retry` quand le relief exact demande n'etait pas encore pret — la surface rendue vient alors de l'image du
+ * service, et la tuile vaut d'etre redemandee plus tard.
+ * Le relief ne depend pas de l'habillage : quand seule la photo change (un autre millesime), la surface
+ * deja reconstruite est reprise telle quelle, et il ne reste qu'a telecharger la nouvelle image.
+ */
+async function surfaceFor({ elevUrl, exactUrl, lutKey, px, smooth, computed, exactStep, exactOffset }, signal) {
+  const lut = luts.get(lutKey);
+  const keyFor = (source) => `${source}|${lutKey}|${px}|${smooth}|${computed}`;
+  let surfaceKey = keyFor(exactUrl ?? elevUrl);
+  const known = surfaces.get(surfaceKey);
+  if (known) return { h: known, retry: false };
+  let retry = false;
+  let exact = null;
+  if (exactUrl) {
+    ({ values: exact, retry } = await fetchExact(exactUrl, px, signal));
+    // pas encore pret : la surface du service, gardee sous sa propre clef pour ne pas passer pour l'exacte
+    if (!exact) {
+      surfaceKey = keyFor(elevUrl);
+      const fallback = surfaces.get(surfaceKey);
+      if (fallback) return { h: fallback, retry };
+    }
+  }
+  const elevPx = exact ?? await fetchPixels(elevUrl, px, signal);
+
+  // 1. rampe -> altitudes
+  const h = new Float32Array(px * px);
+  let any = false;
+  if (exact) {
+    // Altitudes mesurees, relevees d'avance : elles se lisent telles quelles. Il n'y a ni rampe a inverser,
+    // ni surface a reconstruire entre des tranches.
+    for (let i = 0; i < h.length; i++) {
+      if (elevPx[i] === 0) { h[i] = NaN; continue; }
+      h[i] = elevPx[i] * exactStep + exactOffset;
+      any = true;
+    }
+  } else {
+    for (let i = 0, p = 0; i < h.length; i++, p += 4) {
+      if (elevPx[p + 3] < 250) { h[i] = NaN; continue; }
+      const z = lookup(lut, (elevPx[p] << 16) | (elevPx[p + 1] << 8) | elevPx[p + 2]);
+      h[i] = z;
+      if (!Number.isNaN(z)) any = true;
+    }
+  }
+  // un relief exact sans aucune donnee ne vaut rien : c'est la tuile du service qui dit s'il y a un sol ici
+  // (une tuile vide elague tout l'arbre sous elle : on ne le laisse pas faire sur la foi d'une reponse vide)
+  if (!any && exact) {
+    exact = null;
+    surfaceKey = keyFor(elevUrl);
+    const fallback = surfaces.get(surfaceKey);
+    if (fallback) return { h: fallback, retry: false };
+    return surfaceFromPixels(await fetchPixels(elevUrl, px, signal), lut, px, smooth, computed, surfaceKey);
+  }
+  if (!any) {
+    rememberSurface(surfaceKey, EMPTY_SURFACE);
+    return { h: EMPTY_SURFACE, retry };
+  }
+
+  // 2. surface continue compatible avec la quantification
+  // Les bords ne sont ancres que sous un habillage photographique, ou la legere
+  // ondulation qu'ils laissent le long des tuiles est invisible. Les habillages
+  // calcules sur le relief lui-meme (altitude, pente) la reveleraient : ils
+  // gardent la surface libre, et la jupe ci-dessous ferme leurs jointures.
+  if (!exact) reconstruct(h, px, lut.step / 2, smooth, computed ? null : borderAnchors(h, px));
+  rememberSurface(surfaceKey, h);
+  return { h, retry };
+}
+
+/** La surface d'une tuile a partir de l'image du service : rampe inversee, puis reconstruction ; memorisee sous `surfaceKey`. */
+function surfaceFromPixels(elevPx, lut, px, smooth, computed, surfaceKey) {
+  const h = new Float32Array(px * px);
+  let any = false;
+  for (let i = 0, p = 0; i < h.length; i++, p += 4) {
+    if (elevPx[p + 3] < 250) { h[i] = NaN; continue; }
+    const z = lookup(lut, (elevPx[p] << 16) | (elevPx[p + 1] << 8) | elevPx[p + 2]);
+    h[i] = z;
+    if (!Number.isNaN(z)) any = true;
+  }
+  if (!any) { rememberSurface(surfaceKey, EMPTY_SURFACE); return { h: EMPTY_SURFACE, retry: false }; }
+  reconstruct(h, px, lut.step / 2, smooth, computed ? null : borderAnchors(h, px));
+  rememberSurface(surfaceKey, h);
+  return { h, retry: false };
+}
+
+/** Part de l'epoque en un point du disque : 1 dedans, 0 au-dela du fondu, adoucie entre les deux. */
+function periodWeight(blend, x, y) {
+  const d = Math.hypot(x - blend.cx, y - blend.cy);
+  if (d <= blend.radius) return 1;
+  if (d >= blend.radius + blend.feather) return 0;
+  const t = (d - blend.radius) / blend.feather;
+  return 1 - t * t * (3 - 2 * t);
+}
+
 async function loadTile(msg) {
   const {
-    id, px, cpx, sup, spacing, elevUrl, colorUrl, colorMode, stride, smooth, lutKey,
+    id, px, cpx, sup, spacing, elevUrl, colorUrl, colorMode, stride, smooth, lutKey, exactUrl, exactStep, exactOffset, blend,
   } = msg;
 
   const ctrl = new AbortController();
@@ -232,42 +343,33 @@ async function loadTile(msg) {
   try {
     const lut = luts.get(lutKey);
     const computed = colorMode === 'elevation' || colorMode === 'slope';
-    // Le relief d'une tuile ne depend pas de son habillage : quand seule la photo
-    // change (un autre millesime), la surface deja reconstruite est reprise telle
-    // quelle, et il ne reste qu'a telecharger la nouvelle image.
-    const surfaceKey = `${elevUrl}|${lutKey}|${px}|${smooth}|${computed}`;
-    const known = surfaces.get(surfaceKey);
-    const [elevPx, colorPx] = await Promise.all([
-      known ? Promise.resolve(null) : fetchPixels(elevUrl, px, ctrl.signal),
+    // Une tuile d'epoque porte deux sources : la sienne, dans le disque autour du lieu, et la scene du
+    // visiteur au-dela. Les deux reliefs et les deux photos sont demandes, puis fondus point par point.
+    const [ownSurface, colorPx, otherSurface, colorPx2] = await Promise.all([
+      surfaceFor({ elevUrl, exactUrl, lutKey, px, smooth, computed, exactStep, exactOffset }, ctrl.signal),
       colorUrl ? fetchPixels(colorUrl, cpx, ctrl.signal) : Promise.resolve(null),
+      blend ? surfaceFor({ ...blend, px, smooth, computed, exactStep, exactOffset }, ctrl.signal) : Promise.resolve(null),
+      blend && blend.colorUrl ? fetchPixels(blend.colorUrl, cpx, ctrl.signal) : Promise.resolve(null),
     ]);
-    if (known === EMPTY_SURFACE) return { id, empty: true };
-
-    // 1. rampe -> altitudes (sur la tuile elargie de TILE_PAD)
-    const h = known ?? new Float32Array(px * px);
-    if (!known) {
-      let any = false;
-      for (let i = 0, p = 0; i < h.length; i++, p += 4) {
-        if (elevPx[p + 3] < 250) { h[i] = NaN; continue; }
-        const z = lookup(lut, (elevPx[p] << 16) | (elevPx[p + 1] << 8) | elevPx[p + 2]);
-        h[i] = z;
-        if (!Number.isNaN(z)) any = true;
-      }
-      if (!any) {
-        rememberSurface(surfaceKey, EMPTY_SURFACE);
-        return { id, empty: true };
+    const own = ownSurface.h, other = otherSurface?.h ?? null;
+    // une des deux surfaces attend encore son relief exact : la tuile sera redemandee
+    const retry = ownSurface.retry || (otherSurface?.retry ?? false);
+    let h = own;
+    if (blend) {
+      if (own === EMPTY_SURFACE) h = other;
+      else if (other !== EMPTY_SURFACE) {
+        h = new Float32Array(px * px);
+        for (let row = 0, i = 0; row < px; row++) {
+          const y = blend.yN - (row - TILE_PAD + 0.5) * spacing;
+          for (let col = 0; col < px; col++, i++) {
+            const w = periodWeight(blend, blend.x0 + (col - TILE_PAD + 0.5) * spacing, y);
+            const a = own[i], b = other[i];
+            h[i] = Number.isNaN(a) ? b : Number.isNaN(b) ? a : a * w + b * (1 - w);
+          }
+        }
       }
     }
-
-    // 2. surface continue compatible avec la quantification
-    // Les bords ne sont ancres que sous un habillage photographique, ou la legere
-    // ondulation qu'ils laissent le long des tuiles est invisible. Les habillages
-    // calcules sur le relief lui-meme (altitude, pente) la reveleraient : ils
-    // gardent la surface libre, et la jupe ci-dessous ferme leurs jointures.
-    if (!known) {
-      reconstruct(h, px, lut.step / 2, smooth, computed ? null : borderAnchors(h, px));
-      rememberSurface(surfaceKey, h);
-    }
+    if (h === EMPTY_SURFACE) return { id, empty: true };
 
     // 3. echantillonnage de l'interieur -> geometrie
     //
@@ -327,10 +429,17 @@ async function loadTile(msg) {
           colors[o]     = 250 * t + 236 * (1 - t);
           colors[o + 1] = 246 * (1 - t) + 92 * t;
           colors[o + 2] = 232 * (1 - t) + 60 * t;
-        } else if (colorPx) {
+        } else if (colorPx || colorPx2) {
           const cx = Math.min(cpx - 1, Math.floor((TILE_PAD + (gx + 0.5) * step) * sup));
           const p = (cy * cpx + cx) * 4;
-          colors[o] = colorPx[p]; colors[o + 1] = colorPx[p + 1]; colors[o + 2] = colorPx[p + 2];
+          // dans une tuile d'epoque, la photo du lieu dans le disque, celle du visiteur au-dela, fondues entre les deux
+          const w = blend ? periodWeight(blend, blend.x0 + (gx + 0.5) * outSpacing, blend.yN - (gy + 0.5) * outSpacing) : 1;
+          const a = (w > 0 && colorPx) ? colorPx : (colorPx2 ?? colorPx);
+          const b = (w < 1 && colorPx2) ? colorPx2 : (colorPx ?? colorPx2);
+          const wa = a === b ? 1 : w;
+          colors[o] = a[p] * wa + b[p] * (1 - wa);
+          colors[o + 1] = a[p + 1] * wa + b[p + 1] * (1 - wa);
+          colors[o + 2] = a[p + 2] * wa + b[p + 2] * (1 - wa);
         } else {
           colors[o] = colors[o + 1] = colors[o + 2] = 190;
         }
@@ -353,7 +462,7 @@ async function loadTile(msg) {
 
     const pos = positions.subarray(0, count * 3).slice();
     const col = colors.subarray(0, count * 3).slice();
-    return { id, count, minY, maxY, outSpacing, positions: pos, colors: col };
+    return { id, count, minY, maxY, outSpacing, retry, positions: pos, colors: col };
   } finally {
     inflight.delete(id);
   }

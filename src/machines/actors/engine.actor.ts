@@ -4,12 +4,14 @@
  * commandes reçues en appels de méthode, et renvoie ce que le moteur observe.
  */
 
+import { loadExactRelief } from '../../services/exactRelief.ts';
 import { fromCallback } from 'xstate';
 import { EDGE_PREFIX, TILE_ENDPOINT } from '../../config/project.ts';
 import type { QualityProfile } from '../../domain/quality.ts';
 import type { ScanProgress } from '../../engine/SplatLayer.ts';
 import type { Scan } from '../../domain/scans.ts';
 import type { SceneSource } from '../../domain/scene.ts';
+import type { PeriodPatch } from '../../domain/period.ts';
 import { directTileUrl, edgeTileUrl } from '../../domain/tiles.ts';
 import type { Pose } from '../../domain/view.ts';
 import type { OverlayFeature } from '../../engine/OverlayLayer.ts';
@@ -42,6 +44,8 @@ export interface ViewerMount {
 /** Commandes adressées au moteur. */
 export type EngineCommand =
   | { type: 'viewer.sceneChanged'; source: SceneSource }
+  /** Autour d'un lieu ancien, le relief et la photo de son époque ; `null` : la scène partout. */
+  | { type: 'viewer.periodChanged'; patch: PeriodPatch | null }
   | { type: 'viewer.overlayChanged'; layer: OverlayName; features: OverlayFeature[] }
   | { type: 'viewer.overlayActivated'; layer: OverlayName; id: string | null }
   | { type: 'viewer.scansChanged'; scans: Scan[] }
@@ -61,8 +65,7 @@ export type EngineCommand =
   | { type: 'viewer.captureRequested' }
   /** Balade au sol : armer la désignation d'un point, se poser dans un lieu filmé, revenir à la carte. */
   | { type: 'viewer.pickArmed'; armed: boolean }
-  /** `strict` : ne se poser que sur le point demandé, sans être emmené au sol le plus proche. */
-  | { type: 'viewer.walkRequested'; scanId: string; x: number; y: number; azimuth?: number; strict?: boolean }
+  | { type: 'viewer.walkRequested'; scanId: string; x: number; y: number; azimuth?: number }
   | { type: 'viewer.walkStopped' }
   /** Visite guidée : refaire le vol qui a filmé un lieu, la mettre en pause ou la reprendre, la quitter. */
   | { type: 'viewer.tourRequested'; flight: { id?: string; fov: number; track: ClipKey[] } }
@@ -92,7 +95,6 @@ export type EngineReport =
   | { type: 'engine.scanProgressed'; id: string; phase: ScanProgress['phase']; fraction: number }
   | { type: 'engine.followEnded' }
   | { type: 'engine.groundPicked'; x: number; y: number }
-  | { type: 'engine.zoomedThrough'; x: number; y: number }
   | { type: 'engine.walkEntered' }
   | { type: 'engine.walkFailed' }
   | { type: 'engine.immersiveChanged'; immersive: boolean }
@@ -105,6 +107,7 @@ export interface EngineInput {
   mount: ViewerMount;
   quality: QualityProfile;
   source: SceneSource;
+  periodPatch: PeriodPatch | null;
   pose: Pose;
   sharpStart: boolean;
   orbitStart: boolean;
@@ -141,7 +144,6 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
           onScanProgress: (progress) => sendBack({ type: 'engine.scanProgressed', ...progress }),
           onFollowEnded: () => sendBack({ type: 'engine.followEnded' }),
           onGroundPicked: (x, y) => sendBack({ type: 'engine.groundPicked', x, y }),
-          onZoomedThrough: (x, y) => sendBack({ type: 'engine.zoomedThrough', x, y }),
           onWalkEntered: () => sendBack({ type: 'engine.walkEntered' }),
           onWalkFailed: () => sendBack({ type: 'engine.walkFailed' }),
           onTourEnded: () => sendBack({ type: 'engine.tourEnded' }),
@@ -188,6 +190,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
     engine.setAircraftActive(input.active.aircraft);
     engine.setVesselModels(input.overlays.vessels as unknown as VesselModel[]);
     engine.setVesselActive(input.active.vessels);
+    engine.setPeriodPatch(input.periodPatch);
     engine.setScans(input.scans);
     engine.preloadScans(input.preload);
     engine.setCameraProjection(input.cameraProjection);
@@ -195,10 +198,14 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
     engine.setExtraClips(input.clips);
     engine.setDroneSight(input.droneSight);
     engine.setDroneFlights(input.droneFlights);
+    // le relief exact, là où il est publié : sa liste arrive à part, et les tuiles concernées sont alors redemandées
+    const exact = new AbortController();
+    void loadExactRelief(exact.signal).then((index) => { if (!exact.signal.aborted) engine.setExactRelief(index); });
 
     receive((command) => {
       switch (command.type) {
         case 'viewer.sceneChanged': return engine.setSource(command.source);
+        case 'viewer.periodChanged': return engine.setPeriodPatch(command.patch);
         case 'viewer.overlayChanged':
           // les avions sont aussi dessinés en volume : leurs marqueurs n'en gardent que l'étiquette
           if (command.layer === 'aircraft') engine.setAircraftModels(command.features as unknown as AircraftModel[]);
@@ -218,7 +225,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
         case 'viewer.orbitStopped': return engine.stopOrbit();
         case 'viewer.followChanged': return engine.follow(command.target);
         case 'viewer.pickArmed': return engine.armPick(command.armed);
-        case 'viewer.walkRequested': return engine.startWalk(command.scanId, command.x, command.y, command.azimuth, command.strict);
+        case 'viewer.walkRequested': return engine.startWalk(command.scanId, command.x, command.y, command.azimuth);
         case 'viewer.walkStopped': return engine.stopWalk();
         case 'viewer.tourRequested': return engine.startTour(command.flight);
         case 'viewer.tourPlayChanged': return engine.setTourPlaying(command.playing);
@@ -235,6 +242,6 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
       }
     });
 
-    return () => engine.dispose();
+    return () => { exact.abort(); engine.dispose(); };
   },
 );

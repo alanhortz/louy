@@ -244,7 +244,7 @@ describe('relais des rues', () => {
   const store = new Map<string, Response>();
   const pending: Promise<unknown>[] = [];
   const context = { waitUntil: (promise: Promise<unknown>) => { pending.push(promise); } };
-  const env = { ASSETS: { fetch: vi.fn(async () => new Response('site')) } };
+  const env = { ASSETS: { fetch: vi.fn(async () => new Response('site')) }, SELF: { fetch: vi.fn(async () => new Response(null, { status: 204 })) } };
   const call = (path: string) => worker.fetch(new Request(`https://louy.be${path}`), env, context);
   const spw = (body: unknown, status = 200) =>
     vi.fn(async (_url: string) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json;charset=UTF-8' } }));

@@ -29,7 +29,6 @@ export type ViewerEmitted =
   | { type: 'viewer.overlayPicked'; layer: OverlayName; id: string; members: string[] }
   | { type: 'viewer.followEnded' }
   | { type: 'viewer.groundPicked'; x: number; y: number }
-  | { type: 'viewer.zoomedThrough'; x: number; y: number }
   | { type: 'viewer.walkEntered' }
   | { type: 'viewer.walkFailed' }
   | { type: 'viewer.tourEnded' }
@@ -62,6 +61,7 @@ export interface ViewerInput {
 function remembered(context: ViewerContext, event: ViewerEvent): Partial<ViewerContext> {
   switch (event.type) {
     case 'viewer.sceneChanged': return { source: event.source };
+    case 'viewer.periodChanged': return { periodPatch: event.patch };
     case 'viewer.poseApplied': return { pose: event.pose };
     case 'viewer.overlayChanged':
       return { overlays: { ...context.overlays, [event.layer]: event.features } };
@@ -79,7 +79,7 @@ function remembered(context: ViewerContext, event: ViewerEvent): Partial<ViewerC
 }
 
 const COMMANDS = [
-  'viewer.sceneChanged', 'viewer.overlayChanged', 'viewer.overlayActivated', 'viewer.scansChanged',
+  'viewer.sceneChanged', 'viewer.periodChanged', 'viewer.overlayChanged', 'viewer.overlayActivated', 'viewer.scansChanged',
   'viewer.scansPreloaded', 'viewer.cameraProjected', 'viewer.satelliteChanged', 'viewer.clipsChanged', 'viewer.droneFlightsChanged', 'viewer.droneSightChanged',
   'viewer.poseApplied',
 ] as const;
@@ -108,6 +108,7 @@ export const viewerMachine = viewer.createMachine({
     mount: null,
     overlays: { streets: [], places: [], cameras: [], scans: [], objects: [], survival: [], fun: [], art: [], vessels: [], aircraft: [], films: [], location: [], motorways: [], orthophoto: [], clouds: [], sports: [], backed: [], drones: [], videos: [] },
     active: { streets: null, places: null, cameras: null, scans: null, objects: null, survival: null, fun: null, art: null, vessels: null, aircraft: null, films: null, location: null, motorways: null, orthophoto: null, clouds: null, sports: null, backed: null, drones: null, videos: null },
+    periodPatch: null,
     scans: [],
     preload: [],
     cameraProjection: null,
@@ -162,9 +163,6 @@ export const viewerMachine = viewer.createMachine({
         'engine.immersiveChanged': { actions: assign({ immersive: ({ event }) => event.immersive }) },
         'engine.groundPicked': {
           actions: sendParent(({ event }): ViewerEmitted => ({ type: 'viewer.groundPicked', x: event.x, y: event.y })),
-        },
-        'engine.zoomedThrough': {
-          actions: sendParent(({ event }): ViewerEmitted => ({ type: 'viewer.zoomedThrough', x: event.x, y: event.y })),
         },
         'engine.walkEntered': { actions: sendParent((): ViewerEmitted => ({ type: 'viewer.walkEntered' })) },
         'engine.walkFailed': { actions: sendParent((): ViewerEmitted => ({ type: 'viewer.walkFailed' })) },

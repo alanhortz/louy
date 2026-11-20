@@ -63,15 +63,19 @@ const selected = (context: CamerasContext): RoadCamera | null =>
 const selectedPose = (context: CamerasContext): CameraPose | null =>
   (context.selectedId ? context.poses[context.selectedId] ?? null : null);
 
-const toFeature = (camera: RoadCamera, view: boolean): CameraFeature => ({
+/**
+ * Le marqueur d'une caméra se pose là où elle est vraiment : à sa pose retrouvée quand il y en a une
+ * (l'image montre jusqu'au poteau qui la porte), sinon au point kilométrique de la liste.
+ */
+const toFeature = (camera: RoadCamera, pose: CameraPose | undefined): CameraFeature => ({
   id: camera.id,
-  x: camera.x,
-  y: camera.y,
+  x: pose?.x ?? camera.x,
+  y: pose?.y ?? camera.y,
   label: camera.label,
   rank: 1,
   maxDistance: MARKER_RANGE,
   thumbnail: thumbnailUrl(camera.id),
-  view,
+  view: pose !== undefined,
 });
 
 /** Caméra voisine dans la liste, en bouclant aux extrémités. */
@@ -121,12 +125,12 @@ export const camerasMachine = setup({
     }),
     deselect: assign({ selectedId: null, frame: null }),
     publish: sendParent(({ context }): CamerasEmitted =>
-      ({ type: 'cameras.changed', visible: true, features: context.cameras.map((camera) => toFeature(camera, camera.id in context.poses)) })),
+      ({ type: 'cameras.changed', visible: true, features: context.cameras.map((camera) => toFeature(camera, context.poses[camera.id])) })),
     /** Les poses arrivent après la liste : les marqueurs déjà posés sont repeints. Sans liste, rien à repeindre. */
     republish: enqueueActions(({ context, enqueue }) => {
       if (context.cameras.length === 0) return;
       enqueue.sendParent({
-        type: 'cameras.changed', visible: true, features: context.cameras.map((camera) => toFeature(camera, camera.id in context.poses)),
+        type: 'cameras.changed', visible: true, features: context.cameras.map((camera) => toFeature(camera, context.poses[camera.id])),
       } satisfies CamerasEmitted);
     }),
     withdraw: sendParent((): CamerasEmitted => ({ type: 'cameras.changed', visible: false, features: [] })),
@@ -144,8 +148,8 @@ export const camerasMachine = setup({
       };
     }),
     requestFly: sendParent(({ context }): CamerasEmitted => {
-      const camera = selected(context)!;
-      return { type: 'cameras.flyRequested', x: camera.x, y: camera.y };
+      const camera = selected(context)!, pose = selectedPose(context);
+      return { type: 'cameras.flyRequested', x: pose?.x ?? camera.x, y: pose?.y ?? camera.y };
     }),
   },
 }).createMachine({

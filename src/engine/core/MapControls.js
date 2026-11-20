@@ -17,11 +17,6 @@
 import { MathUtils, Vector3 } from 'three';
 
 const DEG = Math.PI / 180;
-/**
- * Distance a laquelle le zoom fait entrer dans ce que l'on regarde, en metres : la vue s'arrete
- * un peu plus loin (minDistance), et demander a s'approcher jusque-la vaut une demande d'entree.
- */
-const ENTRY_DISTANCE = 10;
 const NAV_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', '+', '=', '-', '_']);
 
 export class MapControls {
@@ -52,15 +47,6 @@ export class MapControls {
     this.onUserInput = () => {};
     /** Faux quand une autre navigation tient la camera (balade au sol) : les gestes sont ignores. */
     this.enabled = true;
-    /**
-     * Appele quand le visiteur continue de zoomer alors que la vue est deja au plus pres :
-     * il veut entrer dans ce qu'il regarde. Une seule fois par geste.
-     */
-    this.onZoomThrough = () => {};
-    /** Zoom demande au-dela du plus pres, cumule (logarithme du rapport de distance). */
-    this._through = 0;
-    /** Vrai tant que le zoom en cours vient de la molette ou d'un pincement : le clavier, lui, ne fait jamais entrer. */
-    this._throughArmed = false;
 
     this._d = { pan: new Vector3(), dist: 0, az: 0, pol: 0 };
     this._ptr = new Map();
@@ -142,7 +128,7 @@ export class MapControls {
 
     if (this._mode === 'pinch' && this._ptr.size === 2) {
       const d = this.#pinchDistance();
-      if (this._pinch > 0) { this._d.dist += Math.log(this._pinch / d) * 1.6; this._throughArmed = true; }
+      if (this._pinch > 0) this._d.dist += Math.log(this._pinch / d) * 1.6;
       this._pinch = d;
 
       // tourner les deux doigts fait pivoter, les glisser ensemble incline
@@ -191,7 +177,6 @@ export class MapControls {
     this.onUserInput();
     const unit = e.deltaMode === 1 ? 18 : e.deltaMode === 2 ? 380 : 1;
     this._d.dist += Math.sign(e.deltaY) * Math.min(1.6, Math.abs(e.deltaY * unit) / 260);
-    this._throughArmed = true;
     const r = this.dom.getBoundingClientRect();
     this._zoomTo = {
       x: ((e.clientX - r.left) / r.width) * 2 - 1,
@@ -228,9 +213,8 @@ export class MapControls {
       if (k.has('ArrowDown'))  { this._d.pan.x += step * sin; this._d.pan.z += step * cos; }
       if (k.has('ArrowLeft'))  { this._d.pan.x -= step * cos; this._d.pan.z += step * sin; }
       if (k.has('ArrowRight')) { this._d.pan.x += step * cos; this._d.pan.z -= step * sin; }
-      // au clavier, on navigue : zoomer au plus pres ne vaut pas demande d'entree
-      if (k.has('+') || k.has('=')) { this._d.dist -= 0.06; this._throughArmed = false; }
-      if (k.has('-') || k.has('_')) { this._d.dist += 0.06; this._throughArmed = false; }
+      if (k.has('+') || k.has('=')) this._d.dist -= 0.06;
+      if (k.has('-') || k.has('_')) this._d.dist += 0.06;
     }
 
     const orbiting = this.autoRotate !== 0 && dt > 0;
@@ -266,17 +250,6 @@ export class MapControls {
         const before = this._zoomTo ? this.#groundAt(this._zoomTo, new Vector3()) : null;
         const next = MathUtils.clamp(this.distance * Math.exp(step),
           this.minDistance, this.maxDistance);
-        // au plus pres, le zoom qui ne peut plus rapprocher s'accumule : passe un seuil, on « traverse »
-        if (step < 0 && this._throughArmed && this.distance <= this.minDistance * 1.02) {
-          this._through -= step;
-          if (this._through > Math.log(this.minDistance / ENTRY_DISTANCE)) {
-            this._through = 0;
-            this._d.dist = 0;
-            this.onZoomThrough();
-          }
-        } else {
-          this._through = 0;
-        }
         const ratio = next / this.distance;
         this.distance = next;
         // zoom vers le curseur : la cible glisse vers le point vise

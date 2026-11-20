@@ -64,6 +64,20 @@ const ART_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36"
   </g>
 </svg>`;
 
+/**
+ * Objet posé dans la carte : son marqueur, une fois touché, change de visage — un œil sur le volume — et dit
+ * qu'un second toucher ouvre la visionneuse.
+ */
+const VIEW_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <g fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M18 4 29 10v8.5l-11 6-11-6V10Z" fill="#0e1720" stroke="#75e7ff" stroke-width="1.4"/>
+    <path d="M7 10l11 6 11-6M18 16v8.5" stroke="#75e7ff" stroke-width="1.1"/>
+    <path d="M5 28.5c3.2-4.2 7.6-6.3 13-6.3s9.8 2.1 13 6.3c-3.2 4.2-7.6 6.3-13 6.3S8.2 32.7 5 28.5Z" fill="#0e1720" stroke="#c9f6ff" stroke-width="1.4"/>
+    <circle cx="18" cy="28.5" r="3" fill="#c9f6ff" stroke="#dbfbff" stroke-width="0.6"/>
+  </g>
+</svg>`;
+const VIEW_KICKER = 'Voir en volume';
+
 interface MarkerKind {
   className: string;
   /** Genre affiché en tête de légende. */
@@ -71,11 +85,13 @@ interface MarkerKind {
   /** Légende d'un marqueur qui rassemble `count` éléments. */
   plural(count: number): string;
   icon: string;
+  /** Un objet posé dans la carte : touché, son marqueur propose d'ouvrir la visionneuse. */
+  placed?: boolean;
 }
 
-function scanMarker({ className, kicker, plural, icon }: MarkerKind): OverlayStyle<ScanFeature> {
+function scanMarker({ className, kicker, plural, icon, placed = false }: MarkerKind): OverlayStyle<ScanFeature> {
   const idle = tinted(icon, TINT_IDLE);
-  const lit = tinted(icon, TINT_ACTIVE);
+  const lit = tinted(placed ? VIEW_ICON : icon, TINT_ACTIVE);
   return {
     className,
     maxVisible: 32,
@@ -94,11 +110,14 @@ function scanMarker({ className, kicker, plural, icon }: MarkerKind): OverlaySty
     paint(element, scan, { active, members }) {
       const [image, badge, caption] = element.children as unknown as [HTMLImageElement, HTMLElement, HTMLElement];
       const label = members.length > 1 ? plural(members.length) : scan.label;
-      element.setAttribute('aria-label', `${kicker} : ${label}`);
+      // un objet posé dans la carte, une fois touché : le marqueur devient le bouton de sa visionneuse
+      const heading = active && placed && members.length === 1 ? VIEW_KICKER : kicker;
+      element.setAttribute('aria-label', `${heading} : ${label}`);
       element.classList.toggle('active', active);
       image.src = active ? lit : idle;
       badge.hidden = members.length < 2;
       badge.textContent = String(members.length);
+      caption.firstElementChild!.textContent = heading;
       caption.lastElementChild!.textContent = label;
     },
   };
@@ -175,15 +194,15 @@ export const aerialMarkerStyle = scanMarker({
 });
 
 export const objectMarkerStyle = scanMarker({
-  className: 'overlay-objects', kicker: OBJECTS_LABEL, plural: (count) => `${count} objets`, icon: OBJECT_ICON,
+  className: 'overlay-objects', kicker: OBJECTS_LABEL, plural: (count) => `${count} objets`, icon: OBJECT_ICON, placed: true,
 });
 
 export const survivalMarkerStyle = scanMarker({
-  className: 'overlay-survival', kicker: SURVIVAL_LABEL, plural: (count) => `${count} équipements`, icon: SURVIVAL_ICON,
+  className: 'overlay-survival', kicker: SURVIVAL_LABEL, plural: (count) => `${count} équipements`, icon: SURVIVAL_ICON, placed: true,
 });
 
 export const funMarkerStyle = scanMarker({
-  className: 'overlay-fun', kicker: FUN_LABEL, plural: (count) => `${count} objets`, icon: FUN_ICON,
+  className: 'overlay-fun', kicker: FUN_LABEL, plural: (count) => `${count} objets`, icon: FUN_ICON, placed: true,
 });
 
 /** Soutenu par la Wallonie : un écusson, et dedans la poignée de main réduite à deux traits qui se croisent. */
@@ -195,9 +214,9 @@ const BACKED_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="
 </svg>`;
 
 export const backedMarkerStyle = scanMarker({
-  className: 'overlay-backed', kicker: BACKED_LABEL, plural: (count) => `${count} projets`, icon: BACKED_ICON,
+  className: 'overlay-backed', kicker: BACKED_LABEL, plural: (count) => `${count} projets`, icon: BACKED_ICON, placed: true,
 });
 
 export const artMarkerStyle = scanMarker({
-  className: 'overlay-art', kicker: ART_LABEL, plural: (count) => `${count} œuvres`, icon: ART_ICON,
+  className: 'overlay-art', kicker: ART_LABEL, plural: (count) => `${count} œuvres`, icon: ART_ICON, placed: true,
 });

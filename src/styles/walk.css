@@ -93,11 +93,11 @@ body:has(.walk-walking) .stage canvas:active { cursor: grabbing; }
 .drone-halo { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
 .drone-halo i {
   /* le pointeur : quatre marques d'accroche radar — les coins d'un carré arrondi, sans ses côtés — qui battent doucement */
-  position: absolute; left: -28px; top: -28px; width: 56px; height: 56px; border-radius: 12px;
-  border: 2px solid var(--accent);
-  filter: drop-shadow(0 0 5px var(--accent-glow));
+  position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 4px;
+  border: 1.5px solid var(--accent);
+  filter: drop-shadow(0 0 4px var(--accent-glow));
   /* seul ce qui tombe dans un coin est gardé */
-  --corner: 17px;
+  --corner: 9px;
   -webkit-mask:
     linear-gradient(#000, #000) 0 0 / var(--corner) var(--corner) no-repeat, linear-gradient(#000, #000) 100% 0 / var(--corner) var(--corner) no-repeat,
     linear-gradient(#000, #000) 0 100% / var(--corner) var(--corner) no-repeat, linear-gradient(#000, #000) 100% 100% / var(--corner) var(--corner) no-repeat;
@@ -109,7 +109,7 @@ body:has(.walk-walking) .stage canvas:active { cursor: grabbing; }
 @keyframes drone-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.88); opacity: 0.6; } }
 @media (prefers-reduced-motion: reduce) { .drone-halo i { animation: none; } }
 .drone-halo span {
-  position: absolute; left: 40px; top: -24px; padding: 4px 7px; white-space: pre; border-radius: 6px;
+  position: absolute; left: 24px; top: -20px; padding: 4px 7px; white-space: pre; border-radius: 6px;
   background: var(--glass-bg); border: 1px solid rgba(0, 212, 255, 0.4);
   font-family: var(--font-mono); font-size: 9px; line-height: 1.5; letter-spacing: 1px; text-transform: uppercase; color: #dff9ff;
   font-variant-numeric: tabular-nums;

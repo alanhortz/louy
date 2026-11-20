@@ -104,6 +104,26 @@
     }
   },
   {
+    "id": "trakk-2014",
+    "name": "Centre sportif universitaire, futur TRAKK, Namur (2014)",
+    "x": 684690.59,
+    "y": 628057.22,
+    "splats": "/scans/trakk-2014.spz",
+    "preview": "/scans/trakk-2014-apercu.spz",
+    "year": 2014,
+    "walk": {
+      "x": 684698.5,
+      "y": 628071.6,
+      "azimuth": 257
+    },
+    "credit": {
+      "author": "Fabrice Lambert",
+      "title": "Trakk Namur 2014",
+      "url": "https://www.youtube.com/watch?v=uDVtV5Q-7j0",
+      "licence": "© Fabrice Lambert, reproduit avec son accord"
+    }
+  },
+  {
     "id": "namur-escalier",
     "disabled": true,
     "name": "Escalier au pied de la citadelle, Namur",
@@ -128,6 +148,9 @@
     "x": 685412.0,
     "y": 628032.0,
     "splats": "/scans/namur-sambre.spz",
+    "hd": {
+      "splats": "/scans/namur-sambre-hd.spz"
+    },
     "preview": "/scans/namur-sambre-apercu.spz",
     "note": "Un vol bas en oblique au-dessus de la Sambre, reconstruit en volume et calé sur le relief LiDAR.",
     "credit": {
@@ -193,27 +216,6 @@
       "y": 628013,
       "height": 200,
       "azimuth": 0
-    }
-  },
-  {
-    "id": "lettres-namur-esplanade",
-    "name": "Lettres « NAMUR », esplanade de la Confluence",
-    "x": 685570,
-    "y": 627961,
-    "splats": "/scans/lettres-namur-esplanade.spz",
-    "span": 9,
-    "note": "Les lettres et le sol de l'esplanade qui les porte, relevés au téléphone puis posés à leur place sur le relief LiDAR.",
-    "credit": {
-      "author": "Alan Hortz",
-      "title": "Relevé Polycam du 13 novembre 2026",
-      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
-      "licence": "© 2026"
-    },
-    "view": {
-      "x": 685566,
-      "y": 627966,
-      "height": 14,
-      "azimuth": 250
     }
   },
   {
@@ -413,71 +415,120 @@
   {
     "id": "lettres-namur",
     "name": "Lettres « NAMUR », esplanade de la Confluence",
-    "x": 685567,
-    "y": 627965,
+    "x": 685570,
+    "y": 627961,
+    "splats": "/scans/lettres-namur-esplanade.spz",
     "mesh": "/scans/lettres-namur.glb",
+    "span": 9,
+    "fine": true,
     "art": "street",
-    "credit": {
-      "author": "Alan Hortz",
-      "title": "Relevé Polycam du 13 novembre 2026",
-      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
-      "licence": "© 2026"
-    }
-  },
-  {
-    "id": "detail-facade-namur",
-    "name": "Détail de façade, Namur",
-    "x": 685186,
-    "y": 628504,
-    "mesh": "/scans/detail-facade-namur.glb",
-    "art": "street",
-    "credit": {
-      "author": "Alan Hortz",
-      "title": "Relevé Polycam du 13 novembre 2026",
-      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
-      "licence": "© 2026"
-    }
-  },
-  {
-    "id": "mur-peint-namur",
-    "name": "Fragment de mur peint, Namur",
-    "x": 685188,
-    "y": 628493,
-    "mesh": "/scans/mur-peint-namur.glb",
-    "art": "street",
-    "credit": {
-      "author": "Alan Hortz",
-      "title": "Relevé Polycam du 13 novembre 2026",
-      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
-      "licence": "© 2026"
-    }
-  },
-  {
-    "id": "camion-police-brasseurs",
-    "name": "Vieux camion de police, rue des Brasseurs",
-    "x": 684948,
-    "y": 628207,
-    "mesh": "/scans/camion-police-brasseurs.glb",
+    "note": "Les lettres et le sol de l'esplanade qui les porte, relevés au téléphone puis posés à leur place sur le relief LiDAR.",
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam du 13 novembre 2026",
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     },
-    "note": "Camion utilisé lors du tournage de la série « Bookish », saison 3."
+    "view": {
+      "x": 685566,
+      "y": 627966,
+      "height": 14,
+      "azimuth": 250
+    }
+  },
+  {
+    "id": "detail-facade-namur",
+    "name": "Détail de façade, Namur",
+    "x": 685183,
+    "y": 628502,
+    "splats": "/scans/detail-facade-namur-carte.spz",
+    "mesh": "/scans/detail-facade-namur.glb",
+    "span": 1.9,
+    "fine": true,
+    "art": "street",
+    "note": "Relevé au téléphone, posé à sa place sur le relief LiDAR, à l'échelle : la fiche « objet » du même nom l'ouvre en volume, de près.",
+    "credit": {
+      "author": "Alan Hortz",
+      "title": "Relevé Polycam du 13 novembre 2026",
+      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
+      "licence": "© 2026"
+    },
+    "view": {
+      "x": 685182.8,
+      "y": 628502.2,
+      "height": 4.8,
+      "azimuth": 236
+    }
+  },
+  {
+    "id": "mur-peint-namur",
+    "name": "Fragment de mur peint, Namur",
+    "x": 685373,
+    "y": 628058,
+    "splats": "/scans/mur-peint-namur-carte.spz",
+    "mesh": "/scans/mur-peint-namur.glb",
+    "span": 1.4,
+    "fine": true,
+    "art": "street",
+    "note": "Relevé au téléphone, posé à sa place sur le relief LiDAR, à l'échelle : la fiche « objet » du même nom l'ouvre en volume, de près.",
+    "credit": {
+      "author": "Alan Hortz",
+      "title": "Relevé Polycam du 13 novembre 2026",
+      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
+      "licence": "© 2026"
+    },
+    "view": {
+      "x": 685373,
+      "y": 628058,
+      "height": 4.8,
+      "azimuth": 180
+    }
+  },
+  {
+    "id": "camion-police-brasseurs",
+    "name": "Vieux camion de police, rue des Brasseurs",
+    "x": 684950,
+    "y": 628207,
+    "splats": "/scans/camion-police-brasseurs-carte.spz",
+    "mesh": "/scans/camion-police-brasseurs.glb",
+    "span": 5.9,
+    "fine": true,
+    "note": "Camion utilisé lors du tournage de la série « Bookish », saison 3.",
+    "credit": {
+      "author": "Alan Hortz",
+      "title": "Relevé Polycam du 13 novembre 2026",
+      "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
+      "licence": "© 2026"
+    },
+    "view": {
+      "x": 684950.1,
+      "y": 628206.9,
+      "height": 7.1,
+      "azimuth": 275
+    }
   },
   {
     "id": "cluster-eco-construction",
     "name": "Cluster Eco-construction asbl",
     "x": 680463,
     "y": 630760,
+    "splats": "/scans/cluster-eco-construction-carte.spz",
     "mesh": "/scans/cluster-eco-construction.glb",
+    "span": 5.9,
+    "fine": true,
     "backed": "wallonie",
+    "note": "Relevé au téléphone, posé à sa place sur le relief LiDAR, à l'échelle : la fiche « objet » du même nom l'ouvre en volume, de près.",
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam du 14 novembre 2026",
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
+    },
+    "view": {
+      "x": 680463,
+      "y": 630760,
+      "height": 7.1,
+      "azimuth": 318
     }
   },
   {
@@ -485,8 +536,12 @@
     "name": "Défibrillateur — CrossFit Hawks Nest",
     "x": 636210,
     "y": 619128,
+    "splats": "/scans/defibrillateur-crossfit-hawks-nest-carte.spz",
     "mesh": "/scans/defibrillateur-crossfit-hawks-nest.glb",
+    "span": 2.8,
+    "fine": true,
     "survival": "defibrillator",
+    "note": "Relevé au téléphone, posé à sa place sur le relief LiDAR, à l'échelle : la fiche « objet » du même nom l'ouvre en volume, de près.",
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam du 14 novembre 2026",
@@ -499,20 +554,36 @@
         "thumb": "/scans/photos/defibrillateur-crossfit-hawks-nest-1.vignette.jpg",
         "caption": "Le défibrillateur dans son boîtier, au mur de la salle"
       }
-    ]
+    ],
+    "view": {
+      "x": 636210,
+      "y": 619128,
+      "height": 4.8,
+      "azimuth": 200
+    }
   },
   {
     "id": "borne-arcade-ibis-suarlee",
     "name": "Borne d’arcade — Ibis Styles Namur, Suarlée",
-    "x": 680365,
-    "y": 630599,
+    "x": 680290,
+    "y": 630583,
+    "splats": "/scans/borne-arcade-ibis-suarlee-carte.spz",
     "mesh": "/scans/borne-arcade-ibis-suarlee.glb",
+    "span": 1.3,
+    "fine": true,
     "fun": "arcade",
+    "note": "Relevé au téléphone, posé à sa place sur le relief LiDAR, à l'échelle : la fiche « objet » du même nom l'ouvre en volume, de près.",
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam du 14 novembre 2026",
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
+    },
+    "view": {
+      "x": 680289.8,
+      "y": 630583.3,
+      "height": 4.8,
+      "azimuth": 60
     }
   },
   {
@@ -520,13 +591,23 @@
     "name": "Poteau — autocollants",
     "x": 684573,
     "y": 628265,
+    "splats": "/scans/poteau-autocollants-saint-aubain-carte.spz",
     "mesh": "/scans/poteau-autocollants-saint-aubain.glb",
+    "span": 3.7,
+    "fine": true,
     "art": "street",
+    "note": "Relevé au téléphone, posé à sa place sur le relief LiDAR, à l'échelle : la fiche « objet » du même nom l'ouvre en volume, de près.",
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam du 12 novembre 2026",
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
+    },
+    "view": {
+      "x": 684573.2,
+      "y": 628265.1,
+      "height": 4.8,
+      "azimuth": 130
     }
   },
   {

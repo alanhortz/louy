@@ -17,6 +17,14 @@ import {
 import * as C from '../../domain/tiling.ts';
 
 const KEY = (l, i, j) => `${l}/${i}/${j}`;
+/**
+ * Delai avant de redemander une tuile dessinee sans son relief exact, que le relais preparait encore ; il
+ * s'allonge a chaque essai (20, 40, 60 … 160 s) : le relais ne prepare que quelques tuiles a la fois, et une
+ * vue neuve en demande cent.
+ */
+const RETRY_MS = 20_000;
+/** Au-dela (une douzaine de minutes), on n'insiste plus : la tuile garde le relief du service pour la session. */
+const MAX_RETRIES = 8;
 
 class Tile {
   constructor(level, i, j) {
@@ -29,6 +37,8 @@ class Tile {
     this.minY = 0; this.maxY = 700;
     this.lastUsed = 0;
     this.inScene = false;
+    this.retryAt = 0;              // instant ou redemander le relief exact ; 0 : rien a redemander
+    this.retries = 0;
   }
 }
 
@@ -47,6 +57,10 @@ export class TileTree {
     this._v = new Vector3();
 
     this.stats = { visible: 0, points: 0, requested: 0, cached: 0 };
+    /** Appele quand une tuile est a redemander : la boucle de rendu, si elle dort, doit se reveiller pour une selection. */
+    this.onRetryDue = () => {};
+    this._retryTimer = null;
+    this._retryDue = Infinity;
 
     loader.onTile = (key, payload, desc) => this.#onLoaded(key, payload, desc);
     loader.onEmpty = (key) => { const t = this.tiles.get(key); if (t) t.state = 'empty'; };
@@ -106,7 +120,7 @@ export class TileTree {
     // Plafond de parcours : la selection ne doit jamais pouvoir couter une
     // image, meme si la camera s'incline vers un horizon lointain.
     ctx.visited++;
-    const subdivide = tile.level < ctx.maxLevel
+    const subdivide = tile.level < ctx.maxLevel && !(ctx.stopAt && ctx.stopAt(tile))
       && projected > ctx.sse
       && ctx.points < ctx.maxPoints
       && ctx.visited < ctx.maxNodes;
@@ -139,6 +153,11 @@ export class TileTree {
     // chargement repartirait de zero en boucle.
     ctx.wanted.add(tile.key);
 
+    // dessinee sans son relief exact : passe le delai, elle se redemande comme un rhabillage
+    if (tile.state === 'ready' && !tile.stale && tile.retryAt && performance.now() >= tile.retryAt) {
+      tile.retryAt = 0;
+      tile.stale = true;
+    }
     if (tile.state === 'ready' && tile.stale) {
       // meme relief, autre habillage : la tuile reste a l'ecran pendant que sa remplacante se prepare.
       // Tant qu'une demande abandonnee de cette tuile n'a pas rendu sa reponse, on attend l'image suivante.
@@ -193,11 +212,28 @@ export class TileTree {
       tile.points.geometry.dispose();
     }
     tile.refreshing = false;
+    if (payload.retry && tile.retries < MAX_RETRIES) {
+      tile.retries++;
+      tile.retryAt = performance.now() + RETRY_MS * tile.retries;
+      this.#scheduleRetry(tile.retryAt);
+    } else tile.retryAt = 0;
     tile.points = pts;
     tile.count = payload.count;
     tile.minY = payload.minY;
     tile.maxY = payload.maxY;
     tile.state = 'ready';
+  }
+
+  /** Un reveil a l'echeance la plus proche : sans lui, une camera immobile ne redemanderait jamais son relief exact. */
+  #scheduleRetry(at) {
+    if (at >= this._retryDue) return;
+    if (this._retryTimer !== null) clearTimeout(this._retryTimer);
+    this._retryDue = at;
+    this._retryTimer = setTimeout(() => {
+      this._retryTimer = null;
+      this._retryDue = Infinity;
+      this.onRetryDue();
+    }, Math.max(0, at - performance.now()) + 50);
   }
 
   /** Selection complete pour une image. */
@@ -215,6 +251,7 @@ export class TileTree {
       exaggeration: opts.exaggeration,
       maxPoints: opts.maxPoints,
       maxLevel: Math.min(C.MAX_LEVEL, opts.maxLevel ?? C.MAX_LEVEL),
+      stopAt: opts.stopAt,
       points: 0,
       visible: 0,
       visited: 0,
@@ -300,6 +337,20 @@ export class TileTree {
     }
   }
 
+  /**
+   * Une region de la carte change de source (l'epoque d'un lieu ancien) : seules les tuiles que `changed`
+   * designe sont redemandees, et restent affichees pendant que leur remplacante se prepare. Ce qui etait en
+   * chemin est abandonne et sera redemande.
+   */
+  refreshWhere(changed) {
+    this.generation++;
+    this.loader.cancelAll();
+    for (const t of this.tiles.values()) {
+      if (t.state === 'loading') t.state = 'idle';
+      else if (t.state === 'ready' && (t.refreshing || t.stale || changed(t))) { t.stale = true; t.refreshing = false; }
+    }
+  }
+
   /** Vide tout : changement de modele, de source de couleur ou de densite. */
   reset() {
     this.generation++;
@@ -309,5 +360,9 @@ export class TileTree {
       if (t.points) { t.points.geometry.dispose(); t.points = null; }
     }
     this.tiles.clear();
+  }
+
+  dispose() {
+    if (this._retryTimer !== null) { clearTimeout(this._retryTimer); this._retryTimer = null; }
   }
 }

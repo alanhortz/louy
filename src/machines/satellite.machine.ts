@@ -3,7 +3,7 @@
  * vue redressées tendues au-dessus du relief. Ce n'est pas un calque : c'est une
  * façon de regarder, qu'on enclenche et qu'on quitte par le globe de la barre.
  *
- *   probing ──▶ absent                      (le site ne publie aucune image)
+ *   probing ──▶ absent                      (le site ne publie aucune image, ou la vue est mise de côté)
  *          └──▶ off ⇄ on
  */
 
@@ -12,6 +12,12 @@ import type { SatelliteImage } from '../domain/satellite.ts';
 import { loadSatelliteImages } from '../services/satellite.ts';
 
 export type SatelliteEvent = { type: 'satellite.toggled' };
+
+/**
+ * Mise de côté pour l'instant : le globe n'est proposé nulle part, les images ne sont pas même demandées.
+ * Tout le reste est en place ; il suffit de repasser à `false` pour la rétablir.
+ */
+export const SATELLITE_SHELVED = true;
 
 export type SatelliteEmitted =
   /** `byVisitor` : le visiteur vient d'enclencher la vue ; elle peut l'emmener au-dessus d'une image. */
@@ -23,7 +29,7 @@ export const satelliteMachine = setup({
     events: {} as SatelliteEvent,
   },
   actors: {
-    load: fromPromise<SatelliteImage[]>(({ signal }) => loadSatelliteImages(signal)),
+    load: fromPromise<SatelliteImage[]>(({ signal }) => (SATELLITE_SHELVED ? Promise.resolve([]) : loadSatelliteImages(signal))),
   },
   actions: {
     engage: sendParent(({ context }): SatelliteEmitted => ({ type: 'satellite.changed', active: true, images: context.images, byVisitor: true })),

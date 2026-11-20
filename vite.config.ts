@@ -53,6 +53,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => new URL(cameraSourceUrl(path.split('?')[0]!.split('/').pop()!.replace('.jpg', ''))).pathname,
       },
+      // relief exact d'une tuile : le Worker en production (ou un `wrangler dev`, via LOUY_EDGE) le prépare et le garde
+      '^/edge/v1/relief/': {
+        target: process.env.LOUY_EDGE ?? 'https://louy.be',
+        changeOrigin: true,
+      },
       // liaison d'un vol : même rôle, vers la base adsbdb
       '^/edge/v1/aircraft/route/[A-Z0-9]{3,8}\\.json$': {
         target: new URL(routeUrl('X')).origin,

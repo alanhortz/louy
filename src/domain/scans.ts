@@ -8,7 +8,9 @@
  *
  * Ou un objet relevé de près — maillage texturé glTF, tel qu'en exporte une
  * application de scan — signalé sur la carte et examiné dans sa propre
- * visionneuse.
+ * visionneuse. Quand il a aussi des splats, c'est le même relevé posé à sa place
+ * dans la carte : toucher son marqueur l'y dessine, le toucher de nouveau ouvre
+ * la visionneuse.
  *
  * Les images d'origine viennent de vidéos publiées sous licence libre : chaque
  * scan porte le crédit de son auteur, affiché partout où le scan l'est.
@@ -63,6 +65,17 @@ export interface Scan {
    * d'en faire des gaussian splats. Il a son calque, « Nuages de points ».
    */
   cloud?: boolean;
+  /**
+   * Année des images dont le lieu est reconstruit, quand elles sont anciennes : tant qu'il est sélectionné,
+   * la carte montre autour de lui le relief et la photo aérienne les plus proches de cette année-là.
+   */
+  year?: number;
+  /**
+   * Le lieu se regarde au centimètre : un objet relevé de près, aux taches de quelques millimètres. Le viewer
+   * garde alors ses positions en pleine précision, au lieu de l'encodage compact (demi-précision : à 80 m
+   * d'altitude, un pas de 6 cm, qui découpe un objet en tranches horizontales).
+   */
+  fine?: boolean;
   /** Le même relevé en haute définition, quand il existe : c'est le réglage de l'application qui choisit. */
   hd?: { splats: string; more?: string[] };
   /**
@@ -187,8 +200,8 @@ const isScan = (value: unknown): value is Scan => {
   return typeof scan === 'object' && scan !== null
     && typeof scan.id === 'string' && typeof scan.name === 'string'
     && Number.isFinite(scan.x) && Number.isFinite(scan.y)
-    // l'un ou l'autre, jamais les deux : un scan est soit un lieu, soit un objet
-    && (typeof scan.splats === 'string') !== (typeof scan.mesh === 'string') && isCredit(scan.credit)
+    // un lieu a ses splats, un objet son maillage ; un objet relevé de près peut aussi être posé dans la carte, et a les deux
+    && (typeof scan.splats === 'string' || typeof scan.mesh === 'string') && isCredit(scan.credit)
     && (scan.view === undefined || isView(scan.view))
     // une séquence filmée se replace dans un lieu, pas autour d'un objet
     && (scan.clips === undefined || (typeof scan.splats === 'string' && Array.isArray(scan.clips) && scan.clips.every(isClip)))
@@ -196,8 +209,10 @@ const isScan = (value: unknown): value is Scan => {
     && (scan.walk === undefined || (typeof scan.splats === 'string' && Number.isFinite(scan.walk?.x) && Number.isFinite(scan.walk?.y)
       && (scan.walk?.azimuth === undefined || Number.isFinite(scan.walk.azimuth))))
     && (scan.note === undefined || typeof scan.note === 'string')
+    && (scan.year === undefined || (typeof scan.splats === 'string' && Number.isInteger(scan.year) && scan.year >= 1900 && scan.year <= 2100))
     && (scan.trace === undefined || (typeof scan.splats === 'string' && typeof scan.trace === 'boolean'))
     && (scan.span === undefined || (typeof scan.splats === 'string' && Number.isFinite(scan.span) && scan.span > 0))
+    && (scan.fine === undefined || (typeof scan.splats === 'string' && typeof scan.fine === 'boolean'))
     && (scan.orthophoto === undefined || (typeof scan.splats === 'string' && typeof scan.orthophoto === 'boolean'))
     && (scan.hd === undefined || (typeof scan.splats === 'string' && typeof scan.hd?.splats === 'string' && /^\/(?!\/)/.test(scan.hd.splats) && isSiteList(scan.hd.more)))
     && (scan.more === undefined || (typeof scan.splats === 'string' && isSiteList(scan.more)))
@@ -270,8 +285,15 @@ export const WALKABLE_SPAN = 30;
 export const isWalkable = (scan: Scan): boolean =>
   scan.splats !== undefined && !scan.trace && !scan.orthophoto && !scan.cloud && (scan.span === undefined || scan.span >= WALKABLE_SPAN);
 
-/** Scans dessinés dans la carte. */
-export const placeScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined && !scan.trace && !scan.orthophoto && !scan.cloud);
+/**
+ * Lieux de l'imagerie aérienne, dessinés dans la carte : filmés au drone et reconstruits en volume. Les objets
+ * relevés de près n'en sont pas, même posés dans la carte : ils se dessinent quand on touche leur marqueur.
+ */
+export const placeScans = (scans: readonly Scan[]): Scan[] =>
+  scans.filter((scan) => scan.splats !== undefined && scan.mesh === undefined && !scan.trace && !scan.orthophoto && !scan.cloud);
+
+/** L'objet est aussi posé dans la carte, à sa place et à l'échelle : toucher son marqueur l'y dessine. */
+export const isPlacedObject = (scan: Scan): boolean => scan.mesh !== undefined && scan.splats !== undefined;
 
 /** Nuages de points du calque du même nom. */
 export const cloudScans = (scans: readonly Scan[]): Scan[] => scans.filter((scan) => scan.splats !== undefined && scan.cloud === true);

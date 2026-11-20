@@ -17,6 +17,7 @@ import { cockpitPose } from '../domain/aircraft.ts';
 import type { QualityProfile } from '../domain/quality.ts';
 import type { Scan } from '../domain/scans.ts';
 import type { SceneSource } from '../domain/scene.ts';
+import { EXACT_OFFSET, EXACT_STEP, exactReliefUrl, type ExactReliefIndex } from '../domain/exactRelief.ts';
 import type { TileUrlBuilder } from '../domain/tiles.ts';
 import * as T from '../domain/tiling.ts';
 import { POSE_LIMITS, type Pose } from '../domain/view.ts';
@@ -32,6 +33,7 @@ import { VesselLayer, type VesselModel } from './VesselLayer.ts';
 import { TrajectoryLayer, type TrajectoryPoint } from './TrajectoryLayer.ts';
 import { OverlayLayer, type OverlayFeature, type OverlayStyle } from './OverlayLayer.ts';
 import type { ScanProgress, SplatLayer } from './SplatLayer.ts';
+import { inPeriod, samePatch, type PeriodPatch } from '../domain/period.ts';
 import { CameraViewLayer, type CameraProjection } from './CameraViewLayer.ts';
 import { clipPose, type ClipKey, type ScanClip } from '../domain/clips.ts';
 import { DroneLayer } from './DroneLayer.ts';
@@ -92,8 +94,6 @@ const WALK_FOV = 68;
 const WALK_MAP_DISTANCE = 170;
 /** À pied, distance en deçà de laquelle le relief n'est pas dessiné. */
 const WALK_RELIEF_NEAR = 90;
-/** Entré par le zoom, écart toléré entre le point regardé et le sol du lieu où l'on se pose, en mètres. */
-const ZOOM_ENTRY_SLACK = 60;
 /** Angle d'une rotation par à-coup aux manettes, en radians. */
 const VR_SNAP_TURN = Math.PI / 6;
 /** Un clic qui a bougé de moins que cela désigne un point ; au-delà, c'est un déplacement de la carte. */
@@ -117,8 +117,6 @@ export interface EngineListeners {
   onFollowEnded(): void;
   /** Le visiteur a désigné un point de la carte (Lambert 2008) où se poser. */
   onGroundPicked(x: number, y: number): void;
-  /** Le visiteur zoome encore alors que la vue est au plus près : il veut entrer dans le lieu qu'il regarde. */
-  onZoomedThrough(x: number, y: number): void;
   /** La balade demandée commence — ou n'a pas pu commencer : le lieu n'a pas de sol. */
   onWalkEntered(): void;
   onWalkFailed(): void;
@@ -197,6 +195,10 @@ export interface FollowTarget {
 
 interface TileLike { level: number; i: number; j: number }
 
+/** Suréchantillonnage des tuiles d'époque : 128 m de côté, jusqu'à 12,5 cm par point. */
+const PERIOD_SUPER_MAX = 4;
+
+
 export class SceneEngine {
   readonly #canvas: HTMLCanvasElement;
   readonly #overlayRoot: HTMLElement;
@@ -220,9 +222,12 @@ export class SceneEngine {
   readonly #probe = new Vector3();
 
   #source: SceneSource;
+  /** Autour d'un lieu ancien, sa propre époque : les tuiles de cette région en prennent la source. */
+  #period: PeriodPatch | null = null;
   #scans: readonly Scan[] = [];
   /** Fichiers de scans à faire venir d'avance, dès que le relief de la vue est chargé. */
   #preload: string[] = [];
+  #exactRelief: ExactReliefIndex = new Map();
   #droneSight = true;
   #splats: SplatLayer | null = null;
   #disposed = false;
@@ -255,7 +260,7 @@ export class SceneEngine {
   /** Regard du dernier point désigné : il retrouve ce point sur le sol du lieu, plus juste que le relief. */
   #pickRay: { origin: Vector3; direction: Vector3; x: number; y: number } | null = null;
   /** Balade demandée, en attente du lieu : ses splats doivent être là pour en déduire le sol. */
-  #walkRequest: { scanId: string; x: number; y: number; azimuth?: number; strict?: boolean } | null = null;
+  #walkRequest: { scanId: string; x: number; y: number; azimuth?: number } | null = null;
   #walk: WalkControls | null = null;
   /** Séance de réalité virtuelle en cours : le casque, et le socle qui porte la caméra dans le lieu. */
   #vr: { session: XRSession; rig: Group; turned: boolean } | null = null;
@@ -294,12 +299,6 @@ export class SceneEngine {
     this.#controls.groundProbe = (x: number, z: number) => this.#groundAt(x, z);
     this.#controls.onUserInput = () => { this.#endOrbit(); this.#endFollow(); };
     this.#controls.onAutoRotateEnd = () => this.#listeners.onOrbitEnded();
-    this.#controls.onZoomThrough = () => {
-      // vue satellite : s'approcher ne fait pas entrer dans un lieu
-      if (this.#beforeSatellite) return;
-      const { x, y } = this.getPose();
-      this.#listeners.onZoomedThrough(x, y);
-    };
 
     this.#edl = new EyeDomeLighting(this.#renderer);
     this.#edl.strength = EDL_STRENGTH;
@@ -311,6 +310,8 @@ export class SceneEngine {
       maxConcurrent: this.#quality.maxConcurrent,
     });
     this.#tree = new TileTree({ scene: this.#points, materials: this.#materials, loader: this.#loader });
+    // une tuile dessinee sans son relief exact se redemande a l'heure dite, meme camera immobile
+    this.#tree.onRetryDue = () => this.#wake();
 
     const { signal } = this.#teardown;
     this.#canvas.addEventListener('webglcontextlost', (event) => {
@@ -362,6 +363,16 @@ export class SceneEngine {
       && previous.maxLevel === source.maxLevel && previous.colorMode === 'service' && source.colorMode === 'service';
     if (sameRelief) this.#tree.retint();
     else this.#tree.reset();
+    this.#wake();
+  }
+
+  /** Montre autour d'un lieu ancien le relief et la photo de son époque ; `null` : la scène partout. */
+  setPeriodPatch(patch: PeriodPatch | null): void {
+    if (samePatch(patch, this.#period)) return;
+    const previous = this.#period;
+    this.#period = patch;
+    // seules les quatre tuiles de l'ancienne et de la nouvelle époque se rechargent
+    this.#tree.refreshWhere((tile: TileLike) => inPeriod(previous, tile) || inPeriod(patch, tile));
     this.#wake();
   }
 
@@ -473,9 +484,9 @@ export class SceneEngine {
    * Pose le visiteur au sol dans un lieu filmé, au point désigné. Le lieu doit
    * être parmi les scans dessinés ; la balade commence dès qu'il est reçu.
    */
-  startWalk(scanId: string, x: number, y: number, azimuth?: number, strict = false): void {
+  startWalk(scanId: string, x: number, y: number, azimuth?: number): void {
     this.#leaveWalk();
-    this.#walkRequest = { scanId, x, y, azimuth, strict };
+    this.#walkRequest = { scanId, x, y, azimuth };
     this.#wake();
   }
 
@@ -695,8 +706,6 @@ export class SceneEngine {
     // le regard du clic rencontre le sol du lieu lui-même ; à défaut, on se pose au plus près du point annoncé
     const start = ground && ((ray && castGround(ground, ray.origin, ray.direction, 20000)) ?? nearestStand(ground, worldX, worldZ));
     if (!ground || !start) return this.#listeners.onWalkFailed();
-    // entré par le zoom, on se pose là où l'on regardait, ou tout près : pas question d'être emmené à l'autre bout du lieu
-    if (request.strict && Math.hypot(start.x - worldX, start.z - worldZ) > ZOOM_ENTRY_SLACK) return this.#listeners.onWalkFailed();
     this.#endOrbit();
     this.#endFollow();
     this.#controls.enabled = false;
@@ -857,6 +866,14 @@ export class SceneEngine {
     this.#wake();
   }
 
+  /** Tuiles dont le relief exact est publié : celles déjà dessinées sont redemandées. */
+  setExactRelief(index: ExactReliefIndex): void {
+    this.#exactRelief = index;
+    if (index.size === 0) return;
+    this.#tree.reset();
+    this.#wake();
+  }
+
   /** Montre ou cache le champ que filme la caméra des drones. */
   setDroneSight(visible: boolean): void {
     this.#droneSight = visible;
@@ -902,6 +919,7 @@ export class SceneEngine {
     this.#disposed = true;
     void this.#vr?.session.end().catch(() => {});
     this.#pick?.abort();
+    this.#tree.dispose();
     this.#walk?.dispose();
     this.#splats?.dispose();
     this.#clips?.dispose();
@@ -1023,15 +1041,35 @@ export class SceneEngine {
 
   /** Message de chargement d'une tuile, construit à la demande du quadtree. */
   #describe(tile: TileLike) {
-    const source = this.#source;
-    const sup = T.levelSuper(tile.level, this.#quality.superSample);
+    const period = inPeriod(this.#period, tile);
+    const source = period ? this.#period!.source : this.#source;
+    // les quatre tuiles d'époque ne se subdivisent pas : elles portent elles-mêmes le détail, comme les plus fines
+    const sup = period ? Math.min(PERIOD_SUPER_MAX, 2 * Math.max(1, this.#quality.superSample)) : T.levelSuper(tile.level, this.#quality.superSample);
     const address = { level: tile.level, i: tile.i, j: tile.j };
+    // une tuile d'époque reçoit aussi la scène du visiteur : hors du disque autour du lieu, c'est elle qui se voit
+    const size = T.tileSize(tile.level);
+    const blend = period ? {
+      elevUrl: this.#tileUrl({ ...address, service: this.#source.elevationService, px: T.REQUEST_PX, format: 'png' }),
+      exactUrl: exactReliefUrl(this.#exactRelief, this.#source.elevationService, tile.level, tile.i, tile.j),
+      colorUrl: this.#source.colorService
+        ? this.#tileUrl({ ...address, service: this.#source.colorService, px: T.REQUEST_PX * sup, format: this.#source.colorFormat, warm: this.#source.warm })
+        : null,
+      lutKey: this.#source.lutKey,
+      // coin nord-ouest de la tuile et centre du disque, en Lambert 2008
+      x0: T.ROOT_X0 + tile.i * size, yN: T.ROOT_Y0 + (tile.j + 1) * size,
+      cx: this.#period!.centre.x, cy: this.#period!.centre.y, radius: this.#period!.radius, feather: this.#period!.feather,
+    } : null;
     return {
+      blend,
       px: T.REQUEST_PX,
       cpx: T.REQUEST_PX * sup,
       sup,
       spacing: T.tileSpacing(tile.level),
       elevUrl: this.#tileUrl({ ...address, service: source.elevationService, px: T.REQUEST_PX, format: 'png' }),
+      // là où les altitudes mesurées ont été relevées, elles remplacent celles que l'on déduit de l'image
+      exactUrl: exactReliefUrl(this.#exactRelief, source.elevationService, tile.level, tile.i, tile.j),
+      exactStep: EXACT_STEP,
+      exactOffset: EXACT_OFFSET,
       // au niveau le plus fin la couleur est demandée à sa résolution native (25 cm)
       colorUrl: source.colorService
         ? this.#tileUrl({
@@ -1141,6 +1179,8 @@ export class SceneEngine {
       exaggeration: 1,
       maxPoints: this.#quality.maxPoints,
       maxLevel: this.#source.maxLevel,
+      // les quatre tuiles d'époque ne se subdivisent pas
+      stopAt: (tile: TileLike) => inPeriod(this.#period, tile),
       cacheSize: this.#quality.cacheTiles,
       cachePoints: this.#quality.cachePoints,
       describe: (tile: TileLike) => this.#describe(tile),

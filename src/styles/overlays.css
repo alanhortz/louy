@@ -94,6 +94,8 @@
   pointer-events: auto;
 }
 .scan-marker-icon { opacity: 0.92; filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.45)); transition: transform var(--transition-fast); }
+/* un vol de drone se signale plus discrètement qu'un lieu : son icône est plus petite */
+.overlay-drones .scan-marker-icon { width: 17.5px; height: 17.5px; }
 .scan-marker:hover .scan-marker-icon, .scan-marker:focus-visible .scan-marker-icon { transform: scale(1.15); }
 .scan-marker.active { z-index: 2; }
 .scan-marker.active .scan-marker-icon { transform: scale(1.2); filter: drop-shadow(0 0 6px rgba(255, 217, 122, 0.5)); }

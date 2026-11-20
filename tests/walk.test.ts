@@ -56,28 +56,6 @@ const place = (id: string, x: number, y: number): Scan => ({
   credit: { author: 'a', title: 't', url: 'https://example.org', licence: 'CC BY' },
 });
 
-describe('entrer dans un lieu en zoomant', () => {
-  it('demande une pose stricte, et explique si le sol n’est pas là', () => {
-    const heard: AnyEventObject[] = [];
-    const parent = createActor(createMachine({
-      invoke: { id: 'walk', src: walkMachine },
-      on: { '*': { actions: ({ event }) => { heard.push(event); } } },
-    })).start();
-    const walk = parent.getSnapshot().children.walk as ReturnType<typeof createActor<typeof walkMachine>>;
-    const scan = place('esplanade', 10, 20);
-    walk.send({ type: 'walk.placed', scan, x: 11, y: 21, byZoom: true });
-    expect(heard.at(-1)).toMatchObject({ type: 'walk.started', strict: true });
-    expect(walkPhase(walk.getSnapshot())).toBe('checking');
-    walk.send({ type: 'walk.failed' });
-    // à côté du lieu : la carte reste la carte, et dit où viser
-    expect(walkPhase(walk.getSnapshot())).toBe('declined');
-    expect(walk.getSnapshot().context.notice).toBe('Rien de filmé à cet endroit — visez esplanade');
-    expect(heard.at(-1)).toEqual({ type: 'walk.ended' });
-    walk.send({ type: 'walk.left' });
-    expect(walkPhase(walk.getSnapshot())).toBe('idle');
-  });
-});
-
 describe('lieu filmé le plus proche', () => {
   it('ignore les objets et rend la distance', () => {
     const object = { ...place('objet', 0, 0), splats: undefined, mesh: '/scans/o.glb' };
@@ -114,7 +92,7 @@ describe('machine de la balade', () => {
     walk.send({ type: 'walk.placed', scan, x: 11, y: 21 });
     expect(phase()).toBe('arriving');
     expect(heard).toContainEqual({ type: 'walk.aimChanged', armed: false });
-    expect(heard.at(-1)).toEqual({ type: 'walk.started', scan, x: 11, y: 21, azimuth: undefined, strict: false });
+    expect(heard.at(-1)).toEqual({ type: 'walk.started', scan, x: 11, y: 21, azimuth: undefined });
 
     walk.send({ type: 'walk.entered' });
     expect(phase()).toBe('walking');
