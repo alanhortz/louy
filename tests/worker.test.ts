@@ -291,6 +291,31 @@ describe('relief exact d’une tuile', () => {
     expect((await call(tiles[4]!)).status).toBe(200);
   });
 
+  it('fait avancer d’un pas, à chaque demande, une chaîne qui s’est arrêtée', async () => {
+    const fetchMock = vi.fn(async () => json(answer(STAGE)));
+    vi.stubGlobal('fetch', fetchMock);
+    // un Worker qui n'arrive pas à s'appeler lui-même : la chaîne ne passe pas la première étape
+    const mute = { ...env, SELF: { fetch: async () => new Response(null, { status: 204 }) } };
+    const knock = () => worker.fetch(new Request(`https://louy.be${TILE}`), mute, context);
+    expect((await knock()).status).toBe(202);
+    await settle();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // tant que le dernier pas est récent, une demande n'y touche pas
+    expect((await knock()).status).toBe(202);
+    await settle();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // le pas date : la demande suivante fait l'étape due, et ainsi de suite jusqu'à la tuile
+    for (let step = 1; step < 16; step++) {
+      const marker = store.get(`https://louy.be${TILE}?preparation`)!;
+      const state = JSON.parse(await marker.clone().text());
+      store.set(`https://louy.be${TILE}?preparation`, new Response(JSON.stringify({ ...state, at: Date.now() - 60_000 })));
+      expect((await knock()).status).toBe(202);
+      await settle();
+      expect(fetchMock).toHaveBeenCalledTimes(step + 1);
+    }
+    expect((await knock()).status).toBe(200);
+  });
+
   it('refuse une tuile inexistante, un autre modèle ou une étape inconnue', async () => {
     vi.stubGlobal('fetch', vi.fn());
     expect((await call('/edge/v1/relief/MNT/12/576/641.bin')).status).toBe(404);
