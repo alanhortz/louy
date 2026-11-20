@@ -39,7 +39,9 @@
  * invocation ne lit qu'un seizième de tuile, ce qui tient dans le temps de calcul du plan gratuit. La tuile
  * assemblée est gardée sans fin. Le viewer, lui, dessine en attendant la tuile du service et revient un peu plus
  * tard. Un marqueur dans le cache fait qu'une tuile n'est jamais préparée deux fois en même temps, et quatre
- * « voies » bornent le nombre de tuiles en préparation à la fois : le SPW n'en reçoit jamais plus.
+ * « voies » bornent le nombre de tuiles en préparation à la fois : le SPW n'en reçoit jamais plus. Le marqueur
+ * note l'étape due et l'instant du dernier pas : si la chaîne s'arrête, chaque nouvelle demande de la tuile
+ * fait un pas de plus, si bien que la préparation aboutit même sans que le Worker parvienne à s'appeler.
  *
  * Enfin `/edge/v1/cameras/<identifiant>.jpg`, l'image d'une caméra routière : Trafiroutes
  * ne permet pas à un navigateur d'en lire les pixels, or le viewer en a besoin pour la
@@ -283,11 +285,40 @@ async function identify(request: { url: string; body: string }): Promise<string 
   } catch { return null; }
 }
 
-/** Le marqueur d'une tuile en préparation et sa voie, posés ou renouvelés pour PREPARING_SECONDS. */
-async function holdLane(origin: string, route: string, lane: number, cache: Cache): Promise<void> {
-  const hold = () => new Response(route, { headers: { 'Cache-Control': `public, max-age=${PREPARING_SECONDS}` } });
-  await cache.put(laneKey(origin, lane), hold());
-  await cache.put(new Request(`${origin}${PREFIX}${route}?preparation`), hold());
+/** Où en est une tuile en préparation : sa voie, l'étape due, et l'instant du dernier pas. */
+interface Preparing { lane: number; next: number; at: number }
+
+const markerKey = (origin: string, route: string): Request => new Request(`${origin}${PREFIX}${route}?preparation`);
+
+/**
+ * Une chaîne qui n'a pas fait de pas depuis ce délai est tenue pour arrêtée (une étape dure au plus
+ * IDENTIFY_TIMEOUT_MS) : la prochaine demande de la tuile fait alors elle-même l'étape due. La préparation ne
+ * dépend ainsi pas seulement du Worker qui s'appelle lui-même : chaque visiteur, chaque passage du préchauffeur
+ * la fait avancer d'un pas si elle s'est arrêtée.
+ */
+const STALL_MS = 30_000;
+
+/** Pose ou renouvelle le marqueur d'une tuile en préparation et sa voie, pour PREPARING_SECONDS, en notant l'étape due. */
+async function holdLane(origin: string, route: string, lane: number, next: number, cache: Cache): Promise<void> {
+  const hold = (body: string) => new Response(body, { headers: { 'Cache-Control': `public, max-age=${PREPARING_SECONDS}` } });
+  await cache.put(laneKey(origin, lane), hold(route));
+  await cache.put(markerKey(origin, route), hold(JSON.stringify({ lane, next, at: Date.now() } satisfies Preparing)));
+}
+
+/** Le marqueur d'une tuile, s'il est là et lisible. */
+async function preparing(origin: string, route: string, cache: Cache): Promise<Preparing | null> {
+  const kept = await cache.match(markerKey(origin, route));
+  if (!kept) return null;
+  try {
+    const state = JSON.parse(await kept.text()) as Partial<Preparing>;
+    return Number.isInteger(state.lane) && Number.isInteger(state.next) && Number.isFinite(state.at) ? state as Preparing : null;
+  } catch { return null; }
+}
+
+/** Rend la voie et retire le marqueur : la préparation s'arrête là, la tuile pourra repartir aussitôt. */
+async function release(origin: string, route: string, lane: number, cache: Cache): Promise<void> {
+  await cache.delete(laneKey(origin, lane));
+  await cache.delete(markerKey(origin, route));
 }
 
 /**
@@ -316,29 +347,30 @@ async function stageValues(tile: ExactTile, stage: number, key: Request, cache: 
  * seizième de tuile, ce qui tient dans le temps de calcul accordé à une requête.
  */
 async function reliefStage(tile: ExactTile, stage: number, lane: number, origin: string, route: string, cache: Cache, env: Env, context: ExecutionContext): Promise<Response> {
-  // la chaîne est vivante : elle garde sa voie et son marqueur
-  if (stage > 0) await holdLane(origin, route, lane, cache);
+  // la chaîne fait un pas : elle garde sa voie et son marqueur, qui disent l'étape en cours
+  await holdLane(origin, route, lane, stage, cache);
   const values = await stageValues(tile, stage, stageKey(origin, route, stage), cache);
   if (!values) {
-    // la chaîne s'arrête ; sa voie et son marqueur sont rendus : la tuile, redemandée, reprendra là où elle en était
-    await cache.delete(laneKey(origin, lane));
-    await cache.delete(new Request(`${origin}${PREFIX}${route}?preparation`));
+    // la chaîne s'arrête ; la tuile, redemandée, reprendra là où elle en était : ses étapes faites sont gardées
+    await release(origin, route, lane, cache);
     return refusal(502, 'Le SPW n’a pas rendu cette étape du relief');
   }
-  if (stage + 1 < EXACT_STAGES) {
-    context.waitUntil(env.SELF.fetch(stageRequest(origin, route, stage + 1, lane)));
+  const onward = async (next: number) => {
+    await holdLane(origin, route, lane, next, cache);
+    context.waitUntil(env.SELF.fetch(stageRequest(origin, route, next, lane)));
     return done();
-  }
+  };
+  if (stage + 1 < EXACT_STAGES) return onward(stage + 1);
   const stages: Uint16Array[] = [];
   for (let k = 0; k < EXACT_STAGES; k++) {
     if (k === stage) { stages.push(values); continue; }
     const kept = await cache.match(stageKey(origin, route, k));
     // une étape sortie du cache entre-temps : on la refait, et la chaîne repassera par ici
-    if (!kept) { context.waitUntil(env.SELF.fetch(stageRequest(origin, route, k, lane))); return done(); }
+    if (!kept) return onward(k);
     stages.push(new Uint16Array(await kept.arrayBuffer()));
   }
   await cache.put(new Request(origin + PREFIX + route), binary(assembleExactTile(stages), IMMUTABLE));
-  await cache.delete(laneKey(origin, lane));
+  await release(origin, route, lane, cache);
   return done();
 }
 
@@ -358,15 +390,19 @@ async function reliefRelay(route: string, url: URL, cache: Cache, env: Env, cont
   }
   const ready = await cache.match(new Request(origin + PREFIX + route));
   if (ready) return ready;
-  // le marqueur a sa propre clef : la chaîne de requête, que le relais ignore partout ailleurs, l'en distingue
-  const marker = new Request(`${origin}${PREFIX}${route}?preparation`);
-  if (await cache.match(marker)) return accepted();
+  // déjà en préparation : la chaîne avance d'elle-même ; arrêtée, cette demande fait l'étape due
+  const state = await preparing(origin, route, cache);
+  if (state) {
+    if (Date.now() - state.at > STALL_MS) context.waitUntil(reliefStage(tile, state.next, state.lane, origin, route, cache, env, context));
+    return accepted();
+  }
   // une voie libre, sinon rien ne part : la tuile attendra d'être redemandée
   let lane = -1;
   for (let k = 0; k < LANES && lane === -1; k++) if (!(await cache.match(laneKey(origin, k)))) lane = k;
   if (lane === -1) return accepted();
-  await holdLane(origin, route, lane, cache);
-  context.waitUntil(env.SELF.fetch(stageRequest(origin, route, 0, lane)));
+  // la première étape se fait dans cette invocation même ; les suivantes s'enchaînent de l'une à l'autre
+  await holdLane(origin, route, lane, 0, cache);
+  context.waitUntil(reliefStage(tile, 0, lane, origin, route, cache, env, context));
   return accepted();
 }
 
