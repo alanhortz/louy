@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createActor, fromCallback } from 'xstate';
 import { createTelemetryInspector } from '../src/app/inspector.ts';
 import { DEFAULT_OBJECT_POSE, clampObjectPose, progressStep } from '../src/domain/objectView.ts';
-import { isObjectScan, parseScans, placeScans, type Scan } from '../src/domain/scans.ts';
+import { isObjectScan, isPlacedObject, parseScans, placeScans, type Scan } from '../src/domain/scans.ts';
 import type {
   ObjectEngineCommand, ObjectEngineInput, ObjectEngineReport,
 } from '../src/machines/actors/objectEngine.actor.ts';
@@ -41,13 +41,19 @@ function harness(options: { inspect?: ReturnType<typeof createTelemetryInspector
 }
 
 describe('scans : lieux et objets', () => {
-  it('lit un scan comme un lieu ou comme un objet, jamais les deux', () => {
+  it('lit un scan comme un lieu, comme un objet, ou comme un objet posé dans la carte', () => {
     expect(parseScans([letters, citadel])).toEqual([letters, citadel]);
-    expect(parseScans([{ ...letters, splats: '/scans/x.spz' }])).toEqual([]);
+    const placed = { ...letters, splats: '/scans/x.spz' };
+    expect(parseScans([placed])).toEqual([placed]);
     expect(parseScans([{ ...letters, mesh: undefined }])).toEqual([]);
-    expect(placeScans([letters, citadel])).toEqual([citadel]);
+    // l'imagerie aérienne ne liste que les lieux : un objet posé dans la carte reste un objet
+    expect(placeScans([letters, placed, citadel])).toEqual([citadel]);
     expect(isObjectScan(letters)).toBe(true);
+    expect(isObjectScan(placed)).toBe(true);
     expect(isObjectScan(citadel)).toBe(false);
+    expect(isPlacedObject(placed)).toBe(true);
+    expect(isPlacedObject(letters)).toBe(false);
+    expect(isPlacedObject(citadel)).toBe(false);
   });
 
 });

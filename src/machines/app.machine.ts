@@ -16,8 +16,9 @@
 import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom, enqueueActions } from 'xstate';
 import { PROJECT } from '../config/project.ts';
 import { QUALITY_PROFILES } from '../domain/quality.ts';
-import { fitFlyover, scanFlyover, type Scan, scansWorthPreloading } from '../domain/scans.ts';
+import { fitFlyover, isPlacedObject, scanFlyover, type Scan, scansWorthPreloading } from '../domain/scans.ts';
 import { resolveScene } from '../domain/scene.ts';
+import { periodPatch } from '../domain/period.ts';
 import { timelineSteps, timelineTint, type FilmFraming } from '../domain/timeline.ts';
 import { HOME_IMAGERY, PINNED_IMAGERY, encodeView, homePose, viewUrl, type View } from '../domain/view.ts';
 import type { SupportReport } from '../services/capabilities.ts';
@@ -36,7 +37,7 @@ import { objectMachine, type ObjectEmitted } from './object.machine.ts';
 import { placesMachine, type PlacesEmitted } from './places.machine.ts';
 import { createLayersMachine, type LayersEmitted } from './layers.machine.ts';
 import {
-  AERIAL_LAYER, ART_LAYER, BACKED_LAYER, CLOUD_LAYER, DRONES_LAYER, DRAWN_LAYERS, FUN_LAYER, OBJECTS_LAYER, ORTHO_LAYER, SPORTS_LAYER, SURVIVAL_LAYER, VIDEOS_LAYER,
+  AERIAL_LAYER, ART_LAYER, BACKED_LAYER, CLOUD_LAYER, DRONES_LAYER, DRAWN_LAYERS, FUN_LAYER, OBJECT_LAYERS, OBJECTS_LAYER, ORTHO_LAYER, SPORTS_LAYER, SURVIVAL_LAYER, VIDEOS_LAYER,
   aerialLayer, artLayer, backedLayer, cloudLayer, dronesLayer, drawnScans, funLayer, objectsLayer, orthoLayer, sportsLayer, survivalLayer, videosLayer,
 } from './scans.layer.ts';
 import type { OverlayName } from './actors/engine.actor.ts';
@@ -132,6 +133,13 @@ interface AppContext extends AppInput {
   device: DevicePosition | null;
   /** Tracés dessinés par le calque « Autoroutes » : aucun quand il est éteint. */
   traces: Scan[];
+  /**
+   * Objet relevé de près posé dans la carte : dessiné depuis que son marqueur a été touché, jusqu'à ce que sa
+   * sélection tombe. Le toucher de nouveau ouvre sa visionneuse.
+   */
+  shownObject: Scan | null;
+  /** L'objet posé vient d'être sélectionné : son premier toucher l'approche, le suivant ouvre la visionneuse. */
+  shownObjectFresh: boolean;
   /** Orthophotos de drone et nuages de points dessinés dans la carte, par calque. */
   drawn: Record<string, { selected: Scan | null; kept: Scan[] }>;
   /** Séquence sportive sélectionnée : son écran est dressé dans la carte. */
@@ -154,6 +162,10 @@ const CAMERA_HEIGHT = 450;
  * lui-même ; ensuite, un grand écran ouvre sur les calques et un petit écran
  * laisse toute la place à la carte.
  */
+/** La région d'époque du lieu sélectionné, ou de celui où l'on marche, dans la scène du visiteur. */
+const periodOf = (context: AppContext) =>
+  ({ type: 'viewer.periodChanged' as const, patch: periodPatch(context.walk ?? context.imagery.selected, context.view.scene) });
+
 function initialPanels(context: AppContext): PanelId[] {
   if (!isAcknowledged('controls')) return ['controls'];
   return context.support?.compact ? [] : ['layers'];
@@ -261,8 +273,12 @@ export const appMachine = setup({
       },
     }),
     /** Dessine dans la carte l'imagerie sélectionnée et celles que le visiteur garde affichées. */
-    drawImagery: sendTo('viewer', ({ context }) =>
-      ({
+    /**
+     * Dessine dans la carte l'imagerie sélectionnée et celles que le visiteur garde affichées ; et, autour du
+     * lieu sélectionné ou de celui où l'on marche, le relief et la photo de son époque s'il est ancien.
+     */
+    drawImagery: enqueueActions(({ context, enqueue }) => {
+      enqueue.sendTo('viewer', {
         type: 'viewer.scansChanged',
         scans: [
           ...drawnScans(context.imagery.selected, context.walk ? [context.walk, ...context.imagery.kept.filter((scan) => scan !== context.walk)] : context.imagery.kept),
@@ -270,12 +286,17 @@ export const appMachine = setup({
           ...Object.values(context.drawn).flatMap((layer) => drawnScans(layer.selected, layer.kept)),
           ...context.places.filter((place) => place.id === context.tourScanId),
           ...context.traces,
+          // l'objet relevé de près dont le marqueur a été touché : posé à sa place, à l'échelle
+          ...(context.shownObject ? [context.shownObject] : []),
         ].map((scan) => scanIn(scan, context.definition)),
-      })),
+      });
+      enqueue.sendTo('viewer', periodOf(context));
+    }),
+    drawPeriod: sendTo('viewer', ({ context }) => periodOf(context)),
   },
 }).createMachine({
   id: 'app',
-  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] }, places: [], walk: null, tour: null, tourScanId: null, cockpitPending: input.view.cockpit === true, droneFlights: [], device: null, traces: [], drawn: {}, sport: null, definition: 'standard', satellite: [] }),
+  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] }, places: [], walk: null, tour: null, tourScanId: null, cockpitPending: input.view.cockpit === true, droneFlights: [], device: null, traces: [], shownObject: null, shownObjectFresh: false, drawn: {}, sport: null, definition: 'standard', satellite: [] }),
   initial: 'checking',
   states: {
     checking: {
@@ -400,6 +421,7 @@ export const appMachine = setup({
           actions: [
             assign({ view: ({ context, event }) => ({ ...context.view, scene: event.scene }) }),
             sendTo('viewer', ({ event }) => ({ type: 'viewer.sceneChanged', source: resolveScene(event.scene) })),
+            'drawPeriod',
             sendTo('acquisition', ({ event }) =>
               ({ type: 'acquisition.campaignChanged', campaign: event.scene.campaign })),
             'syncUrl',
@@ -716,6 +738,20 @@ export const appMachine = setup({
             ],
           },
           {
+            // un objet relevé de près posé dans la carte s'y dessine dès qu'il est sélectionné — par un toucher ou par
+            // un lien partagé ; sa sélection tombée ou passée à un autre, il s'efface
+            guard: ({ event }) => OBJECT_LAYERS.includes(event.layer),
+            actions: [
+              assign({
+                shownObject: ({ event }) => (event.item && isPlacedObject(event.item as Scan) ? (event.item as Scan) : null),
+                shownObjectFresh: ({ context, event }) => event.item !== null && context.shownObject?.id !== (event.item as Scan).id,
+              }),
+              sendTo('viewer', ({ event }) =>
+                ({ type: 'viewer.overlayActivated', layer: event.layer as OverlayName, id: event.markerId })),
+              'rememberActive', 'syncUrl', 'drawImagery',
+            ],
+          },
+          {
             actions: [
               sendTo('viewer', ({ event }) =>
                 ({ type: 'viewer.overlayActivated', layer: event.layer as OverlayName, id: event.markerId })),
@@ -763,24 +799,30 @@ export const appMachine = setup({
             ],
           },
           {
-            // objets scannés, équipements de survie et objets de loisir s'examinent dans la même visionneuse
-            guard: ({ event }) => [OBJECTS_LAYER, SURVIVAL_LAYER, FUN_LAYER, ART_LAYER, BACKED_LAYER].includes(event.layer),
-            actions: sendTo('object', ({ event }) => ({ type: 'object.opened', scan: event.item, group: event.siblings })),
+            // objets scannés, équipements de survie, objets de loisir, street art, projets soutenus : un objet posé dans la
+            // carte s'y dessine d'abord, et la caméra s'en approche ; touché de nouveau — ou sans pose —, il s'examine
+            // dans la visionneuse, la même pour tous
+            guard: ({ event }) => OBJECT_LAYERS.includes(event.layer),
+            actions: enqueueActions(({ context, event, enqueue }) => {
+              const scan = event.item as Scan;
+              if (isPlacedObject(scan) && context.shownObjectFresh) {
+                enqueue.assign({ shownObjectFresh: false });
+                enqueue.sendTo('viewer', { type: 'viewer.flyoverRequested', flyover: scanFlyover(scan) });
+              } else {
+                enqueue.sendTo('object', { type: 'object.opened', scan, group: event.siblings as Scan[] });
+              }
+            }),
           },
           {
             actions: sendTo('viewer', ({ event }) =>
               ({ type: 'viewer.flyoverRequested', flyover: scanFlyover(event.item) })),
           },
         ],
-        // la visionneuse refermée, son objet n'est plus sélectionné
+        // la visionneuse refermée, son objet n'est plus sélectionné — sauf s'il est posé dans la carte : on le retrouve
+        // à sa place, son marqueur toujours prêt à rouvrir la visionneuse
         'object.left': {
-          actions: [
-            sendTo('layers', { type: 'layers.dismissed', layer: OBJECTS_LAYER }),
-            sendTo('layers', { type: 'layers.dismissed', layer: SURVIVAL_LAYER }),
-            sendTo('layers', { type: 'layers.dismissed', layer: FUN_LAYER }),
-            sendTo('layers', { type: 'layers.dismissed', layer: ART_LAYER }),
-            sendTo('layers', { type: 'layers.dismissed', layer: BACKED_LAYER }),
-          ],
+          guard: ({ context }) => context.shownObject === null,
+          actions: OBJECT_LAYERS.map((layer) => sendTo('layers', { type: 'layers.dismissed', layer })),
         },
 
         /* ---- balade au sol : un point désigné sur la carte, et l'on marche dans le lieu filmé qui s'y trouve ---- */
@@ -800,21 +842,12 @@ export const appMachine = setup({
             }),
           },
         ],
-        // comme dans une carte grand public : zoomer encore, au plus près d'un lieu filmé, y fait entrer — à pied, ou en visite guidée
-        'viewer.zoomedThrough': [
-          {
-            guard: ({ context, event }) => context.view.overlays.scans && context.walk === null && context.tour === null
-              && (nearestPlace(context.places, event.x, event.y)?.distance ?? Infinity) <= WALK_REACH,
-            actions: sendTo('walk', ({ context, event }) =>
-              ({ type: 'walk.placed', scan: nearestPlace(context.places, event.x, event.y)!.scan, x: event.x, y: event.y, byZoom: true })),
-          },
-        ],
         // le lieu est dessiné même si son calque est éteint ; la balade commence dès qu'il est arrivé
         'walk.started': {
           actions: [
             assign({ walk: ({ event }) => event.scan }),
             'drawImagery',
-            sendTo('viewer', ({ event }) => ({ type: 'viewer.walkRequested', scanId: event.scan.id, x: event.x, y: event.y, azimuth: event.azimuth, strict: event.strict })),
+            sendTo('viewer', ({ event }) => ({ type: 'viewer.walkRequested', scanId: event.scan.id, x: event.x, y: event.y, azimuth: event.azimuth })),
           ],
         },
         'walk.ended': {

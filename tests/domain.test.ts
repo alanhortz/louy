@@ -292,3 +292,119 @@ describe('vidéos signalées', () => {
     expect(decodeView(encodeView(DEFAULT_VIEW)).overlays.videos).toBe(true);
   });
 });
+
+describe('relief exact', () => {
+  it('adresse la tuile relevée d’avance, sinon le relais, à tous les niveaux de la campagne servie', async () => {
+    const { exactReliefUrl, parseExactRelief } = await import('../src/domain/exactRelief.ts');
+    const index = parseExactRelief({ WALLONIE_MNT_2021_2022: ['11/1153/1282', 'n’importe quoi', 3], 'autre chose': ['11/1/1'] });
+    expect(exactReliefUrl(index, 'RELIEF/WALLONIE_MNT_2021_2022', 11, 1153, 1282)).toBe('/relief/WALLONIE_MNT_2021_2022/11/1153/1282.bin');
+    expect(exactReliefUrl(index, 'RELIEF/WALLONIE_MNT_2021_2022', 11, 1153, 1283)).toBe('/edge/v1/relief/MNT/11/1153/1283.bin');
+    expect(exactReliefUrl(index, 'RELIEF/WALLONIE_MNS_2021_2022', 3, 4, 5)).toBe('/edge/v1/relief/MNS/3/4/5.bin');
+    // une campagne que l'interrogation groupée du SPW ne sert pas
+    expect(exactReliefUrl(index, 'RELIEF/WALLONIE_MNT_2013_2014', 11, 1153, 1283)).toBeNull();
+    expect(parseExactRelief(null).size).toBe(0);
+    expect(index.size).toBe(1);
+  });
+
+  it('ne prépare que les tuiles existantes, en Wallonie, du niveau 2 au plus fin', async () => {
+    const { parseExactPath, exactReliefUrl } = await import('../src/domain/exactRelief.ts');
+    const exactReliefUrlLevel1 = () => exactReliefUrl(new Map(), 'RELIEF/WALLONIE_MNT_2021_2022', 1, 1, 1);
+    expect(parseExactPath('/relief/MNT/11/1153/1282.bin')).toEqual({ model: 'MNT', level: 11, i: 1153, j: 1282 });
+    expect(parseExactPath('/relief/MNT/8/144/160.bin')).toEqual({ model: 'MNT', level: 8, i: 144, j: 160 });
+    expect(parseExactPath('/relief/MNT/12/1153/1282.bin')).toBeNull();
+    // trop haut : le SPW n'y répond pas
+    expect(parseExactPath('/relief/MNT/1/1/1.bin')).toBeNull();
+    expect(exactReliefUrlLevel1()).toBeNull();
+    expect(parseExactPath('/relief/MNT/11/0/0.bin')).toBeNull();
+    expect(parseExactPath('/relief/MNT/11/5000/1282.bin')).toBeNull();
+    expect(parseExactPath('/relief/MNP/11/1153/1282.bin')).toBeNull();
+  });
+
+  it('demande une étape de 17 lignes, première ligne au nord, et code la réponse complète', async () => {
+    const { encodeExactValues, exactStagePoints, exactStageRequest, EXACT_STAGE_COUNT, EXACT_STAGE_ROWS, EXACT_STAGES } = await import('../src/domain/exactRelief.ts');
+    const { paddedExtent, REQUEST_PX } = await import('../src/domain/tiling.ts');
+    const tile = { model: 'MNT' as const, level: 11, i: 1153, j: 1282 };
+    const extent = paddedExtent(tile);
+    expect(EXACT_STAGES * EXACT_STAGE_ROWS).toBe(REQUEST_PX);
+    const first = exactStagePoints(tile, 0);
+    expect(first).toHaveLength(EXACT_STAGE_COUNT);
+    expect(first[0]).toEqual([extent.xmin + 0.25, extent.ymax - 0.25]);
+    expect(first[REQUEST_PX]).toEqual([extent.xmin + 0.25, extent.ymax - 0.75]);
+    expect(exactStagePoints(tile, 1)[0]).toEqual([extent.xmin + 0.25, extent.ymax - EXACT_STAGE_ROWS * 0.5 - 0.25]);
+    // le corps écrit à la main est celui que l'on aurait composé avec les outils du navigateur
+    const body = new URLSearchParams(exactStageRequest(tile, 1).body);
+    expect(JSON.parse(body.get('geometry')!).points).toEqual(exactStagePoints(tile, 1));
+    expect(body.get('returnGeometry')).toBe('false');
+    expect(body.get('geometryType')).toBe('esriGeometryMultipoint');
+    expect(new URLSearchParams(exactStageRequest(tile, 1, true).body).get('returnGeometry')).toBe('true');
+    const answer = (values: string[]) => JSON.stringify({ results: values.map((value) => ({ layerId: 0, attributes: { 'Stretch.Pixel Value': value } })) });
+    expect(Array.from(encodeExactValues(answer(['100.5', 'NoData', '-250']), 3)!)).toEqual([15025, 0, 0]);
+    // une réponse incomplète décalerait tout : refusée
+    expect(encodeExactValues(answer(['100.5', '101']), 3)).toBeNull();
+  });
+
+  it('replace par sa position chaque point d’une étape au bord de la couverture, et assemble la tuile', async () => {
+    const { assembleExactTile, encodeExactValuesByPosition, EXACT_COUNT, EXACT_STAGE_COUNT, EXACT_STAGE_ROWS, EXACT_STAGES } = await import('../src/domain/exactRelief.ts');
+    const { paddedExtent, REQUEST_PX } = await import('../src/domain/tiling.ts');
+    const tile = { model: 'MNT' as const, level: 11, i: 1153, j: 1282 };
+    const { xmin, ymax } = paddedExtent(tile);
+    const north = ymax - EXACT_STAGE_ROWS * 0.5;   // bord nord de l'étape 1
+    const values = encodeExactValuesByPosition({ results: [
+      { geometry: { x: xmin + 0.25, y: north - 0.25 }, attributes: { 'Stretch.Pixel Value': '100' } },
+      { geometry: { x: xmin + 1.25, y: north - 0.75 }, attributes: { 'Stretch.Pixel Value': '101' } },
+      { geometry: { x: xmin + 0.25, y: ymax - 0.25 }, attributes: { 'Stretch.Pixel Value': '102' } },
+    ] }, tile, 1);
+    expect(values[0]).toBe(15000);
+    expect(values[REQUEST_PX + 2]).toBe(15050);
+    expect(values.reduce((sum, value) => sum + (value ? 1 : 0), 0)).toBe(2);
+    const whole = assembleExactTile(Array.from({ length: EXACT_STAGES }, (_, k) => new Uint16Array(EXACT_STAGE_COUNT).fill(k + 1)));
+    expect(whole).toHaveLength(EXACT_COUNT);
+    expect(whole[0]).toBe(1);
+    expect(whole[EXACT_STAGE_COUNT]).toBe(2);
+    expect(whole[EXACT_COUNT - 1]).toBe(EXACT_STAGES);
+  });
+});
+
+describe('époque d’un lieu ancien', () => {
+  it('prend la campagne LiDAR et la photo aérienne les plus proches de son année', async () => {
+    const { periodOf, periodYear } = await import('../src/domain/period.ts');
+    expect(periodYear('2013–2014')).toBe(2013.5);
+    expect(periodYear('La plus récente')).toBeNull();
+    expect(periodOf(2014)).toEqual({ campaign: '2013-2014', vintage: '2015' });
+    expect(periodOf(1972)).toEqual({ campaign: '2013-2014', vintage: '1971' });
+    expect(periodOf(2025)).toEqual({ campaign: '2021-2022', vintage: '2025' });
+  });
+
+  it('ne change la carte qu’autour d’un lieu daté, et seulement si sa scène diffère', async () => {
+    const { inPeriod, periodPatch, samePatch, PERIOD_LEVEL } = await import('../src/domain/period.ts');
+    const { DEFAULT_SCENE } = await import('../src/domain/scene.ts');
+    const credit = { author: 'a', title: 't', url: 'https://exemple.be', licence: '©' };
+    const { ROOT_X0, ROOT_Y0, tileSize } = await import('../src/domain/tiling.ts');
+    const size = tileSize(PERIOD_LEVEL);
+    // un lieu un peu au nord-est d'un coin de tuiles : le carré de quatre tuiles autour de ce coin
+    const old = { id: 'trakk', name: 'TRAKK', x: ROOT_X0 + 1000 * size + 30, y: ROOT_Y0 + 500 * size + 60, splats: '/scans/trakk.spz', credit, year: 2014 };
+    const patch = periodPatch(old, DEFAULT_SCENE)!;
+    expect(patch).toMatchObject({ level: PERIOD_LEVEL, i: 999, j: 499 });
+    const inside = [[999, 499], [1000, 499], [999, 500], [1000, 500]].filter(([i, j]) => inPeriod(patch, { level: PERIOD_LEVEL, i: i!, j: j! }));
+    expect(inside).toHaveLength(4);
+    expect(inPeriod(patch, { level: PERIOD_LEVEL, i: 1001, j: 500 })).toBe(false);
+    expect(inPeriod(patch, { level: PERIOD_LEVEL + 1, i: 2000, j: 1000 })).toBe(false);
+    expect(patch.source.elevationService).toBe('RELIEF/WALLONIE_MNT_2013_2014');
+    expect(patch.source.colorService).toBe('IMAGERIE/ORTHO_2015');
+    // la surface et l'habillage choisis par le visiteur restent les siens
+    expect(periodPatch(old, { ...DEFAULT_SCENE, surface: 'mns', tint: 'hillshade' })!.source.colorService).toBe('RELIEF/WALLONIE_MNS_2013_2014_HILLSHADE');
+    expect(periodPatch({ ...old, year: undefined }, DEFAULT_SCENE)).toBeNull();
+    expect(periodPatch(old, { ...DEFAULT_SCENE, campaign: '2013-2014', vintage: '2015' })).toBeNull();
+    expect(periodPatch(null, DEFAULT_SCENE)).toBeNull();
+    expect(samePatch(patch, periodPatch(old, DEFAULT_SCENE))).toBe(true);
+  });
+
+  it('n’accepte une année que pour un lieu, et plausible', async () => {
+    const { parseScans } = await import('../src/domain/scans.ts');
+    const credit = { author: 'a', title: 't', url: 'https://exemple.be', licence: '©' };
+    const scan = { id: 'lieu', name: 'Lieu', x: 1, y: 2, splats: '/scans/lieu.spz', credit };
+    expect(parseScans([{ ...scan, year: 2014 }])).toHaveLength(1);
+    expect(parseScans([{ ...scan, year: 2014.5 }])).toHaveLength(0);
+    expect(parseScans([{ ...scan, year: 214 }])).toHaveLength(0);
+  });
+});

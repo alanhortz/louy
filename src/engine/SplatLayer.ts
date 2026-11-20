@@ -146,8 +146,9 @@ export class SplatLayer {
     let step = -1;
     const mesh = new SplatMesh({
       url: scan.splats!,
-      // un tracé couvre des centaines de kilomètres : ses positions ne tiennent pas dans l'encodage compact
-      ...(scan.trace ? { extSplats: true } : {}),
+      // un tracé couvre des centaines de kilomètres : ses positions ne tiennent pas dans l'encodage compact ;
+      // un objet au centimètre non plus : en demi-précision, l'altitude n'a qu'un pas de 6 cm
+      ...(scan.trace || scan.fine ? { extSplats: true } : {}),
       onProgress: (event) => {
         if (!event.lengthComputable || this.#meshes.get(scan.id) !== mesh) return;
         const fraction = event.loaded / event.total;
@@ -197,6 +198,7 @@ export class SplatLayer {
     if (!url || this.#urls.get(scan.id) !== scan.splats) return;
     const mesh = new SplatMesh({
       url,
+      ...(scan.trace || scan.fine ? { extSplats: true } : {}),
       onLoad: () => {
         if (!this.#extras.get(scan.id)?.includes(mesh)) return;
         this.#onDirty();

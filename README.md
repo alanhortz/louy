@@ -107,6 +107,7 @@ conservent. En production le viewer demande donc des **chemins stables** :
 ```
 /edge/v1/tiles/<service>/<px>/<niveau>/<i>/<j>.<png|jpg>
 /edge/v1/flights/<cx>/<cy>.json
+/edge/v1/relief/<MNT|MNS>/<niveau>/<i>/<j>.bin
 ```
 
 Le [Worker](worker/index.ts) les traduit en requête ArcGIS, puis rend la réponse
@@ -235,9 +236,17 @@ contrefaite sans le secret.
 
 ## Limites connues
 
-- **Précision verticale ≈ 3,5 m.** Le SPW ne diffuse pas d’altitudes brutes : elles
-  sont reconstruites depuis des images rendues au travers d’une rampe de couleurs
-  quantifiée sur 256 niveaux. La précision horizontale va jusqu’à 50 cm.
+- **Précision verticale ≈ 3,5 m, sauf près du sol.** Les images du SPW ne rendent
+  l’altitude qu’au travers d’une rampe de couleurs quantifiée sur 256 niveaux ; le
+  viewer en reconstruit une surface lisse, où subsistent des marches entre deux
+  tranches. Aux niveaux 9 à 11, le relais demande au SPW les altitudes mesurées de
+  chaque tuile (une seule interrogation ponctuelle pour ses 73 984 points), les garde
+  sans fin, et le viewer les lit à la place : la tuile du service s’affiche en
+  attendant, puis se remplace. Le relais ne prépare que quatre tuiles à la fois ;
+  `npm run relief:warm -- https://louy.be` (ou `http://localhost:8787` en
+  développement) les lui demande d’avance, lentement, autour des lieux du
+  manifeste puis sur toute la Wallonie, et reprend où il en était.
+  La précision horizontale va jusqu’à 50 cm.
 - **Caméras : position au point kilométrique.** Aucune source ne publie leurs
   coordonnées, mais chaque image porte un bandeau (`A015_SPY_061.400_(+)`) ; lu par
   OCR et reporté sur les bornes hectométriques du SPW, il place 202 des 215 caméras

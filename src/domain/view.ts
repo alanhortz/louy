@@ -56,13 +56,14 @@ export const DEFAULT_VIEW: View = {
  * Imagerie aérienne dessinée d'emblée à la vue d'accueil : la citadelle de Namur, son esplanade, la Sambre
  * et la Halle al'Chair, et les lettres « NAMUR » du Grognon. Un lien partagé, lui, ne montre que ce que son auteur regardait.
  */
-export const HOME_IMAGERY: readonly string[] = ['namur', 'esplanade-citadelle-namur', 'namur-sambre', 'lettres-namur-esplanade'];
+export const HOME_IMAGERY: readonly string[] = ['namur', 'esplanade-citadelle-namur', 'namur-sambre'];
 
 /**
- * Imagerie épinglée d'office, quel que soit le lien par lequel on arrive : les lettres « NAMUR ».
- * Le visiteur peut toujours la désépingler ; c'est seulement son état de départ.
+ * Imagerie épinglée d'office, quel que soit le lien par lequel on arrive. Plus rien pour l'instant : les objets
+ * relevés au téléphone (les lettres « NAMUR »…) ne sont plus de l'imagerie aérienne, ils se posent dans la carte
+ * quand on touche leur marqueur. Le visiteur peut toujours désépingler ; c'est seulement son état de départ.
  */
-export const PINNED_IMAGERY: readonly string[] = ['lettres-namur-esplanade'];
+export const PINNED_IMAGERY: readonly string[] = [];
 
 /** Rapport largeur / hauteur pour lequel la vue d'accueil a été cadrée. */
 const HOME_ASPECT = 1.6;

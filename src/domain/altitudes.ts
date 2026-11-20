@@ -24,7 +24,8 @@ export type AltitudeModel = 'MNT' | 'MNS';
 
 export const ALTITUDE_ROUTE = /^\/altitudes\/(MNT|MNS)\/(\d{4,5})\/(\d{4,5})\.json$/;
 
-const IDENTIFY = (model: AltitudeModel) =>
+/** L'interrogation ponctuelle du SPW pour un modèle de la campagne 2021-2022. */
+export const identifyUrl = (model: AltitudeModel): string =>
   `https://geoservices.wallonie.be/arcgis/rest/services/RELIEF/WALLONIE_${model}_2021_2022/MapServer/identify`;
 
 export interface AltitudeCell { model: AltitudeModel; cx: number; cy: number }
@@ -66,7 +67,7 @@ export function altitudeRequest(cell: AltitudeCell): { url: string; body: string
     imageDisplay: '400,400,96',
     mapExtent: `${x - 5},${y - 5},${x + ALTITUDE_CELL + 5},${y + ALTITUDE_CELL + 5}`,
   });
-  return { url: IDENTIFY(cell.model), body: body.toString() };
+  return { url: identifyUrl(cell.model), body: body.toString() };
 }
 
 /**

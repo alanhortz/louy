@@ -11,6 +11,8 @@
     "run_worker_first": ["/edge/*"]
   },
   "observability": { "enabled": true },
+  // le Worker s'adresse à lui-même pour enchaîner les étapes de préparation du relief exact (voir worker/index.ts)
+  "services": [{ "binding": "SELF", "service": "louy" }],
   // Le domaine doit exister dans le compte Cloudflare : DNS et certificat sont alors créés au déploiement.
   "routes": [{ "pattern": "louy.be", "custom_domain": true }]
 }

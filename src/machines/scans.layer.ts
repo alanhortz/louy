@@ -5,8 +5,9 @@
  *   - « Imagerie aérienne » : les lieux filmés au drone et reconstruits en volume.
  *     En sélectionner un le dessine dans la carte et ouvre son panneau ; on peut
  *     l'y garder affiché pendant que l'on en regarde un autre.
- *   - « Objets scannés » : les objets relevés de près. En toucher un l'ouvre dans
- *     sa visionneuse ; ceux d'un même marqueur s'y feuillettent.
+ *   - « Objets scannés » : les objets relevés de près. En toucher un le pose dans la
+ *     carte, à sa place ; le toucher de nouveau l'ouvre dans sa visionneuse (tout de
+ *     suite s'il n'a pas de pose) ; ceux d'un même marqueur s'y feuillettent.
  *   - « Équipements de survie » : parmi ces objets, ceux qui peuvent sauver une
  *     vie, signalés à part.
  *
@@ -39,6 +40,9 @@ export const VIDEOS_LAYER = 'videos';
 
 /** Calques dont l'élément sélectionné est dessiné dans la carte, avec sa fiche dans le panneau « Imagerie ». */
 export const DRAWN_LAYERS: readonly string[] = [AERIAL_LAYER, ORTHO_LAYER, CLOUD_LAYER];
+
+/** Calques d'objets relevés de près : même mécanique pour tous, chacun son marqueur et sa ligne dans le panneau des calques. */
+export const OBJECT_LAYERS: readonly string[] = [OBJECTS_LAYER, SURVIVAL_LAYER, FUN_LAYER, ART_LAYER, BACKED_LAYER];
 
 /**
  * Éloignement sous lequel le marqueur d'un lieu dessiné s'efface : on a alors

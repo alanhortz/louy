@@ -4,9 +4,12 @@ import worker from '../worker/index.ts';
 const store = new Map<string, Response>();
 const pending: Promise<unknown>[] = [];
 const context = { waitUntil: (promise: Promise<unknown>) => { pending.push(promise); } };
-/** Attend la fin du travail d'arrière-plan du Worker. */
-const settle = async () => { await Promise.all(pending.splice(0)); };
-const env = { ASSETS: { fetch: vi.fn(async () => new Response('site')) } };
+/** Attend la fin du travail d'arrière-plan du Worker, y compris ce qu'il enchaîne en s'adressant à lui-même. */
+const settle = async () => { while (pending.length > 0) await Promise.all(pending.splice(0)); };
+const env = {
+  ASSETS: { fetch: vi.fn(async () => new Response('site')) },
+  SELF: { fetch: (request: Request) => worker.fetch(request, env, context) },
+};
 
 const call = (path: string, init?: RequestInit) =>
   worker.fetch(new Request(`https://louy.be${path}`, init), env, context);
@@ -20,6 +23,7 @@ beforeEach(() => {
     default: {
       match: async (request: Request) => store.get(request.url)?.clone(),
       put: async (request: Request, response: Response) => { store.set(request.url, response); },
+      delete: async (request: Request) => store.delete(request.url),
     },
   });
 });
@@ -169,5 +173,122 @@ describe('altitudes exactes', () => {
     vi.stubGlobal('fetch', vi.fn());
     expect((await call('/edge/v1/altitudes/MNT/10000/10000.json')).status).toBe(404);
     expect((await call('/edge/v1/altitudes/MNT_2013_2014/42800/39252.json')).status).toBe(404);
+  });
+});
+
+describe('relief exact d’une tuile', () => {
+  const TILE = '/edge/v1/relief/MNT/11/1153/1282.bin';
+  const COUNT = 272 * 272;
+  const STAGE = 17 * 272;
+  const json = (body: string) => new Response(body, { headers: { 'Content-Type': 'application/json;charset=UTF-8' } });
+  /** Une réponse du SPW : `count` points, le deuxième sans donnée. */
+  const answer = (count: number) =>
+    `{"results":[${Array.from({ length: count }, (_, k) => `{"layerId":0,"attributes":{"Stretch.Pixel Value":"${k === 1 ? 'NoData' : (100 + k * 0.01).toFixed(6)}"}}`).join(',')}]}`;
+  const stageOf = (init?: RequestInit) => Number(new URLSearchParams(String(init?.body)).get('geometry') && JSON.parse(new URLSearchParams(String(init?.body)).get('geometry')!).points.length);
+
+  it('répond « en préparation », demande la tuile au SPW en seize étapes enchaînées, puis la sert du cache sans fin', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => json(answer(STAGE)));
+    vi.stubGlobal('fetch', fetchMock);
+    const first = await call(TILE);
+    expect(first.status).toBe(202);
+    expect(first.headers.get('Retry-After')).toBe('15');
+    await settle();
+    expect(fetchMock).toHaveBeenCalledTimes(16);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(new URL(url).pathname).toBe('/arcgis/rest/services/RELIEF/WALLONIE_MNT_2021_2022/MapServer/identify');
+    expect(stageOf(init)).toBe(STAGE);
+    expect(new URLSearchParams(String(init?.body)).get('returnGeometry')).toBe('false');
+
+    const second = await call(TILE);
+    expect(second.status).toBe(200);
+    expect(second.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
+    const values = new Uint16Array(await second.arrayBuffer());
+    expect(values).toHaveLength(COUNT);
+    expect(values[0]).toBe(15000);
+    expect(values[1]).toBe(0);
+    expect(values[2]).toBe(15001);
+    expect(values[STAGE]).toBe(15000);
+    expect(values[COUNT - 1]).toBe(15000 + Math.round((STAGE - 1) * 0.01 / 0.02));
+    expect(fetchMock).toHaveBeenCalledTimes(16);
+  });
+
+  it('ne prépare jamais la même tuile deux fois en même temps', async () => {
+    const fetchMock = vi.fn(async () => json(answer(STAGE)));
+    vi.stubGlobal('fetch', fetchMock);
+    expect((await call(TILE)).status).toBe(202);
+    expect((await call(TILE)).status).toBe(202);
+    await settle();
+    expect(fetchMock).toHaveBeenCalledTimes(16);
+  });
+
+  it('au bord de la couverture, redemande chaque point de l’étape avec sa position', async () => {
+    const { paddedExtent } = await import('../src/domain/tiling.ts');
+    const { xmin, ymax } = paddedExtent({ level: 11, i: 1153, j: 1282 });
+    const placed = JSON.stringify({ results: [
+      { geometry: { x: xmin + 0.25, y: ymax - 0.25 }, attributes: { 'Stretch.Pixel Value': '100' } },
+      { geometry: { x: xmin + 0.75, y: ymax - 0.25 }, attributes: { 'Stretch.Pixel Value': '101' } },
+    ] });
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) =>
+      json(String(init?.body).includes('returnGeometry=true') ? placed : answer(STAGE - 1)));
+    vi.stubGlobal('fetch', fetchMock);
+    await call(TILE);
+    await settle();
+    expect(fetchMock).toHaveBeenCalledTimes(32);
+    const values = new Uint16Array(await (await call(TILE)).arrayBuffer());
+    expect(values[0]).toBe(15000);
+    expect(values[1]).toBe(15050);
+    expect(values[2]).toBe(0);
+    // les deux points sont dans la première étape : les autres restent sans donnée
+    expect(values[STAGE]).toBe(0);
+  });
+
+  it('ne garde rien quand le SPW ne répond pas, et laisse reprendre la préparation', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('indisponible', { status: 503 })));
+    expect((await call(TILE)).status).toBe(202);
+    await settle();
+    // ni étape, ni tuile : la voie et le marqueur sont rendus, la tuile pourra repartir aussitôt
+    expect([...store.keys()].filter((key) => key.includes('/relief/'))).toEqual([]);
+    expect((await call(TILE)).status).toBe(202);
+    await settle();
+    expect([...store.keys()].filter((key) => key.includes('/relief/'))).toEqual([]);
+  });
+
+  it('reprend une préparation là où elle s’était arrêtée', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => (++calls <= 3 ? json(answer(STAGE)) : new Response('indisponible', { status: 503 }))));
+    await call(TILE);
+    await settle();
+    expect(calls).toBe(4);   // trois étapes faites, la quatrième refusée : la chaîne s'arrête
+    // plus tard, le SPW répond de nouveau : les trois étapes faites ne lui sont pas redemandées
+    vi.stubGlobal('fetch', vi.fn(async () => json(answer(STAGE))));
+    await call(TILE);
+    await settle();
+    expect((globalThis.fetch as ReturnType<typeof vi.fn>)).toHaveBeenCalledTimes(13);
+    expect((await call(TILE)).status).toBe(200);
+  });
+
+  it('ne prépare que quatre tuiles à la fois ; les autres attendent d’être redemandées', async () => {
+    const fetchMock = vi.fn(async () => json(answer(STAGE)));
+    vi.stubGlobal('fetch', fetchMock);
+    const tiles = [1282, 1283, 1284, 1285, 1286].map((j) => `/edge/v1/relief/MNT/11/1153/${j}.bin`);
+    // cinq tuiles demandées d'un coup : la cinquième ne trouve pas de voie, rien ne part pour elle
+    for (const tile of tiles) expect((await call(tile)).status).toBe(202);
+    await settle();
+    expect(fetchMock).toHaveBeenCalledTimes(4 * 16);
+    expect((await call(tiles[3]!)).status).toBe(200);
+    // ses quatre aînées assemblées, les voies sont libres : redemandée, la cinquième part
+    expect((await call(tiles[4]!)).status).toBe(202);
+    await settle();
+    expect(fetchMock).toHaveBeenCalledTimes(5 * 16);
+    expect((await call(tiles[4]!)).status).toBe(200);
+  });
+
+  it('refuse une tuile inexistante, un autre modèle ou une étape inconnue', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    expect((await call('/edge/v1/relief/MNT/12/576/641.bin')).status).toBe(404);
+    expect((await call('/edge/v1/relief/MNT/11/0/0.bin')).status).toBe(404);
+    expect((await call('/edge/v1/relief/MNP/11/1153/1282.bin')).status).toBe(404);
+    expect((await call(`${TILE}?etape=16&voie=0`)).status).toBe(404);
+    expect((await call(`${TILE}?etape=0&voie=4`)).status).toBe(404);
   });
 });

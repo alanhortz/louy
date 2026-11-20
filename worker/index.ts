@@ -33,6 +33,14 @@
  * Et `/edge/v1/altitudes/<MNT|MNS>/<cx>/<cy>.json`, les altitudes exactes du LiDAR 2021-2022 sur un carré de
  * 16 m, demandées d'un coup au SPW (`identify`) et gardées sans fin (voir src/domain/altitudes.ts).
  *
+ * Et `/edge/v1/relief/<MNT|MNS>/<niveau>/<i>/<j>.bin`, le relief exact d'une tuile entière du viewer (272 × 272
+ * altitudes, voir src/domain/exactRelief.ts). La première demande reçoit « 202, en préparation » et le Worker
+ * prépare la tuile en arrière-plan, par seize étapes qu'il s'adresse à lui-même (`?etape=k`, liaison SELF) : une
+ * invocation ne lit qu'un seizième de tuile, ce qui tient dans le temps de calcul du plan gratuit. La tuile
+ * assemblée est gardée sans fin. Le viewer, lui, dessine en attendant la tuile du service et revient un peu plus
+ * tard. Un marqueur dans le cache fait qu'une tuile n'est jamais préparée deux fois en même temps, et quatre
+ * « voies » bornent le nombre de tuiles en préparation à la fois : le SPW n'en reçoit jamais plus.
+ *
  * Enfin `/edge/v1/cameras/<identifiant>.jpg`, l'image d'une caméra routière : Trafiroutes
  * ne permet pas à un navigateur d'en lire les pixels, or le viewer en a besoin pour la
  * poser sur le relief. Elle est gardée deux minutes, la source la renouvelant toutes les six.
@@ -43,6 +51,7 @@
 
 import { FLIGHT_CELL, flightDatesUrl } from '../src/domain/acquisition.ts';
 import { altitudeRequest, compactAltitudes, parseAltitudePath } from '../src/domain/altitudes.ts';
+import { assembleExactTile, encodeExactValues, encodeExactValuesByPosition, EXACT_STAGES, exactStageRequest, parseExactPath, type ExactTile } from '../src/domain/exactRelief.ts';
 import { AIRCRAFT_CACHE_SECONDS, AIRCRAFT_EDGE_PATH, AIRCRAFT_FEEDS, AIRCRAFT_SOURCE_HEADER } from '../src/domain/aircraft.ts';
 import { CAMERA_EDGE_ROUTE, CAMERA_IMAGE_CACHE_SECONDS, cameraSourceUrl } from '../src/domain/cameraView.ts';
 import { LATEST_VINTAGE, VINTAGES } from '../src/domain/catalog.ts';
@@ -59,6 +68,8 @@ import { WALLONIA_EXTENT, isValidAddress, paddedExtent } from '../src/domain/til
 
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
+  /** Le Worker lui-même : chaque étape de préparation du relief exact est une invocation à part. */
+  SELF: { fetch(request: Request): Promise<Response> };
 }
 
 interface ExecutionContext {
@@ -212,6 +223,153 @@ function streetSearchUpstream(path: string): Upstream | null {
 const refusal = (status: number, message: string): Response =>
   new Response(message, { status, headers: { 'Cache-Control': 'no-store', 'Content-Type': 'text/plain; charset=utf-8' } });
 
+/* ------------------------------------------------------------------------------------- relief exact --- */
+
+/**
+ * Durée du marqueur « en préparation » et de la voie qu'il occupe, renouvelée à chaque étape : une chaîne vivante
+ * garde sa place, une chaîne morte la rend au bout de ce délai, et la préparation reprend là où elle en était.
+ */
+const PREPARING_SECONDS = 90;
+/** Au-delà, le SPW ne répondra plus utilement : l'étape est abandonnée plutôt que de retenir sa voie. */
+const IDENTIFY_TIMEOUT_MS = 25_000;
+/** Ce que le viewer attend avant de redemander une tuile en préparation. */
+const RETRY_AFTER_SECONDS = 15;
+/** Paramètre d'une étape de préparation, que le Worker s'adresse à lui-même. */
+const STAGE_FLAG = 'etape';
+/** Une étape faite est gardée le temps d'assembler sa tuile ; la tuile, elle, l'est sans fin. */
+const STAGE_CACHE = 'public, max-age=86400';
+/**
+ * Voies de préparation : autant de tuiles au plus se préparent en même temps (par point de présence). Une vue
+ * neuve en demande cent d'un coup ; sans cela, le SPW recevrait autant de chaînes d'appels à la fois. Les tuiles
+ * sans voie libre reçoivent « en préparation » sans que rien ne parte : le viewer les redemandera, et une voie
+ * se sera libérée. Une voie se libère quand sa tuile est assemblée, ou d'elle-même passé PREPARING_SECONDS.
+ */
+const LANES = 4;
+const LANE_FLAG = 'voie';
+
+const accepted = (): Response => new Response(null, {
+  status: 202,
+  headers: { 'Cache-Control': 'no-store', 'Retry-After': String(RETRY_AFTER_SECONDS), 'Access-Control-Allow-Origin': '*' },
+});
+const done = (): Response => new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+
+const binary = (values: Uint16Array, cacheControl: string): Response => new Response(values.buffer as ArrayBuffer, {
+  headers: {
+    'Content-Type': 'application/octet-stream',
+    'Cache-Control': cacheControl,
+    'Access-Control-Allow-Origin': '*',
+    'Timing-Allow-Origin': '*',
+    'X-Content-Type-Options': 'nosniff',
+  },
+});
+
+const stageRequest = (origin: string, route: string, stage: number, lane: number): Request =>
+  new Request(`${origin}${PREFIX}${route}?${STAGE_FLAG}=${stage}&${LANE_FLAG}=${lane}`);
+/** La clef d'une voie dans le cache : un chemin que le relais ne sert jamais. */
+const laneKey = (origin: string, lane: number): Request => new Request(`${origin}${PREFIX}/relief/voie/${lane}`);
+/** L'étape, hors voie : la clef sous laquelle ses valeurs sont gardées ne dépend pas de la voie empruntée. */
+const stageKey = (origin: string, route: string, stage: number): Request => new Request(`${origin}${PREFIX}${route}?${STAGE_FLAG}=${stage}`);
+
+/** Un appel `identify` au SPW ; `null` s'il n'a pas répondu normalement. */
+async function identify(request: { url: string; body: string }): Promise<string | null> {
+  try {
+    const answer = await fetch(request.url, {
+      method: 'POST', body: request.body, headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+      signal: AbortSignal.timeout(IDENTIFY_TIMEOUT_MS),
+    });
+    if (!answer.ok) return null;
+    const text = await answer.text();
+    return text.startsWith('{"results"') ? text : null;
+  } catch { return null; }
+}
+
+/** Le marqueur d'une tuile en préparation et sa voie, posés ou renouvelés pour PREPARING_SECONDS. */
+async function holdLane(origin: string, route: string, lane: number, cache: Cache): Promise<void> {
+  const hold = () => new Response(route, { headers: { 'Cache-Control': `public, max-age=${PREPARING_SECONDS}` } });
+  await cache.put(laneKey(origin, lane), hold());
+  await cache.put(new Request(`${origin}${PREFIX}${route}?preparation`), hold());
+}
+
+/**
+ * Les valeurs d'une étape : du cache si elle est faite, sinon demandées au SPW et rangées. Un appel ; un second,
+ * avec la position de chaque point, seulement au bord de la couverture, où la première réponse est incomplète.
+ * `null` si le SPW n'a pas répondu.
+ */
+async function stageValues(tile: ExactTile, stage: number, key: Request, cache: Cache): Promise<Uint16Array | null> {
+  const kept = await cache.match(key);
+  if (kept) return new Uint16Array(await kept.arrayBuffer());
+  const whole = await identify(exactStageRequest(tile, stage));
+  if (whole === null) return null;
+  let values = encodeExactValues(whole);
+  if (!values) {
+    const placed = await identify(exactStageRequest(tile, stage, true));
+    if (placed === null) return null;
+    try { values = encodeExactValuesByPosition(JSON.parse(placed), tile, stage); } catch { return null; }
+  }
+  await cache.put(key, binary(values, STAGE_CACHE));
+  return values;
+}
+
+/**
+ * Une étape de la préparation d'une tuile, dans une invocation à elle : ses valeurs, puis l'étape suivante, que
+ * le Worker se demande à lui-même ; la dernière assemble la tuile. Chaque invocation ne lit ainsi qu'un
+ * seizième de tuile, ce qui tient dans le temps de calcul accordé à une requête.
+ */
+async function reliefStage(tile: ExactTile, stage: number, lane: number, origin: string, route: string, cache: Cache, env: Env, context: ExecutionContext): Promise<Response> {
+  // la chaîne est vivante : elle garde sa voie et son marqueur
+  if (stage > 0) await holdLane(origin, route, lane, cache);
+  const values = await stageValues(tile, stage, stageKey(origin, route, stage), cache);
+  if (!values) {
+    // la chaîne s'arrête ; sa voie et son marqueur sont rendus : la tuile, redemandée, reprendra là où elle en était
+    await cache.delete(laneKey(origin, lane));
+    await cache.delete(new Request(`${origin}${PREFIX}${route}?preparation`));
+    return refusal(502, 'Le SPW n’a pas rendu cette étape du relief');
+  }
+  if (stage + 1 < EXACT_STAGES) {
+    context.waitUntil(env.SELF.fetch(stageRequest(origin, route, stage + 1, lane)));
+    return done();
+  }
+  const stages: Uint16Array[] = [];
+  for (let k = 0; k < EXACT_STAGES; k++) {
+    if (k === stage) { stages.push(values); continue; }
+    const kept = await cache.match(stageKey(origin, route, k));
+    // une étape sortie du cache entre-temps : on la refait, et la chaîne repassera par ici
+    if (!kept) { context.waitUntil(env.SELF.fetch(stageRequest(origin, route, k, lane))); return done(); }
+    stages.push(new Uint16Array(await kept.arrayBuffer()));
+  }
+  await cache.put(new Request(origin + PREFIX + route), binary(assembleExactTile(stages), IMMUTABLE));
+  await cache.delete(laneKey(origin, lane));
+  return done();
+}
+
+/**
+ * Le relief exact d'une tuile : servi du cache quand il y est ; sinon « en préparation », et la première étape
+ * part en arrière-plan — une fois : un marqueur, lui aussi dans le cache, retient que la préparation est en cours.
+ */
+async function reliefRelay(route: string, url: URL, cache: Cache, env: Env, context: ExecutionContext): Promise<Response | null> {
+  const tile = parseExactPath(route);
+  if (!tile) return null;
+  const { origin } = url;
+  const stage = url.searchParams.get(STAGE_FLAG);
+  if (stage !== null) {
+    const k = Number(stage), lane = Number(url.searchParams.get(LANE_FLAG));
+    if (!Number.isInteger(k) || k < 0 || k >= EXACT_STAGES || !Number.isInteger(lane) || lane < 0 || lane >= LANES) return refusal(404, 'Étape inconnue');
+    return reliefStage(tile, k, lane, origin, route, cache, env, context);
+  }
+  const ready = await cache.match(new Request(origin + PREFIX + route));
+  if (ready) return ready;
+  // le marqueur a sa propre clef : la chaîne de requête, que le relais ignore partout ailleurs, l'en distingue
+  const marker = new Request(`${origin}${PREFIX}${route}?preparation`);
+  if (await cache.match(marker)) return accepted();
+  // une voie libre, sinon rien ne part : la tuile attendra d'être redemandée
+  let lane = -1;
+  for (let k = 0; k < LANES && lane === -1; k++) if (!(await cache.match(laneKey(origin, k)))) lane = k;
+  if (lane === -1) return accepted();
+  await holdLane(origin, route, lane, cache);
+  context.waitUntil(env.SELF.fetch(stageRequest(origin, route, 0, lane)));
+  return accepted();
+}
+
 /**
  * Demande une ressource à sa source ; `null` si la réponse n'est pas celle attendue. `refusals` recueille alors
  * ce que la source a répondu : sans journal sous la main, c'est la seule façon de savoir pourquoi elle refuse.
@@ -271,15 +429,18 @@ async function warmSiblings(cache: Cache, origin: string, route: string): Promis
   }
 }
 
-async function relay(request: Request, context: ExecutionContext): Promise<Response> {
-  const { origin, pathname, searchParams } = new URL(request.url);
+async function relay(request: Request, env: Env, context: ExecutionContext): Promise<Response> {
+  const url = new URL(request.url);
+  const { origin, pathname, searchParams } = url;
   const route = pathname.slice(PREFIX.length);
+  const cache = (caches as unknown as { default: Cache }).default;
+  const exact = await reliefRelay(route, url, cache, env, context);
+  if (exact) return exact;
   const upstream = tileUpstream(route) ?? flightsUpstream(route) ?? aircraftUpstream(route) ?? routeUpstream(route)
     ?? streetCellUpstream(route) ?? streetSearchUpstream(route) ?? vesselsUpstream(route) ?? cameraUpstream(route) ?? altitudeUpstream(route);
   if (!upstream) return refusal(404, 'Ressource inconnue');
 
   // la clef ignore la chaîne de requête : impossible de fragmenter le cache par des paramètres
-  const cache = (caches as unknown as { default: Cache }).default;
   const key = new Request(origin + pathname);
   const cached = await cache.match(key);
   // déjà en cache : ses millésimes voisins ont été préparés avec elle
@@ -298,6 +459,6 @@ export default {
   async fetch(request: Request, env: Env, context: ExecutionContext): Promise<Response> {
     if (!new URL(request.url).pathname.startsWith(`${PREFIX}/`)) return env.ASSETS.fetch(request);
     if (request.method !== 'GET' && request.method !== 'HEAD') return refusal(405, 'Méthode non autorisée');
-    return relay(request, context);
+    return relay(request, env, context);
   },
 };

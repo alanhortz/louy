@@ -237,7 +237,7 @@ describe('machine des avions en direct', () => {
 describe('relais des avions', () => {
   const store = new Map<string, Response>();
   const context = { waitUntil: (promise: Promise<unknown>) => { void promise; } };
-  const env = { ASSETS: { fetch: vi.fn(async () => new Response('site')) } };
+  const env = { ASSETS: { fetch: vi.fn(async () => new Response('site')) }, SELF: { fetch: vi.fn(async () => new Response(null, { status: 204 })) } };
   const call = (path: string) => worker.fetch(new Request(`https://louy.be${path}`), env, context);
 
   beforeEach(() => {
