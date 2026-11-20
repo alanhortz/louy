@@ -53,6 +53,14 @@ describe('relais des tuiles', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('sert aussi les tuiles d’époque, quatre fois la grille', async () => {
+    const fetchMock = upstream('jpg', 'image/jpeg');
+    vi.stubGlobal('fetch', fetchMock);
+    expect((await call('/edge/v1/tiles/IMAGERIE/ORTHO_2015/1088/11/1147/1285.jpg')).status).toBe(200);
+    expect(new URL(fetchMock.mock.calls[0]![0]).searchParams.get('size')).toBe('1088,1088');
+    expect((await call('/edge/v1/tiles/IMAGERIE/ORTHO_2015/2176/11/1147/1285.jpg')).status).toBe(404);
+  });
+
   it('garde une durée de vie courte pour l’orthophoto « la plus récente »', async () => {
     vi.stubGlobal('fetch', upstream('jpg', 'image/jpeg'));
     const response = await call('/edge/v1/tiles/IMAGERIE/ORTHO_LAST/544/11/1000/1000.jpg');

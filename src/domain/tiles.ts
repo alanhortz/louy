@@ -15,8 +15,8 @@ export const SPW_ARCGIS = 'https://geoservices.wallonie.be/arcgis/rest/services'
 
 export type TileFormat = 'png' | 'jpg';
 
-/** Tailles d'image admises : la grille, ou la grille suréchantillonnée ×2. */
-export const TILE_SIZES = [272, 544] as const;
+/** Tailles de tuile que le relais sert : la grille, son double au niveau le plus fin (orthophoto à 25 cm), son quadruple pour les tuiles d'époque. */
+export const TILE_SIZES = [272, 544, 1088] as const;
 
 /** Services que le Worker accepte de relayer (jamais un proxy ouvert). */
 export const SERVICE_PATTERN =
