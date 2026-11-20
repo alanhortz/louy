@@ -149,7 +149,8 @@
     "y": 628032.0,
     "splats": "/scans/namur-sambre.spz",
     "hd": {
-      "splats": "/scans/namur-sambre-hd.spz"
+      "splats": "/scans/namur-sambre-hd.spz",
+      "more": ["/scans/namur-sambre-hd-2.spz"]
     },
     "preview": "/scans/namur-sambre-apercu.spz",
     "note": "Un vol bas en oblique au-dessus de la Sambre, reconstruit en volume et calé sur le relief LiDAR.",
