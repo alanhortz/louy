@@ -6,7 +6,7 @@ export const PROJECT = {
   name: 'L’Oûy',
   /** « l'œil », en wallon. */
   meaning: 'l’œil, en wallon',
-  tagline: 'La Wallonie vue par l’œil du LiDAR',
+  tagline: 'Voir la Wallonie de près, de haut, d’avant',
   domain: 'louy.be',
   repository: 'https://github.com/alanhortz/louy',
   author: 'Alan Hortz',
