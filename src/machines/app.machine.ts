@@ -61,7 +61,7 @@ import { satelliteMachine, type SatelliteEmitted } from './satellite.machine.ts'
 import { tourMachine, type TourEmitted } from './tour.machine.ts';
 import { settingsMachine, type SettingsEmitted } from './settings.machine.ts';
 import { satelliteIn, scanIn, type Definition } from '../domain/definition.ts';
-import { readDefinition } from '../services/definition.ts';
+import { DEFAULT_DEFINITION, readDefinition } from '../services/definition.ts';
 import { satelliteDestination, type SatelliteImage } from '../domain/satellite.ts';
 import { cinemaMachine } from './cinema.machine.ts';
 import { locationHeight, nearDevice, type DevicePosition, locationLabel } from '../domain/whereabouts.ts';
@@ -296,7 +296,7 @@ export const appMachine = setup({
   },
 }).createMachine({
   id: 'app',
-  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] }, places: [], walk: null, tour: null, tourScanId: null, cockpitPending: input.view.cockpit === true, droneFlights: [], device: null, traces: [], shownObject: null, shownObjectFresh: false, drawn: {}, sport: null, definition: 'standard', satellite: [] }),
+  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] }, places: [], walk: null, tour: null, tourScanId: null, cockpitPending: input.view.cockpit === true, droneFlights: [], device: null, traces: [], shownObject: null, shownObjectFresh: false, drawn: {}, sport: null, definition: DEFAULT_DEFINITION, satellite: [] }),
   initial: 'checking',
   states: {
     checking: {

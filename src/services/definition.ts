@@ -2,12 +2,15 @@ import { isDefinition, type Definition } from '../domain/definition.ts';
 
 const KEY = 'louy:definition';
 
-/** Définition choisie lors d'une visite précédente ; standard à défaut. */
+/** Ce que l'on montre à qui n'a rien choisi : la haute définition, la précision d'abord. */
+export const DEFAULT_DEFINITION: Definition = 'high';
+
+/** Définition choisie lors d'une visite précédente ; la haute à défaut. */
 export function readDefinition(): Definition {
   try {
     const stored = localStorage.getItem(KEY);
-    return isDefinition(stored) ? stored : 'standard';
-  } catch { return 'standard'; }
+    return isDefinition(stored) ? stored : DEFAULT_DEFINITION;
+  } catch { return DEFAULT_DEFINITION; }
 }
 
 export function storeDefinition(definition: Definition): void {

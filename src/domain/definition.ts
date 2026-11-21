@@ -4,7 +4,8 @@
  * légère, et la haute, tirée des images à leur pleine résolution. Le visiteur
  * choisit laquelle il regarde, et passe de l'une à l'autre pour comparer.
  *
- * Un relevé qui n'a pas de version haute reste affiché en standard.
+ * Un relevé qui n'a pas de version haute reste affiché en standard. À défaut de choix, c'est la haute que
+ * l'on montre : la précision d'abord.
  */
 
 import type { SatelliteImage } from './satellite.ts';
