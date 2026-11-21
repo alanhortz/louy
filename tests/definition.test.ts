@@ -28,6 +28,12 @@ describe('définition des relevés', () => {
     expect([isDefinition('high'), isDefinition('standard'), isDefinition('4k'), isDefinition(null)]).toEqual([true, true, false, false]);
   });
 
+  it('montre la haute définition à qui n’a rien choisi', async () => {
+    const { DEFAULT_DEFINITION, readDefinition } = await import('../src/services/definition.ts');
+    expect(DEFAULT_DEFINITION).toBe('high');
+    expect(readDefinition()).toBe('high');
+  });
+
   it('annonce le réglage à l’ouverture, puis chaque changement — et seulement les changements', () => {
     const announced: AnyEventObject[] = [];
     const parent = createActor(createMachine({
