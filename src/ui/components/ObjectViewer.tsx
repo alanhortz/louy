@@ -3,6 +3,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { objectLabel, scanPhotos } from '../../domain/scans.ts';
 import { objectPage, objectPhase } from '../../machines/object.machine.ts';
 import { useApp, useChild } from '../actors.ts';
@@ -15,6 +16,7 @@ import { count } from '../format.ts';
  * événement à la machine `object`, qui en garde la trace.
  */
 export function ObjectViewer() {
+  const { t } = useTranslation();
   const object = useChild('object');
   const phase = useSelector(object, objectPhase);
   const scan = useSelector(object, (snapshot) => snapshot.context.scan);
@@ -53,24 +55,25 @@ export function ObjectViewer() {
   }, [open, object, viewingPhoto]);
 
   if (!open || !scan) return null;
+  const kicker = t(objectLabel(scan));
 
   return (
     <div
       className="object-backdrop"
       onClick={(event) => { if (event.target === event.currentTarget) object.send({ type: 'object.closed', by: 'backdrop' }); }}
     >
-      <section className="object-viewer" role="dialog" aria-modal="true" aria-label={`${objectLabel(scan)} : ${scan.name}`}>
+      <section className="object-viewer" role="dialog" aria-modal="true" aria-label={`${kicker} : ${scan.name}`}>
         <header className="object-header">
           <div className="object-title">
-            <span className="object-kicker">{objectLabel(scan)}</span>
+            <span className="object-kicker">{kicker}</span>
             <h2>{scan.name}</h2>
           </div>
           <div className="object-actions">
             <button
               type="button"
               className="rail-item"
-              title="Recadrer la vue"
-              aria-label="Recadrer la vue"
+              title={t('object.reset')}
+              aria-label={t('object.reset')}
               disabled={phase !== 'ready' || viewingPhoto}
               onClick={() => object.send({ type: 'object.resetRequested' })}
             >
@@ -79,8 +82,8 @@ export function ObjectViewer() {
             <button
               type="button"
               className={autoRotate ? 'rail-item active' : 'rail-item'}
-              title={autoRotate ? 'Arrêter la rotation' : 'Faire tourner l’objet'}
-              aria-label={autoRotate ? 'Arrêter la rotation' : 'Faire tourner l’objet'}
+              title={autoRotate ? t('object.stopRotation') : t('object.rotate')}
+              aria-label={autoRotate ? t('object.stopRotation') : t('object.rotate')}
               aria-pressed={autoRotate}
               disabled={phase !== 'ready' || viewingPhoto}
               onClick={() => object.send({ type: 'object.autoRotateToggled' })}
@@ -92,8 +95,8 @@ export function ObjectViewer() {
             <button
               type="button"
               className="rail-item"
-              title="Fermer"
-              aria-label="Fermer la visionneuse"
+              title={t('object.close')}
+              aria-label={t('object.closeViewer')}
               onClick={() => object.send({ type: 'object.closed', by: 'button' })}
             >
               <XMarkIcon className="rail-glyph" aria-hidden="true" />
@@ -102,7 +105,7 @@ export function ObjectViewer() {
         </header>
 
         <div className="object-stage" data-phase={phase}>
-          <canvas ref={canvas} tabIndex={0} aria-label={`${scan.name}, objet en 3D`} />
+          <canvas ref={canvas} tabIndex={0} aria-label={t('object.canvas', { name: scan.name })} />
           {photo && (
             <figure
               className="object-photo"
@@ -114,22 +117,22 @@ export function ObjectViewer() {
               }}
               onPointerCancel={() => { swipe.current = null; }}
             >
-              <img src={photo.src} alt={photo.caption ?? `Photo de ${scan.name}`} draggable={false} />
+              <img src={photo.src} alt={photo.caption ?? t('object.photoOf', { name: scan.name })} draggable={false} />
               {photo.caption && <figcaption>{photo.caption}</figcaption>}
             </figure>
           )}
           {!viewingPhoto && phase === 'loading' && (
-            <p className="object-status" role="status">Chargement de l’objet… {Math.round(progress * 100)} %</p>
+            <p className="object-status" role="status">{t('object.loading', { percent: Math.round(progress * 100) })}</p>
           )}
           {!viewingPhoto && phase === 'suspended' && (
-            <p className="object-status" role="status">Affichage interrompu par le système, reprise en cours…</p>
+            <p className="object-status" role="status">{t('object.suspended')}</p>
           )}
           {!viewingPhoto && phase === 'failed' && (
             <div className="object-status" role="alert">
-              <p>L’objet n’a pas pu être affiché.</p>
+              <p>{t('object.failed')}</p>
               {failure && <p className="object-reason">{failure}</p>}
               <button type="button" className="scene-btn" onClick={() => object.send({ type: 'object.retryRequested' })}>
-                RÉESSAYER
+                {t('object.retry')}
               </button>
             </div>
           )}
@@ -143,13 +146,13 @@ export function ObjectViewer() {
         )}
 
         {photos.length > 0 && (
-          <nav className="object-photos" aria-label="L’objet en 3D et ses photos">
+          <nav className="object-photos" aria-label={t('object.photos')}>
             <button
               type="button"
               className="object-thumb object-thumb-3d"
               aria-pressed={!viewingPhoto}
-              title="L’objet en 3D"
-              aria-label="Voir l’objet en 3D"
+              title={t('object.in3d')}
+              aria-label={t('object.see3d')}
               onClick={() => object.send({ type: 'object.photoClosed', by: 'button' })}
             >
               <CubeIcon aria-hidden="true" />
@@ -161,23 +164,21 @@ export function ObjectViewer() {
                 type="button"
                 className="object-thumb"
                 aria-pressed={photoIndex === index}
-                title={item.caption ?? `Photo ${index + 1}`}
-                aria-label={`Voir la photo ${index + 1} sur ${photos.length}${item.caption ? ` : ${item.caption}` : ''}`}
+                title={item.caption ?? t('object.photo', { n: index + 1 })}
+                aria-label={`${t('object.seePhoto', { n: index + 1, total: photos.length })}${item.caption ? ` : ${item.caption}` : ''}`}
                 onClick={() => object.send({ type: 'object.photoOpened', index })}
               >
                 <img src={item.thumb ?? item.src} alt="" loading="lazy" draggable={false} />
               </button>
             ))}
-            <span className="object-photos-count">
-              {photos.length === 1 ? '1 photo' : `${photos.length} photos`}
-            </span>
+            <span className="object-photos-count">{t('object.photoCount', { count: photos.length })}</span>
           </nav>
         )}
 
         {page.total > 1 && (
-          <nav className="object-pager" aria-label="Objets de ce lieu">
+          <nav className="object-pager" aria-label={t('object.pager')}>
             <button
-              type="button" className="rail-item" title="Objet précédent (←)" aria-label="Objet précédent"
+              type="button" className="rail-item" title={t('object.previousKey')} aria-label={t('object.previous')}
               disabled={page.index <= 1}
               onClick={() => object.send({ type: 'object.paged', delta: -1, by: 'button' })}
             >
@@ -187,7 +188,7 @@ export function ObjectViewer() {
               <b>{page.index}</b> / {page.total}
             </span>
             <button
-              type="button" className="rail-item" title="Objet suivant (→)" aria-label="Objet suivant"
+              type="button" className="rail-item" title={t('object.nextKey')} aria-label={t('object.next')}
               disabled={page.index >= page.total}
               onClick={() => object.send({ type: 'object.paged', delta: 1, by: 'button' })}
             >
@@ -199,11 +200,11 @@ export function ObjectViewer() {
         <footer className="object-footer">
           <span>
             {viewingPhoto
-              ? (photos.length > 1 ? (touch ? 'Glisser pour passer à la photo suivante' : 'Flèches pour passer d’une photo à l’autre') : 'Photo prise sur place')
-              : touch ? 'Un doigt pour tourner · deux doigts pour zoomer' : 'Glisser pour tourner · molette pour zoomer'}
+              ? (photos.length > 1 ? (touch ? t('object.swipe') : t('object.arrows')) : t('object.onSite'))
+              : touch ? t('object.touchHint') : t('object.pointerHint')}
           </span>
           <span>
-            {stats && `${count(stats.triangles)} triangles · `}
+            {stats && `${t('object.triangles', { n: count(stats.triangles) })} · `}
             <a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.author}</a> {scan.credit.licence}
           </span>
         </footer>

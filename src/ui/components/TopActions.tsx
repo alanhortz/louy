@@ -1,4 +1,5 @@
 import { useSelector } from '@xstate/react';
+import { useTranslation } from 'react-i18next';
 import { satelliteActive, satelliteAvailable } from '../../machines/satellite.machine.ts';
 import { walkPhase } from '../../machines/walk.machine.ts';
 import { useApp, useChild } from '../actors.ts';
@@ -8,6 +9,7 @@ import { useApp, useChild } from '../actors.ts';
  * revenir à la vue d'accueil, regarder la carte du dessus avec les images « satellite », copier les coordonnées du point visé, se situer sur la carte.
  */
 export function TopActions() {
+  const { t } = useTranslation();
   const app = useApp();
   const sites = useChild('sites');
   const streetSearch = useChild('streetSearch');
@@ -21,13 +23,15 @@ export function TopActions() {
   const satellite = useChild('satellite');
   const satelliteOffered = useSelector(satellite, satelliteAvailable);
   const satelliteOn = useSelector(satellite, satelliteActive);
+  const satelliteLabel = satelliteOn ? t('actions.satelliteOff') : t('actions.satelliteOn');
+  const locateLabel = located ? t('actions.unlocate') : t('actions.locate');
 
   return (
-    <nav className="top-actions" aria-label="Actions">
+    <nav className="top-actions" aria-label={t('actions.label')}>
       <button
         type="button"
-        title="Chercher un site ou une rue"
-        aria-label="Chercher un site ou une rue"
+        title={t('actions.search')}
+        aria-label={t('actions.search')}
         onClick={() => {
           sites.send({ type: 'sites.opened' });
           streetSearch.send({ type: 'streetSearch.opened' });
@@ -37,8 +41,8 @@ export function TopActions() {
       </button>
       <button
         type="button"
-        title="Se promener au sol dans un lieu filmé"
-        aria-label="Se promener au sol dans un lieu filmé"
+        title={t('actions.walk')}
+        aria-label={t('actions.walk')}
         aria-pressed={aiming}
         onClick={() => walk.send({ type: 'walk.toggled' })}
       >
@@ -50,8 +54,8 @@ export function TopActions() {
       </button>
       <button
         type="button"
-        title="Partager cette vue"
-        aria-label="Partager cette vue"
+        title={t('actions.share')}
+        aria-label={t('actions.share')}
         disabled={sharing}
         onClick={() => app.send({ type: 'app.shareRequested' })}
       >
@@ -61,8 +65,8 @@ export function TopActions() {
       </button>
       <button
         type="button"
-        title="Revenir à la vue d’accueil"
-        aria-label="Revenir à la vue d’accueil"
+        title={t('actions.home')}
+        aria-label={t('actions.home')}
         onClick={() => app.send({ type: 'app.homeRequested' })}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5M6.5 9.8V20h11V9.8" /></svg>
@@ -70,8 +74,8 @@ export function TopActions() {
       {satelliteOffered && (
         <button
           type="button"
-          title={satelliteOn ? 'Quitter la vue satellite' : 'Vue satellite : la carte vue du dessus'}
-          aria-label={satelliteOn ? 'Quitter la vue satellite' : 'Vue satellite : la carte vue du dessus'}
+          title={satelliteLabel}
+          aria-label={satelliteLabel}
           aria-pressed={satelliteOn}
           onClick={() => satellite.send({ type: 'satellite.toggled' })}
         >
@@ -83,8 +87,8 @@ export function TopActions() {
       )}
       <button
         type="button"
-        title="Copier les coordonnées du centre de la vue"
-        aria-label="Copier les coordonnées du centre de la vue"
+        title={t('actions.coordinates')}
+        aria-label={t('actions.coordinates')}
         onClick={() => app.send({ type: 'app.coordinatesRequested' })}
       >
         {/* une épingle : le point dont on prend les coordonnées */}
@@ -94,8 +98,8 @@ export function TopActions() {
       </button>
       <button
         type="button"
-        title={located ? 'Retirer le repère de ma position' : 'Me situer sur la carte'}
-        aria-label={located ? 'Retirer le repère de ma position' : 'Me situer sur la carte'}
+        title={locateLabel}
+        aria-label={locateLabel}
         aria-pressed={located}
         aria-busy={locating}
         onClick={() => location.send({ type: 'location.toggled' })}

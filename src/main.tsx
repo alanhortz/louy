@@ -5,6 +5,8 @@ import { createTelemetryInspector } from './app/inspector.ts';
 import { decodeView, hasPose, homePose } from './domain/view.ts';
 import { appMachine } from './machines/app.machine.ts';
 import { TelemetryBuffer } from './services/telemetry.ts';
+// la langue est choisie avant tout rendu : adresse, choix mémorisé, navigateur
+import './i18n/index.ts';
 import './styles/index.css';
 import { App } from './ui/App.tsx';
 import { AppActorContext } from './ui/actors.ts';

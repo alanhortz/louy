@@ -1,5 +1,6 @@
 import { useSelector } from '@xstate/react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { matchRecentSearches, recentKey } from '../../domain/recentSearches.ts';
 import { STREET_SOURCE } from '../../domain/streets.ts';
 import { streetSearchStage } from '../../machines/streetSearch.machine.ts';
@@ -15,6 +16,7 @@ const SITES_BESIDE_STREETS = 8;
  * Chaque liste a sa machine, cette palette ne fait que leur parler à toutes.
  */
 export function SiteSearch() {
+  const { t } = useTranslation();
   const sites = useChild('sites');
   const streetSearch = useChild('streetSearch');
   const recents = useChild('recents');
@@ -82,26 +84,29 @@ export function SiteSearch() {
     }
   };
 
-  const plural = (count: number, word: string) => `${count} ${word}${count > 1 ? 's' : ''}`;
-  const streetStatus = streetStage === 'loading' ? 'recherche des rues…'
-    : streetStage === 'failed' ? 'rues indisponibles'
-    : streets.length > 0 ? plural(streets.length, 'rue')
+  const streetStatus = streetStage === 'loading' ? t('search.streetsLoading')
+    : streetStage === 'failed' ? t('search.streetsFailed')
+    : streets.length > 0 ? t('search.streets', { count: streets.length })
     : null;
-  const status = stage === 'loading' ? 'Chargement des sites…'
-    : stage === 'failed' ? 'Liste indisponible — réessayez dans un instant'
-    : !query ? `${total} sites touristiques (OpenStreetMap) et toutes les rues de Wallonie (${STREET_SOURCE})`
-    : options.length === 0 && !streetStatus ? 'Aucun site ni aucune rue ne correspond'
-    : [recent.length > 0 ? plural(recent.length, 'récente') : null, freshSites.length > 0 ? plural(freshSites.length, 'site') : null, streetStatus].filter(Boolean).join(' · ');
+  const status = stage === 'loading' ? t('search.loading')
+    : stage === 'failed' ? t('search.failed')
+    : !query ? t('search.idle', { total, source: STREET_SOURCE })
+    : options.length === 0 && !streetStatus ? t('search.none')
+    : [
+      recent.length > 0 ? t('search.recents', { count: recent.length }) : null,
+      freshSites.length > 0 ? t('search.sites', { count: freshSites.length }) : null,
+      streetStatus,
+    ].filter(Boolean).join(' · ');
 
   return (
     <div className="search-backdrop" onPointerDown={(event) => { if (event.target === event.currentTarget) close(); }}>
-      <section className="panel search" role="dialog" aria-label="Chercher un site ou une rue" onKeyDown={onKeyDown}>
+      <section className="panel search" role="dialog" aria-label={t('search.label')} onKeyDown={onKeyDown}>
         <div className="panel-glow" />
         <div className="panel-inner">
           <header className="panel-header">
-            <span className="panel-title">Sites et rues</span>
+            <span className="panel-title">{t('search.title')}</span>
             <span className="panel-divider" />
-            <button type="button" className="panel-collapse-btn" aria-label="Fermer la recherche" onClick={close}>×</button>
+            <button type="button" className="panel-collapse-btn" aria-label={t('search.close')} onClick={close}>×</button>
           </header>
           <div className="search-field">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
@@ -109,8 +114,8 @@ export function SiteSearch() {
               ref={input}
               type="search"
               value={query}
-              placeholder="Rue, château, musée, ville…"
-              aria-label="Nom d’une rue, d’un site, d’une catégorie ou d’une localité"
+              placeholder={t('search.placeholder')}
+              aria-label={t('search.inputLabel')}
               autoComplete="off"
               enterKeyHint="go"
               onChange={(event) => type(event.target.value)}
@@ -118,12 +123,12 @@ export function SiteSearch() {
           </div>
           <p className="search-status" role="status">{status}</p>
           <div className="panel-body">
-            <ul className="search-results" role="listbox" aria-label="Sites et rues">
+            <ul className="search-results" role="listbox" aria-label={t('search.list')}>
               {recent.length > 0 && (
                 <li className="search-section" role="presentation">
-                  Récentes
+                  {t('search.recent')}
                   <button type="button" className="search-section-action" onClick={() => recents.send({ type: 'recents.cleared' })}>
-                    Effacer
+                    {t('search.clear')}
                   </button>
                 </li>
               )}
@@ -137,11 +142,11 @@ export function SiteSearch() {
                     onClick={() => pick({ kind: 'recent', id: recentKey(entry) })}
                   >
                     <span className="search-result-name">{entry.name}</span>
-                    <span className="search-result-meta">{entry.kind === 'street' ? `Rue · ${entry.meta}` : entry.meta}</span>
+                    <span className="search-result-meta">{entry.kind === 'street' ? `${t('search.street')} · ${entry.meta}` : entry.meta}</span>
                   </button>
                 </li>
               ))}
-              {recent.length > 0 && siteResults.length > 0 && <li className="search-section" role="presentation">Sites</li>}
+              {recent.length > 0 && siteResults.length > 0 && <li className="search-section" role="presentation">{t('search.sitesSection')}</li>}
               {siteResults.map((site, at) => (
                 <li key={`site:${site.id}`} role="presentation">
                   <button
@@ -156,7 +161,7 @@ export function SiteSearch() {
                   </button>
                 </li>
               ))}
-              {streets.length > 0 && <li className="search-section" role="presentation">Rues</li>}
+              {streets.length > 0 && <li className="search-section" role="presentation">{t('search.streetsSection')}</li>}
               {streets.map((street, at) => (
                 <li key={`street:${street.id}`} role="presentation">
                   <button
@@ -167,7 +172,7 @@ export function SiteSearch() {
                     onClick={() => pick({ kind: 'street', id: street.id })}
                   >
                     <span className="search-result-name">{street.name}</span>
-                    <span className="search-result-meta">Rue · {street.near}</span>
+                    <span className="search-result-meta">{t('search.street')} · {street.near}</span>
                   </button>
                 </li>
               ))}

@@ -1,5 +1,6 @@
 import { useSelector } from '@xstate/react';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { tourPhase, tourTime } from '../../machines/tour.machine.ts';
 import { useChild } from '../actors.ts';
 
@@ -9,6 +10,7 @@ import { useChild } from '../actors.ts';
  * visiteur l'ait avancée ou reculée à la molette. Sans vidéo pour ce vol, rien ne s'affiche.
  */
 export function TourFeed() {
+  const { t: translate } = useTranslation();
   const tour = useChild('tour');
   const phase = useSelector(tour, tourPhase);
   const src = useSelector(tour, (snapshot) => snapshot.context.flight?.video ?? null);
@@ -32,5 +34,5 @@ export function TourFeed() {
   }, [phase, t]);
 
   if (phase === 'idle' || !src) return null;
-  return <video ref={video} className="tour-feed" src={src} muted playsInline preload="auto" aria-label="Ce que la caméra du drone a filmé, à cet instant du vol" />;
+  return <video ref={video} className="tour-feed" src={src} muted playsInline preload="auto" aria-label={translate('tour.feed')} />;
 }

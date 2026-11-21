@@ -1,10 +1,12 @@
 import { useSelector } from '@xstate/react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PanelId } from '../../machines/chrome.machine.ts';
 import { useChild } from '../actors.ts';
 
 interface PanelProps {
   id: PanelId;
+  /** Titre déjà traduit. */
   title: string;
   className?: string;
   onExpand?: () => void;
@@ -16,6 +18,7 @@ const GLYPHS = ['+', '−'] as const;
 
 /** Panneau « verre » repliable ; son état vit dans la machine `chrome`. */
 export function Panel({ id, title, className = '', onExpand, children }: PanelProps) {
+  const { t } = useTranslation();
   const chrome = useChild('chrome');
   const expanded = useSelector(chrome, (snapshot) => snapshot.matches({ [id]: 'expanded' }));
 
@@ -35,7 +38,7 @@ export function Panel({ id, title, className = '', onExpand, children }: PanelPr
             type="button"
             className="panel-collapse-btn"
             aria-expanded={expanded}
-            aria-label={expanded ? `Replier ${title}` : `Déplier ${title}`}
+            aria-label={t(expanded ? 'panel.collapse' : 'panel.expand', { title })}
             onClick={toggle}
           >
             {GLYPHS[expanded ? 1 : 0]}

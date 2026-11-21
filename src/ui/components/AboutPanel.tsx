@@ -1,4 +1,5 @@
 import { useSelector } from '@xstate/react';
+import { useTranslation } from 'react-i18next';
 import { PROJECT } from '../../config/project.ts';
 import { AERIAL_LABEL, OBJECTS_LABEL, type Scan } from '../../domain/scans.ts';
 import { AERIAL_LAYER, ART_LAYER, BACKED_LAYER, FUN_LAYER, OBJECTS_LAYER, SURVIVAL_LAYER } from '../../machines/scans.layer.ts';
@@ -12,6 +13,7 @@ const RETENTION_DAYS = RETENTION_MS / 86_400_000;
 
 /** Sources des données, crédits, et la télémétrie locale que le visiteur peut lire ou effacer. */
 export function AboutPanel() {
+  const { t } = useTranslation();
   const scans = useSelector(useLayer<Scan>(AERIAL_LAYER), (snapshot) => snapshot.context.items);
   const scanned = useSelector(useLayer<Scan>(OBJECTS_LAYER), (snapshot) => snapshot.context.items);
   const survival = useSelector(useLayer<Scan>(SURVIVAL_LAYER), (snapshot) => snapshot.context.items);
@@ -26,57 +28,50 @@ export function AboutPanel() {
   return (
     <Panel
       id="about"
-      title="À propos"
+      title={t('about.title')}
       className="about"
       onExpand={() => telemetry.send({ type: 'telemetry.summaryRequested' })}
     >
       <p>
-        <strong>{PROJECT.name}</strong> ({PROJECT.meaning}) : voir la Wallonie de près, de haut, d’avant. Le territoire
-        en volume, sur le relief LiDAR du Service public de Wallonie, et dans le temps : vingt millésimes de photos
-        aériennes, des lieux filmés à leur époque, des vols de drone à refaire depuis leur caméra, des objets relevés
-        sur place, et la balade au sol dans les lieux reconstruits. Tout se passe dans le navigateur.
+        <strong>{PROJECT.name}</strong> ({t('brand.meaning')}) : {t('about.intro')}
       </p>
 
-      <div className="about-heading">Données</div>
+      <div className="about-heading">{t('about.data')}</div>
       <ul>
-        <li>Relief et orthophotos : <a href="https://geoportail.wallonie.be" target="_blank" rel="noreferrer">Géoportail de la Wallonie</a> (SPW), CC-BY 4.0.</li>
-        <li>Trafic fluvial : positions anonymes des bateaux, service « Tracks » incorporé depuis <a href="https://www.eurisportal.eu" target="_blank" rel="noreferrer">EuRIS</a> (eurisportal.eu).</li>
-        <li>Noms de rues et recherche de rues : ICAR, inventaire des rues et adresses du <a href="https://geoportail.wallonie.be" target="_blank" rel="noreferrer">Service public de Wallonie</a>.</li>
-        <li>Noms de lieux et sites touristiques : contributeurs <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>, ODbL.</li>
+        <li>{t('about.relief')} <a href="https://geoportail.wallonie.be" target="_blank" rel="noreferrer">{t('about.reliefSource')}</a> {t('about.reliefLicence')}</li>
+        <li>{t('about.vessels')} <a href="https://www.eurisportal.eu" target="_blank" rel="noreferrer">EuRIS</a> {t('about.vesselsAfter')}</li>
+        <li>{t('about.streets')} <a href="https://geoportail.wallonie.be" target="_blank" rel="noreferrer">{t('about.streetsSource')}</a>.</li>
+        <li>{t('about.places')} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>{t('about.placesAfter')}</li>
         <li>
-          Avions : positions ADS-B captées par la communauté{' '}
-          <a href="https://adsb.fi" target="_blank" rel="noreferrer">adsb.fi</a>, données ouvertes pour un usage non commercial, relayées avec quelques secondes de retard.
+          {t('about.aircraft')}{' '}
+          <a href="https://adsb.fi" target="_blank" rel="noreferrer">adsb.fi</a>{t('about.aircraftAfter')}
         </li>
-        <li>Caméras : SPW Trafiroutes, placées au point kilométrique lu sur leur image ; à défaut, sur la localité nommée.</li>
+        <li>{t('about.cameras')}</li>
         {scans.map((scan) => (
           <li key={scan.id}>
-            {AERIAL_LABEL} « {scan.name} » : reconstruite et calée sur le LiDAR à partir de la vidéo{' '}
-            <a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.title}</a> de {scan.credit.author},
-            {scan.credit.licence.startsWith('CC') ? ` licence Creative Commons ${scan.credit.licence}.` : ` ${scan.credit.licence}.`}
+            {t('about.scan', { kind: t(AERIAL_LABEL), name: scan.name })}{' '}
+            <a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.title}</a> {t('about.scanBy', { author: scan.credit.author })}
+            {scan.credit.licence.startsWith('CC') ? ` ${t('about.creativeCommons', { licence: scan.credit.licence })}` : ` ${scan.credit.licence}.`}
           </li>
         ))}
         {objects.length > 0 && (
           <li>
-            {OBJECTS_LABEL} ({objects.map((object) => object.name).join(' ; ')}) : relevés sur place au téléphone
-            par {[...new Set(objects.map((object) => object.credit.author))].join(', ')}.
+            {t('about.objects', {
+              kind: t(OBJECTS_LABEL),
+              names: objects.map((object) => object.name).join(' ; '),
+              authors: [...new Set(objects.map((object) => object.credit.author))].join(', '),
+            })}
           </li>
         )}
       </ul>
-      <p>
-        Le relief est d’abord reconstruit depuis des images rendues par le SPW (précision verticale d’environ 3,5 m),
-        puis remplacé, tuile par tuile, par les altitudes mesurées que le site relève et garde : là où elles sont
-        prêtes, la précision est celle du LiDAR, 50 cm en plan (campagne 2021–2022).
-      </p>
+      <p>{t('about.precision')}</p>
 
-      <div className="about-heading">Journal local</div>
-      <p>
-        L’historique des interactions de cette page est conservé {RETENTION_DAYS} jours, compressé, dans ce
-        navigateur uniquement. Rien n’est envoyé à un serveur.
-      </p>
+      <div className="about-heading">{t('about.journal')}</div>
+      <p>{t('about.journalNote', { days: RETENTION_DAYS })}</p>
       <p className="about-figures">
         {summary
-          ? `${summary.events} ÉVÉNEMENTS · ${summary.batches} LOTS · ${bytes(summary.bytes)}${summary.since ? ` · DEPUIS LE ${date(summary.since)}` : ''}`
-          : 'LECTURE DU JOURNAL…'}
+          ? `${t('about.figures', { events: summary.events, batches: summary.batches, size: bytes(summary.bytes) })}${summary.since ? t('about.since', { date: date(summary.since) }) : ''}`
+          : t('about.reading')}
       </p>
       <div className="cctv-controls">
         <button
@@ -85,7 +80,7 @@ export function AboutPanel() {
           disabled={busy}
           onClick={() => telemetry.send({ type: 'telemetry.exportRequested' })}
         >
-          EXPORTER
+          {t('about.export')}
         </button>
         <button
           type="button"
@@ -93,17 +88,17 @@ export function AboutPanel() {
           disabled={busy}
           onClick={() => telemetry.send({ type: 'telemetry.clearRequested' })}
         >
-          EFFACER
+          {t('about.clear')}
         </button>
       </div>
 
-      <div className="about-heading">Crédits</div>
+      <div className="about-heading">{t('about.credits')}</div>
       <p>
         <img className="about-sponsor-mark" src={sponsorMark} alt="" width="11" height="12" />
-        Projet sponsorisé par <a href={PROJECT.sponsor.url} target="_blank" rel="noopener">{PROJECT.sponsor.name}</a>.{' '}
-        Interface inspirée de <a href="https://github.com/bilawalsidhu/gods-eye-view" target="_blank" rel="noreferrer">God’s Eye View</a> de
-        Bilawal Sidhu (MIT). © {PROJECT.author}, logiciel libre sous licence AGPL-3.0 — code source
-        sur <a href={PROJECT.repository} target="_blank" rel="noreferrer">GitHub</a>.
+        {t('about.sponsored')} <a href={PROJECT.sponsor.url} target="_blank" rel="noopener">{PROJECT.sponsor.name}</a>.{' '}
+        {t('about.inspired')} <a href="https://github.com/bilawalsidhu/gods-eye-view" target="_blank" rel="noreferrer">God’s Eye View</a>{' '}
+        {t('about.inspiredBy')} {t('about.licence', { author: PROJECT.author })}{' '}
+        <a href={PROJECT.repository} target="_blank" rel="noreferrer">GitHub</a>.
       </p>
     </Panel>
   );

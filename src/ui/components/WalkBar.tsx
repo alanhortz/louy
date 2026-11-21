@@ -1,7 +1,9 @@
 import { MapPinIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import { useEffect, useState } from 'react';
-import { walkPhase } from '../../machines/walk.machine.ts';
+import { useTranslation } from 'react-i18next';
+import { walkPhase, type WalkNotice } from '../../machines/walk.machine.ts';
+import { locale, t } from '../../i18n/index.ts';
 import { useApp, useChild } from '../actors.ts';
 
 /**
@@ -21,7 +23,23 @@ function useVrSupport(): boolean {
   return supported;
 }
 
+/** « 320 m », « 3,2 km » : une distance à pied, arrondie comme on la dirait. */
+const farAway = (distance: number): string =>
+  (distance < 1000
+    ? t('walk.metres', { n: Math.round(distance / 10) * 10 })
+    : t('walk.kilometres', { n: new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(distance / 1000) }));
+
+/** Ce que la machine a à dire, mis en mots. */
+export function walkNoticeText(notice: WalkNotice): string {
+  switch (notice.kind) {
+    case 'noPlace': return t('walk.noPlace');
+    case 'nearest': return t('walk.nearest', { name: notice.name, distance: farAway(notice.distance) });
+    case 'notWalkable': return t('walk.notWalkable');
+  }
+}
+
 export function WalkBar() {
+  const { t } = useTranslation();
   const app = useApp();
   const touch = useSelector(app, (snapshot) => snapshot.context.support?.touch ?? false);
   const walk = useChild('walk');
@@ -30,25 +48,25 @@ export function WalkBar() {
   const immersive = useSelector(viewer, (snapshot) => snapshot.context.immersive);
   // à pied, les pastilles de la carte sont effacées : la copie se confirme ici
   const copied = useSelector(useChild('coordinates'), (snapshot) => (
-    snapshot.matches('copied') ? `Copié · ${snapshot.context.text}` : snapshot.matches('shown') ? snapshot.context.text : null
+    snapshot.matches('copied') ? t('walk.copied', { text: snapshot.context.text ?? '' }) : snapshot.matches('shown') ? snapshot.context.text : null
   ));
   const phase = useSelector(walk, walkPhase);
   const place = useSelector(walk, (snapshot) => snapshot.context.scan?.name ?? null);
   const notice = useSelector(walk, (snapshot) => snapshot.context.notice);
   if (phase === 'idle') return null;
 
-  const leaving = phase === 'aiming' ? 'Annuler' : 'Quitter la balade';
+  const leaving = phase === 'aiming' ? t('walk.cancel') : t('walk.leave');
   return (
     <div className={`walk-bar walk-${phase}`} role="status">
       <div className="walk-bar-text">
-        {phase === 'aiming' && <span className="walk-bar-lead">Touchez l’endroit où vous poser</span>}
-        {phase === 'aiming' && <span className="walk-bar-hint">{notice ?? 'dans un lieu de l’imagerie aérienne'}</span>}
+        {phase === 'aiming' && <span className="walk-bar-lead">{t('walk.aim')}</span>}
+        {phase === 'aiming' && <span className="walk-bar-hint">{notice ? walkNoticeText(notice) : t('walk.aimHint')}</span>}
         {phase !== 'aiming' && <span className="walk-bar-lead">{place}</span>}
-        {phase === 'arriving' && <span className="walk-bar-hint">Arrivée sur place…</span>}
+        {phase === 'arriving' && <span className="walk-bar-hint">{t('walk.arriving')}</span>}
         {phase === 'walking' && (
           <span className="walk-bar-hint" aria-live="polite">
             {/* sans clavier, on ne parle pas de ses flèches : le texte tient sur un téléphone */}
-            {copied ?? (touch ? 'Glisser pour regarder · toucher le sol pour avancer' : 'Glisser pour regarder · toucher le sol pour avancer · flèches du clavier')}
+            {copied ?? (touch ? t('walk.hintTouch') : t('walk.hintPointer'))}
           </span>
         )}
       </div>
@@ -57,8 +75,8 @@ export function WalkBar() {
           type="button"
           className="walk-bar-exit"
           aria-pressed={immersive}
-          aria-label="Voir ce lieu en réalité virtuelle"
-          title="Voir ce lieu en réalité virtuelle, avec un casque"
+          aria-label={t('walk.vr')}
+          title={t('walk.vrHint')}
           // la demande part dans le geste même : le navigateur n'ouvre une séance qu'à cette condition
           onClick={() => viewer.send({ type: 'viewer.vrRequested' })}
         >
@@ -73,8 +91,8 @@ export function WalkBar() {
         <button
           type="button"
           className="walk-bar-exit"
-          aria-label="Copier ma position et le cap de mon regard"
-          title="Copier ma position et le cap de mon regard (degrés depuis le nord)"
+          aria-label={t('walk.copy')}
+          title={t('walk.copyHint')}
           onClick={() => app.send({ type: 'app.coordinatesRequested' })}
         >
           <MapPinIcon aria-hidden="true" />

@@ -1,5 +1,6 @@
 import { useSelector } from '@xstate/react';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DRONES_LABEL, flightDuration, flightSummary, flightTime, type DroneFlight } from '../../domain/droneFlights.ts';
 import { DRONES_LAYER } from '../../machines/scans.layer.ts';
 import { layerFeed, layerSelection } from '../../machines/selectionLayer.machine.ts';
@@ -12,6 +13,7 @@ import { Panel } from './Panel.tsx';
  * les deux lisent la même horloge.
  */
 function CameraFeed({ flight }: { flight: DroneFlight }) {
+  const { t } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     let frame = 0;
@@ -36,7 +38,7 @@ function CameraFeed({ flight }: { flight: DroneFlight }) {
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [flight]);
-  return <video ref={video} className="drone-feed" src={flight.video} muted playsInline preload="auto" aria-label="Ce que voit la caméra du drone" />;
+  return <video ref={video} className="drone-feed" src={flight.video} muted playsInline preload="auto" aria-label={t('drones.feed')} />;
 }
 
 /** Le champ de la caméra : un cône qui part du drone et découpe son emprise sur le territoire. */
@@ -52,6 +54,7 @@ function SightIcon() {
 
 /** Vols de drone : la fiche du vol actif, ce que voit sa caméra, et l'entrée dans cette caméra. */
 export function DronePanel() {
+  const { t } = useTranslation();
   const layers = useChild('layers');
   const tour = useChild('tour');
   const layer = useLayer<DroneFlight>(DRONES_LAYER);
@@ -66,16 +69,16 @@ export function DronePanel() {
   const summary = flight ? flightSummary(flight) : null;
 
   return (
-    <Panel id="drones" title={DRONES_LABEL} className="imagery-panel drone-panel">
+    <Panel id="drones" title={t(DRONES_LABEL)} className="imagery-panel drone-panel">
       {!enabled && (
         <div className="aircraft-empty">
-          <p>Le trajet d’un drone dans l’espace, et ce que sa caméra voit.</p>
-          <button type="button" className="scene-btn" onClick={() => send({ type: 'layers.toggled' })}>AFFICHER LES VOLS DE DRONE</button>
+          <p>{t('drones.pitch')}</p>
+          <button type="button" className="scene-btn" onClick={() => send({ type: 'layers.toggled' })}>{t('drones.show')}</button>
         </div>
       )}
 
       {enabled && flight && summary && (
-        <section className="aircraft-card" aria-label={`${DRONES_LABEL} : ${flight.name}`}>
+        <section className="aircraft-card" aria-label={`${t(DRONES_LABEL)} : ${flight.name}`}>
           <header className="aircraft-card-header">
             <div className="aircraft-card-title">
               <span className="imagery-kicker">{flight.drone}</span>
@@ -85,38 +88,38 @@ export function DronePanel() {
               type="button"
               className={sight ? 'drone-tool active' : 'drone-tool'}
               aria-pressed={sight}
-              aria-label="Champ de la caméra sur la carte"
-              title={sight ? 'Cacher le champ de la caméra' : 'Montrer le champ de la caméra'}
+              aria-label={t('drones.sight')}
+              title={sight ? t('drones.sightHide') : t('drones.sightShow')}
               onClick={() => tour.send({ type: 'tour.sightToggled' })}
             >
               <SightIcon />
             </button>
-            <button type="button" className="panel-collapse-btn" aria-label="Désélectionner ce vol" onClick={() => send({ type: 'layers.dismissed' })}>×</button>
+            <button type="button" className="panel-collapse-btn" aria-label={t('drones.deselect')} onClick={() => send({ type: 'layers.dismissed' })}>×</button>
           </header>
           {flight.video && <CameraFeed flight={flight} />}
           <dl className="aircraft-telemetry imagery-details">
-            <div><dt>Trajet</dt><dd>{Math.round(summary.metres)} m · {Math.round(summary.seconds)} s</dd></div>
-            <div><dt>Vitesse</dt><dd>{Math.round(summary.kmh)} km/h</dd></div>
-            <div><dt>Date</dt><dd>{flight.date ?? 'inconnue'}</dd></div>
-            <div><dt>Images</dt><dd>{flight.credit.author} · {flight.credit.licence}</dd></div>
+            <div><dt>{t('drones.path')}</dt><dd>{Math.round(summary.metres)} m · {Math.round(summary.seconds)} s</dd></div>
+            <div><dt>{t('drones.speed')}</dt><dd>{Math.round(summary.kmh)} km/h</dd></div>
+            <div><dt>{t('drones.date')}</dt><dd>{flight.date ?? t('drones.unknownDate')}</dd></div>
+            <div><dt>{t('drones.images')}</dt><dd>{flight.credit.author} · {flight.credit.licence}</dd></div>
           </dl>
           <div className="cctv-controls">
             <button
               type="button"
               className={inCockpit ? 'scene-btn active' : 'scene-btn'}
               aria-pressed={inCockpit}
-              title="Voir par la caméra du drone : refaire son vol, à sa vitesse"
+              title={t('drones.cockpitHint')}
               onClick={() => tour.send(inCockpit ? { type: 'tour.left' } : { type: 'tour.requested', flight })}
             >
-              {inCockpit ? 'QUITTER LE COCKPIT' : 'VUE COCKPIT'}
+              {inCockpit ? t('drones.leaveCockpit') : t('drones.cockpit')}
             </button>
-            <button type="button" className="scene-btn" onClick={() => send({ type: 'layers.picked', id: flight.id })}>SITUER SUR LA CARTE</button>
+            <button type="button" className="scene-btn" onClick={() => send({ type: 'layers.picked', id: flight.id })}>{t('drones.locate')}</button>
           </div>
         </section>
       )}
 
       {enabled && (
-        <ul className="search-results aircraft-list" aria-label="Vols de drone">
+        <ul className="search-results aircraft-list" aria-label={t('drones.list')}>
           {flights.map((item) => (
             <li key={item.id}>
               <button type="button" className="search-result" aria-current={item.id === flight?.id} onClick={() => send({ type: 'layers.picked', id: item.id })}>

@@ -1,4 +1,5 @@
 import { useSelector } from '@xstate/react';
+import { useTranslation } from 'react-i18next';
 import { locationNotice } from '../../machines/location.machine.ts';
 import { AERIAL_LABEL } from '../../domain/scans.ts';
 import { isOrbiting } from '../../machines/viewer.machine.ts';
@@ -11,6 +12,7 @@ import { FlapText } from './FlapText.tsx';
  * partage. Celle du relief est animée à palettes, comme dans God's Eye View.
  */
 export function StatusChips() {
+  const { t } = useTranslation();
   const viewer = useChild('viewer');
   const share = useChild('share');
   const activity = useChild('activity');
@@ -29,26 +31,26 @@ export function StatusChips() {
 
   return (
     <div className="chips" aria-live="polite">
-      {failure && <span className="chip" data-tone="warning">Le rendu 3D n’a pas pu démarrer · {failure}</span>}
-      {suspended && <span className="chip" data-tone="warning">Rendu suspendu par le système · reprise automatique</span>}
+      {failure && <span className="chip" data-tone="warning">{t('chips.renderFailed', { reason: failure })}</span>}
+      {suspended && <span className="chip" data-tone="warning">{t('chips.suspended')}</span>}
       {orbiting && (
         <button type="button" className="chip" onClick={() => viewer.send({ type: 'viewer.orbitStopped' })}>
-          Orbite en cours · touchez la carte pour reprendre la main
+          {t('chips.orbiting')}
         </button>
       )}
       {phase !== 'quiet' && !orbiting && (
         <span className="chip" data-phase={phase}>
-          <FlapText text={phase === 'loading' ? 'Chargement du relief' : `Relief chargé · ${count(points)} points`} />
+          <FlapText text={phase === 'loading' ? t('chips.loadingRelief') : t('chips.reliefLoaded', { points: count(points) })} />
         </span>
       )}
       {scanBuild && (
         <span className="chip chip-progress" data-phase="loading" style={{ '--progress': scanBuild.fraction } as React.CSSProperties}>
-          {AERIAL_LABEL} · {scanBuild.phase === 'loading' ? 'téléchargement' : 'construction'} {Math.round(scanBuild.fraction * 100)} %
+          {t(AERIAL_LABEL)} · {scanBuild.phase === 'loading' ? t('chips.scanDownloading') : t('chips.scanBuilding')} {Math.round(scanBuild.fraction * 100)} %
         </span>
       )}
-      {outcome && <span className="chip">{outcome === 'copied' ? 'Lien de la vue copié' : 'Vue partagée'}</span>}
-      {coordinates && <span className="chip">{coordinates.copied ? `Coordonnées copiées · ${coordinates.text}` : coordinates.text}</span>}
-      {whereabouts && <span className="chip">{whereabouts}</span>}
+      {outcome && <span className="chip">{outcome === 'copied' ? t('chips.linkCopied') : t('chips.shared')}</span>}
+      {coordinates && <span className="chip">{coordinates.copied ? t('chips.coordinatesCopied', { text: coordinates.text ?? '' }) : coordinates.text}</span>}
+      {whereabouts && <span className="chip">{t(whereabouts)}</span>}
     </div>
   );
 }

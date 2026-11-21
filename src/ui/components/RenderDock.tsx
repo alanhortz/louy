@@ -1,11 +1,14 @@
 import { FilmIcon } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
+import { useTranslation } from 'react-i18next';
 import { CAMPAIGNS, SURFACES, TINTS, VINTAGES, tintById } from '../../domain/catalog.ts';
 import { useApp, useChild } from '../actors.ts';
+import { vintageLabel } from '../labels.ts';
 import { Panel } from './Panel.tsx';
 
 /** Ce que l'on regarde : habillage du relief, modèle de surface, campagne LiDAR, millésime. */
 export function RenderDock() {
+  const { t } = useTranslation();
   const app = useApp();
   const sceneActor = useChild('scene');
   const scene = useSelector(sceneActor, (snapshot) => snapshot.context.scene);
@@ -14,8 +17,8 @@ export function RenderDock() {
 
   return (
     <div className={`dock ${expanded ? '' : 'collapsed'}`}>
-      <Panel id="render" title="Rendu">
-        <div className="button-grid" role="radiogroup" aria-label="Habillage du relief">
+      <Panel id="render" title={t('render.title')}>
+        <div className="button-grid" role="radiogroup" aria-label={t('render.tints')}>
           {TINTS.map((tint) => (
             <button
               key={tint.id}
@@ -26,41 +29,41 @@ export function RenderDock() {
               onClick={() => sceneActor.send({ type: 'scene.tintSelected', tint: tint.id })}
             >
               <span className="btn-icon" aria-hidden="true">{tint.icon}</span>
-              <span className="btn-label">{tint.label}</span>
+              <span className="btn-label">{t(`catalog.tint.${tint.id}`)}</span>
             </button>
           ))}
         </div>
 
         <div className="dock-sections">
           <div className="dock-section">
-            <span className="dock-section-title">Relief</span>
-            <div className="chip-row" role="radiogroup" aria-label="Modèle de surface">
+            <span className="dock-section-title">{t('render.relief')}</span>
+            <div className="chip-row" role="radiogroup" aria-label={t('render.surface')}>
               {SURFACES.map((surface) => (
                 <button
                   key={surface.id}
                   type="button"
                   role="radio"
                   aria-checked={scene.surface === surface.id}
-                  title={surface.hint}
+                  title={t(`catalog.surfaceHint.${surface.id}`)}
                   className={`map-stack-chip ${scene.surface === surface.id ? 'active' : ''}`}
                   onClick={() => sceneActor.send({ type: 'scene.surfaceSelected', surface: surface.id })}
                 >
-                  {surface.label}
+                  {t(`catalog.surface.${surface.id}`)}
                 </button>
               ))}
             </div>
           </div>
 
           <div className="dock-section">
-            <span className="dock-section-title">Campagne LiDAR</span>
-            <div className="chip-row" role="radiogroup" aria-label="Campagne LiDAR">
+            <span className="dock-section-title">{t('render.campaign')}</span>
+            <div className="chip-row" role="radiogroup" aria-label={t('render.campaign')}>
               {CAMPAIGNS.map((campaign) => (
                 <button
                   key={campaign.id}
                   type="button"
                   role="radio"
                   aria-checked={scene.campaign === campaign.id}
-                  title={`Relevé ${campaign.label}, résolution ${campaign.resolution} m`}
+                  title={t('render.campaignHint', { campaign: campaign.label, resolution: campaign.resolution })}
                   className={`map-stack-chip ${scene.campaign === campaign.id ? 'active' : ''}`}
                   onClick={() => sceneActor.send({ type: 'scene.campaignSelected', campaign: campaign.id })}
                 >
@@ -71,7 +74,7 @@ export function RenderDock() {
           </div>
 
           <label className="dock-section dock-section-wide">
-            <span className="dock-section-title">Orthophoto</span>
+            <span className="dock-section-title">{t('render.orthophoto')}</span>
             <select
               className="glass-select"
               value={scene.vintage}
@@ -79,7 +82,7 @@ export function RenderDock() {
               onChange={(event) => sceneActor.send({ type: 'scene.vintageSelected', vintage: event.target.value })}
             >
               {VINTAGES.map((vintage) => (
-                <option key={vintage.id} value={vintage.id}>{vintage.label}</option>
+                <option key={vintage.id} value={vintage.id}>{vintageLabel(vintage)}</option>
               ))}
             </select>
           </label>
@@ -87,11 +90,11 @@ export function RenderDock() {
           <button
             type="button"
             className="scene-btn dock-film"
-            title="Voir cette vue évoluer d’une photo aérienne à l’autre, en plein écran"
+            title={t('render.filmHint')}
             onClick={() => app.send({ type: 'app.timelineRequested' })}
           >
             <FilmIcon aria-hidden="true" />
-            FILM DU TEMPS
+            {t('render.film')}
           </button>
         </div>
       </Panel>

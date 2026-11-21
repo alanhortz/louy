@@ -1,9 +1,11 @@
 import { useSelector } from '@xstate/react';
+import { useTranslation } from 'react-i18next';
 import { tourPhase } from '../../machines/tour.machine.ts';
 import { useApp, useChild } from '../actors.ts';
 
 /** Barre de la visite guidée : le lieu survolé, pause ou lecture, et la sortie. On tourne la tête, on avance ou recule — toujours sur la route du drone. */
 export function TourBar() {
+  const { t } = useTranslation();
   const app = useApp();
   const tour = useChild('tour');
   const phase = useSelector(tour, tourPhase);
@@ -17,14 +19,14 @@ export function TourBar() {
       <div className="walk-bar-text">
         <span className="walk-bar-lead">{place}</span>
         <span className="walk-bar-hint" aria-live="polite">
-          {playing ? 'Le trajet du drone, à sa vitesse · glisser ou molette pour prendre la main' : 'En pause · glisser pour tourner la tête · molette pour avancer ou reculer'}
+          {playing ? t('tour.playing') : t('tour.paused')}
         </span>
       </div>
       <button
         type="button"
         className="walk-bar-exit"
-        aria-label={playing ? 'Mettre la visite en pause' : 'Reprendre la visite'}
-        title={playing ? 'Pause' : 'Lecture'}
+        aria-label={playing ? t('tour.pause') : t('tour.resume')}
+        title={playing ? t('tour.pauseShort') : t('tour.playShort')}
         onClick={() => tour.send({ type: 'tour.toggled' })}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -34,8 +36,8 @@ export function TourBar() {
       <button
         type="button"
         className="walk-bar-exit"
-        aria-label="Partager cette vue cockpit"
-        title="Partager cette vue cockpit : le lien y fait entrer directement"
+        aria-label={t('tour.share')}
+        title={t('tour.shareHint')}
         onClick={() => app.send({ type: 'app.shareRequested' })}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -45,8 +47,8 @@ export function TourBar() {
       <button
         type="button"
         className="walk-bar-exit"
-        aria-label="Rejouer la visite depuis le début"
-        title="Rejouer depuis le début"
+        aria-label={t('tour.replay')}
+        title={t('tour.replayShort')}
         onClick={() => tour.send({ type: 'tour.replayed' })}
       >
         {/* une flèche qui revient sur elle-même */}
@@ -57,8 +59,8 @@ export function TourBar() {
       <button
         type="button"
         className="walk-bar-exit"
-        aria-label="Quitter la visite"
-        title="Quitter la visite et revenir à la carte"
+        aria-label={t('tour.leave')}
+        title={t('tour.leaveHint')}
         onClick={() => tour.send({ type: 'tour.left' })}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
