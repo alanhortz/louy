@@ -7,7 +7,7 @@
  */
 
 import {
-  Cog6ToothIcon, GlobeEuropeAfricaIcon, HandRaisedIcon, InformationCircleIcon, LifebuoyIcon, PaperAirplaneIcon, PhotoIcon, PlayCircleIcon, Square3Stack3DIcon, SwatchIcon,
+  Cog6ToothIcon, GlobeEuropeAfricaIcon, InformationCircleIcon, LifebuoyIcon, PaperAirplaneIcon, PhotoIcon, PlayCircleIcon, Square3Stack3DIcon, SwatchIcon,
   VideoCameraIcon,
 } from '@heroicons/react/24/outline';
 import type { ComponentType, SVGProps } from 'react';
@@ -25,7 +25,6 @@ export interface RailItem {
 export const RAIL_ITEMS: readonly RailItem[] = [
   { panel: 'layers', label: 'rail.layers', Icon: Square3Stack3DIcon },
   { panel: 'render', label: 'rail.render', Icon: SwatchIcon },
-  { panel: 'controls', label: 'rail.controls', Icon: HandRaisedIcon },
   { panel: 'camera', label: 'rail.camera', Icon: VideoCameraIcon },
   { panel: 'imagery', label: 'rail.imagery', Icon: PhotoIcon },
   { panel: 'orthophoto', label: 'rail.orthophoto', Icon: GlobeEuropeAfricaIcon },

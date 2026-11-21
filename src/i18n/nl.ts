@@ -23,7 +23,6 @@ export const nl = {
     label: 'Panelen',
     layers: 'Lagen',
     render: 'Weergave',
-    controls: 'Navigatie',
     camera: 'Camera’s',
     imagery: 'Beelden',
     orthophoto: 'Drone-ortho',
@@ -189,24 +188,6 @@ export const nl = {
     orthophoto: 'Orthofoto',
     film: 'TIJDFILM',
     filmHint: 'Dit zicht zien veranderen van de ene luchtfoto naar de andere, op volledig scherm',
-  },
-  controls: {
-    title: 'Navigatie',
-    note: 'Het vergrootglas bovenaan brengt u meteen boven een bezienswaardigheid of een straat.',
-    touch: {
-      drag: '1 vinger', dragEffect: 'Slepen om de kaart te verplaatsen',
-      pinch: 'Knijpen', pinchEffect: 'Twee vingers spreiden of samenknijpen om te zoomen',
-      rotate: 'Draaien', rotateEffect: 'Twee vingers draaien om de koers te veranderen',
-      tilt: '2 vingers ↕', tiltEffect: 'Twee vingers omhoog of omlaag slepen om het zicht te kantelen',
-    },
-    pointer: {
-      drag: 'Slepen', dragEffect: 'De kaart verplaatsen',
-      wheel: 'Scrollwiel', wheelEffect: 'Zoomen naar de cursor',
-      right: 'Rechtsklik', rightEffect: 'Slepen om het zicht te draaien en te kantelen',
-      shift: 'Shift + slepen', shiftEffect: 'Draaien en kantelen, zonder rechtsklik',
-      arrows: '← ↑ ↓ →', arrowsEffect: 'De kaart verplaatsen met het toetsenbord',
-      zoom: '+ −', zoomEffect: 'Zoomen met het toetsenbord',
-    },
   },
   camera: {
     title: 'Camera’s',

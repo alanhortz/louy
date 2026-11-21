@@ -25,7 +25,6 @@ export const fr = {
     label: 'Panneaux',
     layers: 'Calques',
     render: 'Rendu',
-    controls: 'Navigation',
     camera: 'Caméras',
     imagery: 'Imagerie',
     orthophoto: 'Ortho drone',
@@ -193,24 +192,6 @@ export const fr = {
     orthophoto: 'Orthophoto',
     film: 'FILM DU TEMPS',
     filmHint: 'Voir cette vue évoluer d’une photo aérienne à l’autre, en plein écran',
-  },
-  controls: {
-    title: 'Navigation',
-    note: 'La loupe, en haut, emmène directement au-dessus d’un site touristique ou d’une rue.',
-    touch: {
-      drag: '1 doigt', dragEffect: 'Glisser pour déplacer la carte',
-      pinch: 'Pincer', pinchEffect: 'Écarter ou rapprocher deux doigts pour zoomer',
-      rotate: 'Tourner', rotateEffect: 'Faire pivoter deux doigts pour changer de cap',
-      tilt: '2 doigts ↕', tiltEffect: 'Glisser deux doigts vers le haut ou le bas pour incliner la vue',
-    },
-    pointer: {
-      drag: 'Glisser', dragEffect: 'Déplacer la carte',
-      wheel: 'Molette', wheelEffect: 'Zoomer vers le curseur',
-      right: 'Clic droit', rightEffect: 'Glisser pour pivoter et incliner la vue',
-      shift: 'Maj + glisser', shiftEffect: 'Pivoter et incliner, sans clic droit',
-      arrows: '← ↑ ↓ →', arrowsEffect: 'Déplacer la carte au clavier',
-      zoom: '+ −', zoomEffect: 'Zoomer au clavier',
-    },
   },
   camera: {
     title: 'Caméras',

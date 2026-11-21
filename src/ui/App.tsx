@@ -17,7 +17,6 @@ import { WalkBar } from './components/WalkBar.tsx';
 import { Cinema } from './components/Cinema.tsx';
 import { Brand } from './components/Brand.tsx';
 import { CameraPanel } from './components/CameraPanel.tsx';
-import { ControlsPanel } from './components/ControlsPanel.tsx';
 import { Indicator } from './components/Indicator.tsx';
 import { LayersPanel } from './components/LayersPanel.tsx';
 import { ManualShare } from './components/ManualShare.tsx';
@@ -77,7 +76,6 @@ export function App() {
       <div className="stacks">
         <aside className="stack stack-left">
           <LayersPanel />
-          <ControlsPanel />
         </aside>
         <aside className="stack stack-right">
           <CameraPanel />

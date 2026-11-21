@@ -23,7 +23,6 @@ export const en = {
     label: 'Panels',
     layers: 'Layers',
     render: 'Rendering',
-    controls: 'Navigation',
     camera: 'Cameras',
     imagery: 'Imagery',
     orthophoto: 'Drone ortho',
@@ -189,24 +188,6 @@ export const en = {
     orthophoto: 'Orthophoto',
     film: 'TIME FILM',
     filmHint: 'Watch this view change from one aerial photo to the next, full screen',
-  },
-  controls: {
-    title: 'Navigation',
-    note: 'The magnifier at the top takes you straight above a tourist site or a street.',
-    touch: {
-      drag: '1 finger', dragEffect: 'Drag to move the map',
-      pinch: 'Pinch', pinchEffect: 'Spread or pinch two fingers to zoom',
-      rotate: 'Rotate', rotateEffect: 'Turn two fingers to change heading',
-      tilt: '2 fingers ↕', tiltEffect: 'Drag two fingers up or down to tilt the view',
-    },
-    pointer: {
-      drag: 'Drag', dragEffect: 'Move the map',
-      wheel: 'Wheel', wheelEffect: 'Zoom towards the cursor',
-      right: 'Right click', rightEffect: 'Drag to rotate and tilt the view',
-      shift: 'Shift + drag', shiftEffect: 'Rotate and tilt, without right click',
-      arrows: '← ↑ ↓ →', arrowsEffect: 'Move the map with the keyboard',
-      zoom: '+ −', zoomEffect: 'Zoom with the keyboard',
-    },
   },
   camera: {
     title: 'Cameras',

@@ -7,7 +7,7 @@
 import { setup } from 'xstate';
 import { acknowledge } from '../services/preferences.ts';
 
-export const PANELS = ['layers', 'controls', 'render', 'camera', 'imagery', 'orthophoto', 'clouds', 'drones', 'videos', 'aircraft', 'vessels', 'settings', 'about'] as const;
+export const PANELS = ['layers', 'render', 'camera', 'imagery', 'orthophoto', 'clouds', 'drones', 'videos', 'aircraft', 'vessels', 'settings', 'about'] as const;
 export type PanelId = (typeof PANELS)[number];
 
 export type ChromeEvent =
@@ -77,7 +77,6 @@ export const chromeMachine = chrome.createMachine({
   type: 'parallel',
   states: {
     layers: panelRegion('layers'),
-    controls: panelRegion('controls'),
     render: panelRegion('render'),
     camera: panelRegion('camera'),
     imagery: panelRegion('imagery'),
