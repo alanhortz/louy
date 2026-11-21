@@ -53,10 +53,10 @@ export const DEFAULT_VIEW: View = {
 };
 
 /**
- * Imagerie aérienne dessinée d'emblée à la vue d'accueil : la citadelle de Namur, son esplanade, la Sambre
- * et la Halle al'Chair, et les lettres « NAMUR » du Grognon. Un lien partagé, lui, ne montre que ce que son auteur regardait.
+ * Imagerie aérienne dessinée d'emblée à la vue d'accueil : la citadelle de Namur et son esplanade. La Sambre
+ * et la Halle al'Chair restent à toucher sur leur marqueur. Un lien partagé, lui, ne montre que ce que son auteur regardait.
  */
-export const HOME_IMAGERY: readonly string[] = ['namur', 'esplanade-citadelle-namur', 'namur-sambre'];
+export const HOME_IMAGERY: readonly string[] = ['namur', 'esplanade-citadelle-namur'];
 
 /**
  * Imagerie épinglée d'office, quel que soit le lien par lequel on arrive. Plus rien pour l'instant : les objets
