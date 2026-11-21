@@ -31,8 +31,10 @@ export function AboutPanel() {
       onExpand={() => telemetry.send({ type: 'telemetry.summaryRequested' })}
     >
       <p>
-        <strong>{PROJECT.name}</strong> ({PROJECT.meaning}) dessine le relief de la Wallonie en nuage de points,
-        à partir des relevés LiDAR aériens du Service public de Wallonie.
+        <strong>{PROJECT.name}</strong> ({PROJECT.meaning}) : voir la Wallonie de près, de haut, d’avant. Le territoire
+        en volume, sur le relief LiDAR du Service public de Wallonie, et dans le temps : vingt millésimes de photos
+        aériennes, des lieux filmés à leur époque, des vols de drone à refaire depuis leur caméra, des objets relevés
+        sur place, et la balade au sol dans les lieux reconstruits. Tout se passe dans le navigateur.
       </p>
 
       <div className="about-heading">Données</div>
@@ -50,7 +52,7 @@ export function AboutPanel() {
           <li key={scan.id}>
             {AERIAL_LABEL} « {scan.name} » : reconstruite et calée sur le LiDAR à partir de la vidéo{' '}
             <a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.title}</a> de {scan.credit.author},
-            licence Creative Commons {scan.credit.licence}.
+            {scan.credit.licence.startsWith('CC') ? ` licence Creative Commons ${scan.credit.licence}.` : ` ${scan.credit.licence}.`}
           </li>
         ))}
         {objects.length > 0 && (
@@ -61,8 +63,9 @@ export function AboutPanel() {
         )}
       </ul>
       <p>
-        Les altitudes sont reconstruites depuis des images rendues par le SPW : la précision verticale est
-        d’environ 3,5 m, la précision horizontale va jusqu’à 50 cm (campagne 2021–2022).
+        Le relief est d’abord reconstruit depuis des images rendues par le SPW (précision verticale d’environ 3,5 m),
+        puis remplacé, tuile par tuile, par les altitudes mesurées que le site relève et garde : là où elles sont
+        prêtes, la précision est celle du LiDAR, 50 cm en plan (campagne 2021–2022).
       </p>
 
       <div className="about-heading">Journal local</div>
