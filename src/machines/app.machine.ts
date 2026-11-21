@@ -878,6 +878,7 @@ export const appMachine = setup({
         'tour.restarted': { actions: sendTo('viewer', { type: 'viewer.tourRestarted' }) },
         'viewer.tourEnded': { actions: sendTo('tour', { type: 'tour.finished' }) },
         'viewer.tourHeld': { actions: sendTo('tour', { type: 'tour.held' }) },
+        'viewer.tourProgressed': { actions: sendTo('tour', ({ event }) => ({ type: 'tour.progressed', t: event.t })) },
         'viewer.walkEntered': { actions: sendTo('walk', { type: 'walk.entered' }) },
         'viewer.walkFailed': { actions: sendTo('walk', { type: 'walk.failed' }) },
 

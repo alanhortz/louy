@@ -11,6 +11,7 @@ import { DronePanel } from './components/DronePanel.tsx';
 import { SettingsPanel } from './components/SettingsPanel.tsx';
 import { CockpitExit } from './components/CockpitExit.tsx';
 import { TourBar } from './components/TourBar.tsx';
+import { TourFeed } from './components/TourFeed.tsx';
 import { WalkBar } from './components/WalkBar.tsx';
 import { Cinema } from './components/Cinema.tsx';
 import { Brand } from './components/Brand.tsx';
@@ -70,6 +71,7 @@ export function App() {
       <CockpitExit />
       <WalkBar />
       <TourBar />
+      <TourFeed />
       <div className="stacks">
         <aside className="stack stack-left">
           <LayersPanel />

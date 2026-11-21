@@ -28,7 +28,9 @@ export type TourEvent =
   /** Le visiteur a pris la main — tourné la tête, avancé ou reculé : la visite se met en pause. */
   | { type: 'tour.held' }
   /** Le moteur est arrivé au bout du trajet. */
-  | { type: 'tour.finished' };
+  | { type: 'tour.finished' }
+  /** Où en est la visite, en secondes depuis le départ du drone : la vidéo de son vol s'y cale. */
+  | { type: 'tour.progressed'; t: number };
 
 export type TourEmitted =
   | { type: 'tour.started'; flight: DroneFlight }
@@ -39,7 +41,7 @@ export type TourEmitted =
 
 export const tourMachine = setup({
   types: {
-    context: {} as { flight: DroneFlight | null },
+    context: {} as { flight: DroneFlight | null; t: number },
     events: {} as TourEvent,
   },
   actions: {
@@ -53,24 +55,25 @@ export const tourMachine = setup({
   },
 }).createMachine({
   id: 'tour',
-  context: { flight: null },
+  context: { flight: null, t: 0 },
   type: 'parallel',
   states: {
     visit: {
       initial: 'idle',
       states: {
         idle: {
-          on: { 'tour.requested': { target: 'touring', actions: assign({ flight: ({ event }) => event.flight }) } },
+          on: { 'tour.requested': { target: 'touring', actions: assign({ flight: ({ event }) => event.flight, t: 0 }) } },
         },
         touring: {
           entry: 'announceStart',
-          exit: ['announceEnd', assign({ flight: null })],
+          exit: ['announceEnd', assign({ flight: null, t: 0 })],
           initial: 'playing',
           on: {
             'tour.left': 'idle',
             'tour.finished': 'idle',
             // rejouer est toujours possible, en lecture comme en pause : on repart du début, en lecture
-            'tour.replayed': { target: '.playing', actions: 'announceRestart' },
+            'tour.replayed': { target: '.playing', actions: ['announceRestart', assign({ t: 0 })] },
+            'tour.progressed': { actions: assign({ t: ({ event }) => event.t }) },
           },
           states: {
             playing: {
@@ -98,5 +101,7 @@ export const tourMachine = setup({
 type TourSnapshot = SnapshotFrom<typeof tourMachine>;
 /** Le champ de la caméra du drone est-il montré sur la carte ? */
 export const tourSight = (snapshot: TourSnapshot): boolean => snapshot.matches({ sight: 'shown' });
+/** L'instant de la visite, en secondes depuis le départ du drone. */
+export const tourTime = (snapshot: TourSnapshot): number => snapshot.context.t;
 export const tourPhase = (snapshot: TourSnapshot): 'idle' | 'playing' | 'paused' =>
   (snapshot.matches({ visit: { touring: 'playing' } }) ? 'playing' : snapshot.matches({ visit: { touring: 'paused' } }) ? 'paused' : 'idle');

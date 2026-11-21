@@ -124,6 +124,8 @@ export interface EngineListeners {
   onTourEnded(): void;
   /** Le visiteur a pris la main pendant la visite guidée. */
   onTourHeld(): void;
+  /** Où en est la visite guidée, en secondes depuis le départ du drone : annoncé dix fois par seconde, et à chaque saut. */
+  onTourProgressed(t: number): void;
   /** La visite passe en réalité virtuelle, ou en revient. */
   onImmersiveChanged(immersive: boolean): void;
   /** Le visiteur a touché, dans la carte, l'écran d'une séquence filmée. */
@@ -246,6 +248,8 @@ export class SceneEngine {
   /** Visite guidée en cours : le trajet, l'instant où l'on en est, et la vue à rendre en sortant. */
   #tour: {
     fov: number; track: readonly ClipKey[]; t: number; playing: boolean; back: Pose;
+    /** Dernier instant annoncé à l'interface : elle n'a pas besoin de chaque image. */
+    told: number;
     /** La tête du visiteur, par rapport au regard du drone ; et de quoi lâcher ses gestes en sortant. */
     yaw: number; pitch: number; changed: boolean; hands: AbortController;
   } | null = null;
@@ -502,7 +506,7 @@ export class SceneEngine {
     this.#endFollow();
     this.#tour?.hands.abort();
     const hands = new AbortController();
-    const tour = { ...flight, t: 0, playing: true, back: this.#tour?.back ?? this.getPose(), yaw: 0, pitch: 0, changed: true, hands };
+    const tour = { ...flight, t: 0, playing: true, back: this.#tour?.back ?? this.getPose(), told: -1, yaw: 0, pitch: 0, changed: true, hands };
     this.#tour = tour;
     // Le visiteur peut tourner la tête — glisser, ou les flèches gauche et droite — et avancer ou reculer le long
     // du trajet — la molette, ou les flèches haut et bas. Il ne quitte jamais la route du drone.
@@ -583,6 +587,7 @@ export class SceneEngine {
     this.#camera.quaternion.premultiply(TOUR_TURN.setFromAxisAngle(UP, tour.yaw)).multiply(TOUR_TURN.setFromAxisAngle(RIGHT, tour.pitch));
     const changed = tour.changed;
     tour.changed = false;
+    if (Math.abs(tour.t - tour.told) >= 0.1 || (changed && tour.t !== tour.told)) { tour.told = tour.t; this.#listeners.onTourProgressed(tour.t); }
     if (tour.playing && tour.t >= end) {
       // au bout du trajet la visite se quitte d'elle-même
       this.stopTour();
