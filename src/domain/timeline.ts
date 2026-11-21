@@ -102,4 +102,13 @@ export const FILM_PLACES: readonly FilmPlace[] = [
     view: { x: 685487, y: 627968, distance: 256, azimuth: 204, tilt: 18 },
     prepared: '/films/grognon',
   },
+  {
+    id: 'trakk',
+    name: 'Le TRAKK, Namur',
+    x: 684690,
+    y: 628057,
+    // le centre sportif universitaire de 2014, son chantier, puis le TRAKK : la photo aérienne de 2012 à 2026
+    view: { x: 684700, y: 628050, distance: 230, azimuth: 257, tilt: 24 },
+    prepared: '/films/trakk',
+  },
 ];

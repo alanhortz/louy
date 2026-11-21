@@ -347,6 +347,6 @@ describe('calque des films du temps', () => {
     send({ type: 'films.picked', id: 'grognon' });
     expect(announced.at(-1)!.type).toBe('films.markersChanged');
     send({ type: 'films.toggled' });
-    expect(announced.at(-1)!.features).toHaveLength(1);
+    expect(announced.at(-1)!.features).toHaveLength(FILM_PLACES.length);
   });
 });
