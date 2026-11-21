@@ -224,7 +224,11 @@ export class TileTree {
     tile.state = 'ready';
   }
 
-  /** Un reveil a l'echeance la plus proche : sans lui, une camera immobile ne redemanderait jamais son relief exact. */
+  /**
+   * Un reveil a l'echeance la plus proche : sans lui, une camera immobile ne redemanderait jamais son relief
+   * exact. Un seul reveil est tenu a la fois ; quand il sonne, le suivant est pris parmi les echeances restantes —
+   * chaque tuile a la sienne, et la premiere sonnerie ne doit pas faire oublier les autres.
+   */
   #scheduleRetry(at) {
     if (at >= this._retryDue) return;
     if (this._retryTimer !== null) clearTimeout(this._retryTimer);
@@ -233,6 +237,10 @@ export class TileTree {
       this._retryTimer = null;
       this._retryDue = Infinity;
       this.onRetryDue();
+      const now = performance.now();
+      let next = Infinity;
+      for (const tile of this.tiles.values()) if (tile.retryAt > now && tile.retryAt < next) next = tile.retryAt;
+      if (next < Infinity) this.#scheduleRetry(next);
     }, Math.max(0, at - performance.now()) + 50);
   }
 
