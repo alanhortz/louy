@@ -8,13 +8,15 @@
  * site n'en demande pas davantage, et ne garde aucun trajet.
  */
 
+import { t } from '../i18n/index.ts';
 import { toLambert } from './lambert2008.ts';
 import { inWallonia } from './walloniaOutline.ts';
 import { waterwayAt, type Waterway } from './waterways.ts';
 
 export const VESSEL_SOURCE = 'EuRIS';
 /** Mention demandée par EuRIS à qui réutilise ses services. */
-export const VESSEL_ATTRIBUTION = 'Service « Tracks » incorporé depuis EuRIS (eurisportal.eu)';
+/** Clef de traduction de la mention d'attribution exigée par EuRIS. */
+export const VESSEL_ATTRIBUTION = 'vessels.attribution';
 
 /** Ce qu'un bateau fait, d'après son statut de navigation AIS. */
 export type VesselState = 'underway' | 'moored' | 'anchored' | 'restricted' | 'aground' | 'unknown';
@@ -67,11 +69,8 @@ const STALE_MS = 30 * 60_000;
 
 const STATES: Record<number, VesselState> = { 0: 'underway', 8: 'underway', 1: 'anchored', 5: 'moored', 2: 'restricted', 3: 'restricted', 4: 'restricted', 6: 'aground' };
 
-const STATE_LABELS: Record<VesselState, string> = {
-  underway: 'En route', moored: 'Amarré', anchored: 'Au mouillage', restricted: 'Manœuvre restreinte', aground: 'Échoué', unknown: 'Statut non annoncé',
-};
 export const vesselStateLabel = (vessel: Vessel): string =>
-  (vessel.state === 'underway' && !vessel.moving ? 'À l’arrêt' : STATE_LABELS[vessel.state]);
+  (vessel.state === 'underway' && !vessel.moving ? t('vessels.state.stopped') : t(`vessels.state.${vessel.state}`));
 
 /** Une page de la réponse d'EuRIS : ses bateaux, et s'il en reste à lire. */
 export interface VesselPage { vessels: Vessel[]; more: boolean }
@@ -114,7 +113,7 @@ export function parseVesselPage(payload: unknown, now: number): VesselPage {
 }
 
 /** Légende d'un bateau sur la carte : sa longueur, à défaut « Bateau ». */
-export const vesselLabel = (vessel: Vessel): string => (vessel.length ? `${Math.round(vessel.length)} m` : 'Bateau');
+export const vesselLabel = (vessel: Vessel): string => (vessel.length ? `${Math.round(vessel.length)} m` : t('vessels.label'));
 
 const DEG = Math.PI / 180;
 

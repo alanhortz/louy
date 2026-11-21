@@ -5,6 +5,7 @@
  * mailles de vol (2021-2022), on lit les dates réelles de passage de l'avion.
  */
 
+import { locale, t } from '../i18n/index.ts';
 import { assign, fromPromise, setup, type SnapshotFrom } from 'xstate';
 import type { FlightDates } from '../domain/acquisition.ts';
 import { campaignById, type CampaignId } from '../domain/catalog.ts';
@@ -80,13 +81,12 @@ export const acquisitionMachine = setup({
 
 /* ------------------------------------------------------------- lecture --- */
 
-const month = new Intl.DateTimeFormat('fr-BE', { month: '2-digit', year: 'numeric' });
-
-/** Libellé discret affiché dans l'interface. */
+/** Libellé discret affiché dans l'interface, dans la langue courante. */
 export function acquisitionLabel(snapshot: SnapshotFrom<typeof acquisitionMachine>): string {
   const { campaign, dates } = snapshot.context;
-  if (!dates) return `LiDAR · campagne ${campaignById(campaign)?.label ?? campaign}`;
+  if (!dates) return t('status.campaign', { campaign: campaignById(campaign)?.label ?? campaign });
+  const month = new Intl.DateTimeFormat(locale(), { month: '2-digit', year: 'numeric' });
   const first = month.format(dates.first);
   const last = month.format(dates.last);
-  return first === last ? `LiDAR · vol de ${first}` : `LiDAR · vols de ${first} à ${last}`;
+  return first === last ? t('status.flight', { month: first }) : t('status.flights', { first, last });
 }

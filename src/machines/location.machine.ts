@@ -86,9 +86,10 @@ export const locationMachine = setup({
 
 type LocationSnapshot = SnapshotFrom<typeof locationMachine>;
 
-/** Ce qu'il y a à dire au visiteur, s'il y a quelque chose à dire. */
-export function locationNotice(snapshot: LocationSnapshot): string | null {
-  if (snapshot.matches('locating')) return 'Recherche de votre position…';
+/** Clef de traduction de ce qu'il y a à dire au visiteur, s'il y a quelque chose à dire. */
+export type LocationNoticeKey = 'location.locating' | (typeof LOCATION_FAILURES)[keyof typeof LOCATION_FAILURES];
+export function locationNotice(snapshot: LocationSnapshot): LocationNoticeKey | null {
+  if (snapshot.matches('locating')) return 'location.locating';
   if (snapshot.matches('failed')) return LOCATION_FAILURES[snapshot.context.failure ?? 'unavailable'];
   return null;
 }

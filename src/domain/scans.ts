@@ -163,16 +163,16 @@ export const SCAN_MANIFEST = '/scans/index.json';
  * Noms donnés au visiteur. Le code dit « scan » ; à l'écran on distingue deux
  * choses, chacune avec son calque : l'imagerie aérienne — un lieu filmé au drone
  * et reconstruit en volume dans la carte — et les objets scannés, relevés de près
- * et examinés dans leur visionneuse.
+ * et examinés dans leur visionneuse. Ce sont des clefs de traduction (`src/i18n`) : l'interface les résout.
  */
-export const AERIAL_LABEL = 'Imagerie aérienne';
-export const OBJECTS_LABEL = 'Objets scannés';
-export const SURVIVAL_LABEL = 'Équipements de survie';
-export const FUN_LABEL = 'Fun';
-export const ART_LABEL = 'Street art';
-export const BACKED_LABEL = 'Soutenu par la Wallonie';
-export const ORTHO_LABEL = 'Ortho drone';
-export const CLOUD_LABEL = 'Nuages de points';
+export const AERIAL_LABEL = 'layer.aerial';
+export const OBJECTS_LABEL = 'layer.objects';
+export const SURVIVAL_LABEL = 'layer.survival';
+export const FUN_LABEL = 'layer.fun';
+export const ART_LABEL = 'layer.art';
+export const BACKED_LABEL = 'layer.backed';
+export const ORTHO_LABEL = 'layer.ortho';
+export const CLOUD_LABEL = 'layer.clouds';
 
 /** Équipements de survie reconnus, et le nom de chacun à l'écran. */
 export const SURVIVAL_KINDS = { defibrillator: 'Défibrillateur' } as const;
@@ -319,8 +319,8 @@ export const isBackedScan = (scan: Scan): boolean => scan.backed !== undefined;
 /** L'objet est une œuvre d'art de rue, signalée sur son propre calque. */
 export const isArtScan = (scan: Scan): boolean => scan.art !== undefined;
 
-/** Nom du calque auquel un objet appartient : c'est ce que sa visionneuse annonce. */
-export const objectLabel = (scan: Scan): string =>
+/** Clef du nom du calque auquel un objet appartient : c'est ce que sa visionneuse annonce. */
+export const objectLabel = (scan: Scan) =>
   (isSurvivalScan(scan) ? SURVIVAL_LABEL : isFunScan(scan) ? FUN_LABEL : isArtScan(scan) ? ART_LABEL : isBackedScan(scan) ? BACKED_LABEL : OBJECTS_LABEL);
 
 /** Le scan est un objet, à examiner dans la visionneuse. */

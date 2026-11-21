@@ -86,7 +86,7 @@ describe('machine de la balade', () => {
     expect(heard.at(-1)).toEqual({ type: 'walk.aimChanged', armed: true });
 
     walk.send({ type: 'walk.missed', nearest: { name: 'Esplanade', distance: 3200 } });
-    expect(walk.getSnapshot().context.notice).toContain('Esplanade, à 3,2 km');
+    expect(walk.getSnapshot().context.notice).toEqual({ kind: 'nearest', name: 'Esplanade', distance: 3200 });
 
     const scan = place('esplanade', 10, 20);
     walk.send({ type: 'walk.placed', scan, x: 11, y: 21 });
@@ -108,7 +108,7 @@ describe('machine de la balade', () => {
     walk.send({ type: 'walk.failed' });
     expect(phase()).toBe('aiming');
     expect(heard).toContainEqual({ type: 'walk.ended' });
-    expect(walk.getSnapshot().context.notice).toBe('Ce lieu ne se visite pas à pied');
+    expect(walk.getSnapshot().context.notice).toEqual({ kind: 'notWalkable' });
   });
 });
 
@@ -141,7 +141,7 @@ describe('coordonnées et position du visiteur', () => {
     const position = { x: 684783, y: 627522, accuracy: 20 };
     const found = run(async () => position);
     found.send({ type: 'location.toggled' });
-    expect(locationNotice(found.getSnapshot())).toBe('Recherche de votre position…');
+    expect(locationNotice(found.getSnapshot())).toBe('location.locating');
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(found.getSnapshot().matches('shown')).toBe(true);
     expect(heard).toEqual([{ type: 'location.changed', position }, { type: 'location.flyRequested', position }]);
@@ -151,7 +151,7 @@ describe('coordonnées et position du visiteur', () => {
     const refused = run(() => Promise.reject('denied'));
     refused.send({ type: 'location.toggled' });
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(locationNotice(refused.getSnapshot())).toBe('Localisation refusée par le navigateur');
+    expect(locationNotice(refused.getSnapshot())).toBe('location.denied');
   });
 });
 

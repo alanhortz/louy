@@ -41,8 +41,8 @@ export const TIMELINE_FADE_MS = 900;
 
 /* ----------------------------------------------------- lieux à film --- */
 
-/** Nom du calque qui signale, sur la carte, les lieux dont le film vaut le détour. */
-export const FILMS_LABEL = 'Films du temps';
+/** Clef de traduction du nom du calque qui signale, sur la carte, les lieux dont le film vaut le détour. */
+export const FILMS_LABEL = 'layer.films';
 
 /** Un lieu choisi pour son film : où poser le marqueur, et d'où regarder. */
 export interface FilmPlace {

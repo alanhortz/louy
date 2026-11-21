@@ -7,6 +7,7 @@
  * frontière entre le monde déclaratif de l'application et la boucle d'images.
  */
 
+import { locale } from '../i18n/index.ts';
 import { Color, Group, MathUtils, PerspectiveCamera, Scene as ThreeScene, Vector3, WebGLRenderer, Quaternion,
 } from 'three';
 
@@ -43,7 +44,7 @@ import { VideoCardLayer } from './VideoCardLayer.ts';
 import { SATELLITE_TILT, type SatelliteImage } from '../domain/satellite.ts';
 
 const DEG = Math.PI / 180;
-const METRES = new Intl.NumberFormat('fr-BE', { maximumFractionDigits: 0 });
+const METRES = new Intl.NumberFormat(locale(), { maximumFractionDigits: 0 });
 
 /** Passes de reconstruction de la surface sous contrainte de quantification. */
 const SMOOTHING_PASSES = 14;

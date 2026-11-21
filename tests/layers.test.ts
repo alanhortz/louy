@@ -314,8 +314,8 @@ describe('calque des équipements de survie', () => {
   });
 
   it('s’annonce sous le nom de son calque dans la visionneuse', () => {
-    expect(objectLabel(defibrillator)).toBe('Équipements de survie');
-    expect(objectLabel(lettres)).toBe('Objets scannés');
+    expect(objectLabel(defibrillator)).toBe('layer.survival');
+    expect(objectLabel(lettres)).toBe('layer.objects');
   });
 
   it('ouvre l’équipement touché, sous son propre nom de calque', async () => {
@@ -344,7 +344,7 @@ describe('calque « Fun »', () => {
     expect(parseScans([{ ...arcade, fun: 'flipper' }])).toEqual([]);
     expect(parseScans([{ ...citadelle, fun: 'arcade' }])).toEqual([]);
     expect(parseScans([{ ...arcade, survival: 'defibrillator' }])).toEqual([]);
-    expect(objectLabel(arcade)).toBe('Fun');
+    expect(objectLabel(arcade)).toBe('layer.fun');
   });
 
   it('ouvre l’objet touché, sous son propre nom de calque', async () => {
@@ -373,7 +373,7 @@ describe('calque « Street art »', () => {
     expect(parseScans([{ ...fresque, art: 'musée' }])).toEqual([]);
     expect(parseScans([{ ...citadelle, art: 'street' }])).toEqual([]);
     expect(parseScans([{ ...fresque, fun: 'arcade' }])).toEqual([]);
-    expect(objectLabel(fresque)).toBe('Street art');
+    expect(objectLabel(fresque)).toBe('layer.art');
   });
 
   it('classe en art de rue les œuvres publiées de Namur', () => {
