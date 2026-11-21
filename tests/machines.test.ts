@@ -306,6 +306,24 @@ describe('machine d’activité', () => {
   });
 });
 
+describe('instant de la visite guidée', () => {
+  it('suit ce que le moteur annonce, et repart de zéro au rejeu comme à la sortie', async () => {
+    const { createActor, createMachine } = await import('xstate');
+    const { tourMachine, tourTime } = await import('../src/machines/tour.machine.ts');
+    const host = createActor(createMachine({ invoke: { id: 'tour', src: tourMachine } })).start();
+    const tour = host.getSnapshot().children.tour!;
+    const flight = { id: 'v', name: 'v', x: 0, y: 0, drone: 'd', fov: 40, aspect: 1.78, credit: { author: 'a', title: 't', url: 'https://exemple.be', licence: 'CC BY' }, track: [{ t: 0, x: 0, y: 0, altitude: 0, q: [0, 0, 0, 1] }, { t: 10, x: 1, y: 1, altitude: 0, q: [0, 0, 0, 1] }] };
+    tour.send({ type: 'tour.requested', flight } as never);
+    tour.send({ type: 'tour.progressed', t: 4.2 } as never);
+    expect(tourTime(tour.getSnapshot() as never)).toBe(4.2);
+    tour.send({ type: 'tour.replayed' } as never);
+    expect(tourTime(tour.getSnapshot() as never)).toBe(0);
+    tour.send({ type: 'tour.progressed', t: 7 } as never);
+    tour.send({ type: 'tour.left' } as never);
+    expect(tourTime(tour.getSnapshot() as never)).toBe(0);
+  });
+});
+
 describe('champ de la caméra du drone', () => {
   it('est montré d’office, et se cache puis se remontre à la demande, en l’annonçant', async () => {
     const { createActor, createMachine } = await import('xstate');

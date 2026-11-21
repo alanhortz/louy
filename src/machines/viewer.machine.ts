@@ -33,6 +33,7 @@ export type ViewerEmitted =
   | { type: 'viewer.walkFailed' }
   | { type: 'viewer.tourEnded' }
   | { type: 'viewer.tourHeld' }
+  | { type: 'viewer.tourProgressed'; t: number }
   | { type: 'viewer.clipPicked'; clipId: string }
   | { type: 'viewer.captured'; blob: Blob | null; blank: boolean };
 
@@ -158,6 +159,7 @@ export const viewerMachine = viewer.createMachine({
         'viewer.tourRestarted': { actions: 'command' },
         'engine.tourEnded': { actions: sendParent((): ViewerEmitted => ({ type: 'viewer.tourEnded' })) },
         'engine.tourHeld': { actions: sendParent((): ViewerEmitted => ({ type: 'viewer.tourHeld' })) },
+        'engine.tourProgressed': { actions: sendParent(({ event }): ViewerEmitted => ({ type: 'viewer.tourProgressed', t: event.t })) },
         'viewer.vrRequested': { actions: 'command' },
         'engine.clipPicked': { actions: sendParent(({ event }): ViewerEmitted => ({ type: 'viewer.clipPicked', clipId: event.clipId })) },
         'engine.immersiveChanged': { actions: assign({ immersive: ({ event }) => event.immersive }) },

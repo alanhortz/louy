@@ -86,6 +86,7 @@ export type EngineReport =
   | { type: 'engine.ready' }
   | { type: 'engine.tourEnded' }
   | { type: 'engine.tourHeld' }
+  | { type: 'engine.tourProgressed'; t: number }
   | { type: 'engine.failed'; reason: string }
   | { type: 'engine.viewSettled'; pose: Pose }
   | { type: 'engine.poseCaptured'; pose: Pose }
@@ -148,6 +149,7 @@ export const engineActor = fromCallback<EngineCommand, EngineInput, EngineReport
           onWalkFailed: () => sendBack({ type: 'engine.walkFailed' }),
           onTourEnded: () => sendBack({ type: 'engine.tourEnded' }),
           onTourHeld: () => sendBack({ type: 'engine.tourHeld' }),
+          onTourProgressed: (t) => sendBack({ type: 'engine.tourProgressed', t }),
           onImmersiveChanged: (immersive) => sendBack({ type: 'engine.immersiveChanged', immersive }),
           onClipPicked: (clipId) => sendBack({ type: 'engine.clipPicked', clipId }),
           onOverlayPicked: (layer, id, members) =>

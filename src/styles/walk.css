@@ -117,6 +117,29 @@ body:has(.walk-walking) .stage canvas:active { cursor: grabbing; }
 .drone-halo[hidden] { display: none; }
 .drone-feed { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; border: 1px solid var(--glass-border); background: #000; object-fit: cover; }
 
+/*
+ * Au cockpit, la vidéo du vol en vignette, en haut à droite, calée sur l'instant de la visite : l'indicateur
+ * d'altitude lui cède la place le temps du vol. Sur petit écran elle se serre au bord.
+ */
+.tour-feed {
+  position: fixed;
+  top: calc(28px + var(--safe-top));
+  right: calc(36px + var(--safe-right));
+  z-index: 100;
+  width: 232px;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: #000;
+  object-fit: cover;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+body:has(.tour-feed) .indicator { display: none; }
+@media (max-width: 720px) {
+  .tour-feed { top: calc(10px + var(--safe-top)); right: calc(10px + var(--safe-right)); width: min(42vw, 200px); border-radius: 8px; }
+}
+
 /* Vue cockpit sur téléphone tenu droit : la barre garde le nom du vol et ses quatre boutons, sans le mode d'emploi. */
 @media (max-width: 720px) {
   .tour-bar { left: calc(8px + var(--safe-left)); right: calc(8px + var(--safe-right)); width: auto; max-width: none; transform: none; gap: 6px; padding-left: 14px; }

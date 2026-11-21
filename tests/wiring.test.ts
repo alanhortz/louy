@@ -32,7 +32,7 @@ const ANNOUNCEMENTS = [
   // vue satellite
   'satellite.changed',
   // visite guidée
-  'tour.started', 'tour.playChanged', 'tour.ended', 'tour.restarted', 'tour.sightChanged', 'viewer.tourEnded', 'viewer.tourHeld',
+  'tour.started', 'tour.playChanged', 'tour.ended', 'tour.restarted', 'tour.sightChanged', 'viewer.tourEnded', 'viewer.tourHeld', 'viewer.tourProgressed',
   // réglages
   'settings.changed',
   // balade au sol
