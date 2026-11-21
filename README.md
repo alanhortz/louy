@@ -1,6 +1,6 @@
 # L’Oûy
 
-**La Wallonie vue par l’œil du LiDAR.** *L’oûy* — « l’œil », en wallon.
+**Voir la Wallonie de près, de haut, d’avant.** Explorer le territoire en volume, et remonter le temps. *L’oûy* — « l’œil », en wallon.
 
 Un viewer 3D qui dessine le relief de la Wallonie en nuage de points, directement
 dans le navigateur, à partir des relevés LiDAR aériens du Service public de
