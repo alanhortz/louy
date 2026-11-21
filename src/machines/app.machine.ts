@@ -22,7 +22,6 @@ import { periodPatch } from '../domain/period.ts';
 import { timelineSteps, timelineTint, type FilmFraming } from '../domain/timeline.ts';
 import { HOME_IMAGERY, PINNED_IMAGERY, encodeView, homePose, viewUrl, type View } from '../domain/view.ts';
 import type { SupportReport } from '../services/capabilities.ts';
-import { isAcknowledged } from '../services/preferences.ts';
 import { readRecentSearches } from '../services/recentSearches.ts';
 import type { TelemetryBuffer } from '../services/telemetry.ts';
 import { acquisitionMachine } from './acquisition.machine.ts';
@@ -157,17 +156,14 @@ const STREET_HEIGHT = 320;
 const CAMERA_HEIGHT = 450;
 
 /**
- * Panneau déplié à l'ouverture — un seul, le rail n'en montre qu'un à la fois.
- * L'aide à la navigation s'ouvre tant que le visiteur ne l'a pas refermée
- * lui-même ; ensuite, un grand écran ouvre sur les calques et un petit écran
- * laisse toute la place à la carte.
+ * Panneau déplié à l'ouverture — un seul, le rail n'en montre qu'un à la fois :
+ * un grand écran ouvre sur les calques, un petit écran laisse toute la place à la carte.
  */
 /** La région d'époque du lieu sélectionné, ou de celui où l'on marche, dans la scène du visiteur. */
 const periodOf = (context: AppContext) =>
   ({ type: 'viewer.periodChanged' as const, patch: periodPatch(context.walk ?? context.imagery.selected, context.view.scene) });
 
 function initialPanels(context: AppContext): PanelId[] {
-  if (!isAcknowledged('controls')) return ['controls'];
   return context.support?.compact ? [] : ['layers'];
 }
 
