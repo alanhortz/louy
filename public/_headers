@@ -8,6 +8,20 @@
 /data/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 
+# Les listes qui désignent des fichiers lourds (vols de drone, images satellite, sports) changent à chaque ajout :
+# revalidées à chaque visite, comme la liste des relevés — un téléphone qui gardait l'ancienne a manqué un vol.
+/data/drone-flights.json
+  ! Cache-Control
+  Cache-Control: no-cache
+
+/data/satellite.json
+  ! Cache-Control
+  Cache-Control: no-cache
+
+/data/sports.json
+  ! Cache-Control
+  Cache-Control: no-cache
+
 # Relevés 3D, séquences et images de la vue satellite : gros fichiers. Leur adresse porte l'empreinte de leur
 # contenu (`?v=…`, posée à la construction) : le navigateur les garde un an sans jamais les redemander, et un
 # fichier refait change d'adresse.
