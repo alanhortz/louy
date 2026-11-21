@@ -69,6 +69,10 @@ describe('photos d’un objet', () => {
     expect(parseScans([{ ...citadel, photos }])).toEqual([]);
     // une note accompagne un objet comme un lieu ; un tracé, lui, est toujours un lieu
     expect(parseScans([{ ...letters, note: 'Posées en 2020.' }])).toHaveLength(1);
+    // un lien termine la note : une étiquette et une adresse sûre, rien d'autre
+    expect(parseScans([{ ...letters, note: 'Street Art by', link: { label: 'whoups.be', url: 'https://www.whoups.be/' } }])).toHaveLength(1);
+    expect(parseScans([{ ...letters, link: { label: '', url: 'https://www.whoups.be/' } }])).toHaveLength(0);
+    expect(parseScans([{ ...letters, link: { label: 'x', url: 'http://www.whoups.be/' } }])).toHaveLength(0);
     expect(parseScans([{ ...citadel, note: 'Tracé des autoroutes.', trace: true }])).toHaveLength(1);
     expect(parseScans([{ ...letters, trace: true }])).toEqual([]);
   });
