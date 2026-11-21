@@ -1,17 +1,12 @@
 import { useSelector } from '@xstate/react';
 import { useEffect, useState } from 'react';
-import { frameState, hasCameraView, selectedCamera, type FrameState } from '../../machines/cameras.machine.ts';
+import { useTranslation } from 'react-i18next';
+import { frameState, hasCameraView, selectedCamera } from '../../machines/cameras.machine.ts';
 import { CAMERA_SOURCE, FRAME_REFRESH_MS, positionLabel, type RoadCamera } from '../../services/cameras.ts';
+import { t } from '../../i18n/index.ts';
 import { useChild } from '../actors.ts';
 import { time } from '../format.ts';
 import { Panel } from './Panel.tsx';
-
-const BADGE: Record<FrameState, string> = {
-  idle: 'SOURCE · —',
-  loading: 'IMAGE · CHARGEMENT',
-  error: 'IMAGE · INDISPONIBLE',
-  ready: 'IMAGE FIXE · OK',
-};
 
 const REFRESH_MINUTES = FRAME_REFRESH_MS / 60_000;
 
@@ -31,22 +26,21 @@ function useTypewriter(text: string): string {
 
 function summary(camera: RoadCamera | null, total: number, loadedAt: number | null, posed: boolean): string {
   if (!camera) {
-    return total > 0
-      ? `${total} CAMÉRAS EN VEILLE · AUCUNE SÉLECTIONNÉE · CLIQUEZ UNE CAMÉRA POUR L’ACTIVER`
-      : 'Activez les caméras pour afficher le réseau routier wallon.';
+    return total > 0 ? t('camera.summaryIdle', { count: total }) : t('camera.summaryOff');
   }
   return [
     camera.route.toUpperCase(),
     camera.label.toUpperCase(),
-    loadedAt ? `IMAGE DE ${time(loadedAt)}` : 'IMAGE EN ATTENTE',
-    `REDEMANDÉE TOUTES LES ${REFRESH_MINUTES} MIN`,
-    camera.approximate ? 'POSITION = LOCALITÉ, PAS LE MÂT' : `POSITION AU ${positionLabel(camera)}`,
-    ...(posed ? ['IMAGE POSÉE SUR LE RELIEF'] : []),
+    loadedAt ? t('camera.imageAt', { time: time(loadedAt) }) : t('camera.imagePending'),
+    t('camera.refreshed', { minutes: REFRESH_MINUTES }),
+    camera.approximate ? t('camera.positionApprox') : t('camera.positionAt', { position: positionLabel(camera) }),
+    ...(posed ? [t('camera.posed')] : []),
   ].join(' · ');
 }
 
 /** Lecteur des caméras routières : image fixe renouvelée, navigation dans la liste. */
 export function CameraPanel() {
+  const { t } = useTranslation();
   const actor = useChild('cameras');
   const enabled = useSelector(actor, (snapshot) => snapshot.matches('visible'));
   const cameras = useSelector(actor, (snapshot) => snapshot.context.cameras);
@@ -60,20 +54,20 @@ export function CameraPanel() {
   const meta = camera
     ? `${camera.place} · ${camera.route} · ${positionLabel(camera)} · ${CAMERA_SOURCE}`
     : navigable
-      ? `${cameras.length} caméras chargées · cliquez une caméra pour l’activer`
-      : 'Activez les caméras pour charger le réseau routier';
+      ? t('camera.metaLoaded', { count: cameras.length })
+      : t('camera.metaOff');
 
   return (
-    <Panel id="camera" title="Caméras" className="camera-panel">
+    <Panel id="camera" title={t('camera.title')} className="camera-panel">
       <div className={`cctv-frame-wrap ${state === 'loading' ? 'loading' : ''} ${frame ? 'has-frame' : ''}`}>
         <img
           className={`cctv-frame ${frame ? 'active' : ''}`}
           src={frame?.url}
-          alt={camera ? `Image de la caméra ${camera.label}` : ''}
+          alt={camera ? t('camera.frameAlt', { label: camera.label }) : ''}
         />
       </div>
       <div className="cctv-source-badge" role="status" aria-live="polite" data-frame-state={state}>
-        {BADGE[state]}
+        {t(`camera.badge.${state}`)}
       </div>
       <div className="cctv-meta">{meta}</div>
 
@@ -83,7 +77,7 @@ export function CameraPanel() {
           className={`scene-btn ${enabled ? 'active' : ''}`}
           onClick={() => actor.send({ type: 'cameras.toggled' })}
         >
-          {enabled ? 'CAMÉRAS ON' : 'CAMÉRAS OFF'}
+          {enabled ? t('camera.on') : t('camera.off')}
         </button>
         <button
           type="button"
@@ -91,7 +85,7 @@ export function CameraPanel() {
           disabled={!navigable}
           onClick={() => actor.send({ type: 'cameras.nearestRequested' })}
         >
-          LA PLUS PROCHE
+          {t('camera.nearest')}
         </button>
       </div>
 
@@ -102,11 +96,11 @@ export function CameraPanel() {
           disabled={!navigable}
           onClick={() => actor.send({ type: 'cameras.stepped', delta: -1 })}
         >
-          PRÉC.
+          {t('camera.previous')}
         </button>
         <select
           className="glass-select"
-          aria-label="Caméra"
+          aria-label={t('camera.select')}
           disabled={!navigable}
           value={camera?.id ?? ''}
           onChange={(event) => {
@@ -114,7 +108,7 @@ export function CameraPanel() {
             actor.send({ type: 'cameras.focusRequested' });
           }}
         >
-          <option value="" disabled>Choisir…</option>
+          <option value="" disabled>{t('camera.choose')}</option>
           {cameras.map((item) => (
             <option key={item.id} value={item.id}>{item.route} · {item.label}</option>
           ))}
@@ -125,7 +119,7 @@ export function CameraPanel() {
           disabled={!navigable}
           onClick={() => actor.send({ type: 'cameras.stepped', delta: 1 })}
         >
-          SUIV.
+          {t('camera.next')}
         </button>
       </div>
 
@@ -134,12 +128,10 @@ export function CameraPanel() {
           type="button"
           className="scene-btn"
           disabled={!camera}
-          title={posed
-            ? 'Se tenir à la place de la caméra, dans son axe ; son image est posée sur le relief'
-            : 'Survoler l’emplacement de la caméra'}
+          title={posed ? t('camera.viewHint') : t('camera.frameHint')}
           onClick={() => actor.send({ type: 'cameras.focusRequested' })}
         >
-          {posed ? 'VUE CAMÉRA' : 'CADRER'}
+          {posed ? t('camera.view') : t('camera.frame')}
         </button>
         <button
           type="button"
@@ -147,11 +139,11 @@ export function CameraPanel() {
           disabled={!camera}
           onClick={() => actor.send({ type: 'cameras.dismissed' })}
         >
-          RELÂCHER
+          {t('camera.release')}
         </button>
       </div>
 
-      <div className="cctv-summary-label">RÉSUMÉ</div>
+      <div className="cctv-summary-label">{t('camera.summary')}</div>
       <div className="cctv-summary">{typed}</div>
     </Panel>
   );

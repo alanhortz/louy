@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { AircraftPhoto as Photo } from '../../domain/aircraftPhotos.ts';
 import { loadAircraftPhotos } from '../../services/aircraft.ts';
 import { AirframePreview } from './AirframePreview.tsx';
@@ -15,6 +16,7 @@ interface AircraftPhotoProps {
  * pour ce type — ou qu'elle ne charge pas —, la maquette en volume la remplace.
  */
 export function AircraftPhoto({ type, category }: AircraftPhotoProps) {
+  const { t } = useTranslation();
   const [photos, setPhotos] = useState<Record<string, Photo> | null>(null);
   const [broken, setBroken] = useState<string | null>(null);
   useEffect(() => {
@@ -29,9 +31,9 @@ export function AircraftPhoto({ type, category }: AircraftPhotoProps) {
 
   return (
     <figure className="aircraft-photo">
-      <img src={photo.url} alt={`${photo.subject} (photo du type d’appareil)`} loading="lazy" onError={() => setBroken(photo.url)} />
+      <img src={photo.url} alt={t('aircraft.photoAlt', { subject: photo.subject })} loading="lazy" onError={() => setBroken(photo.url)} />
       <figcaption>
-        Photo du type · <a href={photo.page} target="_blank" rel="noreferrer">{photo.author}</a> · {photo.licence} · Wikimedia Commons
+        {t('aircraft.photoCredit')} · <a href={photo.page} target="_blank" rel="noreferrer">{photo.author}</a> · {photo.licence} · Wikimedia Commons
       </figcaption>
     </figure>
   );

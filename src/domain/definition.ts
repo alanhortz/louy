@@ -13,9 +13,10 @@ import type { Scan } from './scans.ts';
 
 export type Definition = 'standard' | 'high';
 
-export const DEFINITIONS: readonly { id: Definition; label: string; hint: string }[] = [
-  { id: 'standard', label: 'Standard', hint: 'Images à 1920 pixels, quatre par seconde : léger, rapide à charger.' },
-  { id: 'high', label: 'Haute', hint: 'Images à leur pleine résolution, huit par seconde : plus précis, plus lourd.' },
+/** Les deux définitions, dans l'ordre d'affichage ; libellé et explication : clefs `settings.<id>` et `settings.<id>Hint`. */
+export const DEFINITIONS: readonly { id: Definition }[] = [
+  { id: 'standard' },
+  { id: 'high' },
 ];
 
 export const isDefinition = (value: unknown): value is Definition => value === 'standard' || value === 'high';

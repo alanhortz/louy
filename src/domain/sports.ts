@@ -7,7 +7,8 @@
 import { isClip, type ScanClip } from './clips.ts';
 import type { ScanCredit } from './scans.ts';
 
-export const SPORTS_LABEL = 'Sports';
+/** Clef de traduction du nom du calque. */
+export const SPORTS_LABEL = 'layer.sports';
 
 export interface SportSequence {
   id: string;

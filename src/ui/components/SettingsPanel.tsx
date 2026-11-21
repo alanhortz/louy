@@ -1,4 +1,5 @@
 import { useSelector } from '@xstate/react';
+import { useTranslation } from 'react-i18next';
 import { DEFINITIONS, hasHighDefinition } from '../../domain/definition.ts';
 import { chosenDefinition } from '../../machines/settings.machine.ts';
 import { AERIAL_LAYER, CLOUD_LAYER, ORTHO_LAYER } from '../../machines/scans.layer.ts';
@@ -8,17 +9,17 @@ import { Panel } from './Panel.tsx';
 
 /** Réglages de l'application : ce qui vaut partout, comme dans un lecteur vidéo. */
 export function SettingsPanel() {
+  const { t } = useTranslation();
   const settings = useChild('settings');
   const definition = useSelector(settings, chosenDefinition);
-  const hint = DEFINITIONS.find((entry) => entry.id === definition)!.hint;
   // combien de relevés existent dans les deux définitions : ce que le réglage change vraiment
   const count = (layer: string) => useSelector(useLayer<Scan>(layer), (snapshot) => snapshot.context.items.filter(hasHighDefinition).length);
   const available = count(AERIAL_LAYER) + count(ORTHO_LAYER) + count(CLOUD_LAYER);
 
   return (
-    <Panel id="settings" title="Réglages" className="settings-panel">
-      <div className="cctv-summary-label">DÉFINITION DES RELEVÉS</div>
-      <div className="cctv-controls" role="radiogroup" aria-label="Définition des relevés">
+    <Panel id="settings" title={t('settings.title')} className="settings-panel">
+      <div className="cctv-summary-label">{t('settings.definition')}</div>
+      <div className="cctv-controls" role="radiogroup" aria-label={t('settings.definitionLabel')}>
         {DEFINITIONS.map((entry) => (
           <button
             key={entry.id}
@@ -26,18 +27,16 @@ export function SettingsPanel() {
             role="radio"
             aria-checked={entry.id === definition}
             className={entry.id === definition ? 'scene-btn active' : 'scene-btn'}
-            title={entry.hint}
+            title={t(`settings.${entry.id}Hint`)}
             onClick={() => settings.send({ type: 'settings.definitionChosen', definition: entry.id })}
           >
-            {entry.label.toUpperCase()}
+            {t(`settings.${entry.id}`).toUpperCase()}
           </button>
         ))}
       </div>
-      <p className="imagery-note">{hint}</p>
+      <p className="imagery-note">{t(`settings.${definition}Hint`)}</p>
       <p className="imagery-note">
-        {available > 0
-          ? `${available} relevé${available > 1 ? 's existent' : ' existe'} dans les deux définitions : passez de l’une à l’autre pour comparer. Les autres restent en standard.`
-          : 'Aucun relevé n’existe encore en haute définition : tout reste affiché en standard.'}
+        {available > 0 ? t('settings.available', { count: available }) : t('settings.none')}
       </p>
     </Panel>
   );

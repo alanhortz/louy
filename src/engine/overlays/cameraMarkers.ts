@@ -10,6 +10,7 @@
  * © 2026 Bilawal Sidhu, licence MIT.
  */
 
+import { t } from '../../i18n/index.ts';
 import type { OverlayFeature, OverlayStyle } from '../OverlayLayer.ts';
 import { TINT_ACTIVE, TINT_IDLE, tinted } from './tint.ts';
 
@@ -55,20 +56,20 @@ export const cameraMarkerStyle: OverlayStyle<CameraFeature> = {
     element.innerHTML =
       '<img class="scan-marker-icon" alt="" width="18" height="18" />'
       + '<span class="camera-card"><img alt="" width="96" height="54" /></span>'
-      + '<span class="scan-caption"><b>Caméra</b><span></span></span>';
+      + '<span class="scan-caption"><b></b><span></span></span>';
     return element;
   },
   paint(element, camera, { active, detailed }) {
     const [icon, card, caption] = element.children as unknown as [HTMLImageElement, HTMLElement, HTMLElement];
     const thumbnail = card.firstElementChild as HTMLImageElement;
-    element.setAttribute('aria-label', `Caméra ${camera.label}`);
+    element.setAttribute('aria-label', t('marker.cameraLabel', { label: camera.label }));
     element.classList.toggle('active', active);
     const icons = camera.view ? ICONS.view : ICONS.plain;
     icon.src = active ? icons.active : icons.idle;
     // une caméra qui a sa vue se distingue de loin : icône plus grande, anneau d'accent
     element.classList.toggle('has-view', camera.view);
     icon.width = icon.height = camera.view ? 26 : 18;
-    caption.firstElementChild!.textContent = camera.view ? 'Caméra · vue' : 'Caméra';
+    caption.firstElementChild!.textContent = t(camera.view ? 'marker.cameraView' : 'marker.camera');
     caption.lastElementChild!.textContent = camera.label;
     // de loin, des centaines de légendes se recouvriraient : seule la caméra sélectionnée garde la sienne
     caption.hidden = !detailed && !active;

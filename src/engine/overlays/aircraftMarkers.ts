@@ -5,6 +5,7 @@
  * car son orientation à l'écran dépend aussi du cap de la vue.
  */
 
+import { t } from '../../i18n/index.ts';
 import type { Attitude } from '../../domain/airframes.ts';
 import type { OverlayFeature, OverlayStyle } from '../OverlayLayer.ts';
 import { TINT_ACTIVE, TINT_IDLE, tinted } from './tint.ts';
@@ -48,7 +49,7 @@ export const aircraftMarkerStyle: OverlayStyle<AircraftFeature> = {
   paint(element, aircraft, { active }) {
     const [icon, caption] = element.children as unknown as [HTMLImageElement, HTMLElement];
     const [callsign, detail] = caption.children as unknown as [HTMLElement, HTMLElement];
-    const kind = aircraft.military === 'belgian' ? 'Avion militaire belge' : aircraft.military === 'foreign' ? 'Avion militaire étranger' : 'Avion';
+    const kind = t(aircraft.military === 'belgian' ? 'marker.aircraftBelgianMilitary' : aircraft.military === 'foreign' ? 'marker.aircraftForeignMilitary' : 'marker.aircraft');
     element.setAttribute('aria-label', `${kind} ${aircraft.label}, ${aircraft.detail}`);
     element.classList.toggle('active', active);
     icon.src = active ? ICON_ACTIVE : ICON_IDLE;

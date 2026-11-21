@@ -3,10 +3,12 @@ import {
 } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PROJECT } from '../../config/project.ts';
 import { TIMELINE_FADE_MS, timelinePosition } from '../../domain/timeline.ts';
 import { timelinePhase, timelineProgress } from '../../machines/timeline.machine.ts';
 import { useChild } from '../actors.ts';
+import { vintageName } from '../labels.ts';
 
 /** Quitte le plein écran s'il est actif ; sans effet là où il n'existe pas (iPhone). */
 const leaveFullscreen = () => { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); };
@@ -17,6 +19,7 @@ const leaveFullscreen = () => { if (document.fullscreenElement) void document.ex
  * chaque geste est un événement de la machine `timeline`.
  */
 export function TimeFilm() {
+  const { t } = useTranslation();
   const timeline = useChild('timeline');
   const phase = useSelector(timeline, timelinePhase);
   const steps = useSelector(timeline, (snapshot) => snapshot.context.steps);
@@ -64,9 +67,11 @@ export function TimeFilm() {
   const close = () => timeline.send({ type: 'timeline.closed', by: 'button' });
   const current = frames[index];
   const preparingStep = steps[Math.min(cursor, steps.length - 1)];
+  // le libellé d'un millésime est traduit (saison) ; celui enregistré dans le film reste le secours
+  const name = (step: { vintage: string; label: string }) => vintageName(step.vintage, step.label);
 
   return (
-    <div className="film" role="dialog" aria-modal="true" aria-label="Film du temps">
+    <div className="film" role="dialog" aria-modal="true" aria-label={t('film.title')}>
       {presenting && (
         <div className="film-frames" style={{ '--film-fade': `${TIMELINE_FADE_MS}ms` } as React.CSSProperties}>
           {frames.map((frame, at) => (
@@ -77,37 +82,34 @@ export function TimeFilm() {
 
       <header className="film-header">
         <span className="film-brand">{PROJECT.name}</span>
-        <span className="film-title">Film du temps</span>
-        <button type="button" className="rail-item" title="Fermer" aria-label="Fermer le film du temps" onClick={close}>
+        <span className="film-title">{t('film.title')}</span>
+        <button type="button" className="rail-item" title={t('film.close')} aria-label={t('film.closeFilm')} onClick={close}>
           <XMarkIcon className="rail-glyph" aria-hidden="true" />
         </button>
       </header>
 
       {phase === 'fetching' && (
         <div className="film-center" role="status">
-          <p className="film-kicker">Chargement du film</p>
+          <p className="film-kicker">{t('film.loading')}</p>
           <div className="film-progress film-progress-busy" aria-hidden="true"><span /></div>
-          <p className="film-note">Ce lieu a son film déjà prêt</p>
+          <p className="film-note">{t('film.ready')}</p>
         </div>
       )}
 
       {phase === 'preparing' && (
         <div className="film-center" role="status">
-          <p className="film-kicker">Préparation du film</p>
-          <p className="film-big">{preparingStep?.label}</p>
+          <p className="film-kicker">{t('film.preparing')}</p>
+          <p className="film-big">{preparingStep && name(preparingStep)}</p>
           <div className="film-progress" aria-hidden="true"><span style={{ width: `${Math.round(progress * 100)}%` }} /></div>
-          <p className="film-note">
-            Photo aérienne {Math.min(cursor + 1, steps.length)} sur {steps.length} · chacune est chargée entièrement
-            avant d’être montrée
-          </p>
+          <p className="film-note">{t('film.preparingNote', { n: Math.min(cursor + 1, steps.length), total: steps.length })}</p>
         </div>
       )}
 
       {phase === 'empty' && (
         <div className="film-center" role="alert">
-          <p className="film-kicker">Film indisponible</p>
-          <p className="film-note">Aucune photo aérienne n’a pu être chargée pour cette vue.</p>
-          <button type="button" className="scene-btn" onClick={close}>FERMER</button>
+          <p className="film-kicker">{t('film.empty')}</p>
+          <p className="film-note">{t('film.emptyNote')}</p>
+          <button type="button" className="scene-btn" onClick={close}>{t('film.closeButton')}</button>
         </div>
       )}
 
@@ -116,11 +118,11 @@ export function TimeFilm() {
           <div className="film-frise-head">
             <div>
               <span className="film-year" aria-live="polite">{current.year}</span>
-              <span className="film-label">Orthophoto SPW · {current.label}</span>
+              <span className="film-label">{t('film.frame', { label: name(current) })}</span>
             </div>
             <div className="film-controls">
               <button
-                type="button" className="rail-item" title="Photo précédente (←)" aria-label="Photo précédente"
+                type="button" className="rail-item" title={t('film.previousKey')} aria-label={t('film.previous')}
                 disabled={index === 0}
                 onClick={() => timeline.send({ type: 'timeline.stepped', delta: -1, by: 'button' })}
               >
@@ -128,8 +130,8 @@ export function TimeFilm() {
               </button>
               <button
                 type="button" className={phase === 'playing' ? 'rail-item active' : 'rail-item'}
-                title={phase === 'playing' ? 'Mettre en pause (espace)' : 'Lire (espace)'}
-                aria-label={phase === 'playing' ? 'Mettre le film en pause' : 'Lire le film'}
+                title={phase === 'playing' ? t('film.pauseKey') : t('film.playKey')}
+                aria-label={phase === 'playing' ? t('film.pause') : t('film.play')}
                 aria-pressed={phase === 'playing'}
                 onClick={() => timeline.send({ type: 'timeline.playToggled' })}
               >
@@ -138,7 +140,7 @@ export function TimeFilm() {
                   : <PlayIcon className="rail-glyph" aria-hidden="true" />}
               </button>
               <button
-                type="button" className="rail-item" title="Photo suivante (→)" aria-label="Photo suivante"
+                type="button" className="rail-item" title={t('film.nextKey')} aria-label={t('film.next')}
                 disabled={index === last}
                 onClick={() => timeline.send({ type: 'timeline.stepped', delta: 1, by: 'button' })}
               >
@@ -147,7 +149,7 @@ export function TimeFilm() {
             </div>
           </div>
 
-          <div className="film-track" role="group" aria-label="Frise des photos aériennes">
+          <div className="film-track" role="group" aria-label={t('film.track')}>
             <span className="film-track-fill" style={{ width: `${timelinePosition(current.year, frames) * 100}%` }} />
             {frames.map((frame, at) => (
               <button
@@ -155,8 +157,8 @@ export function TimeFilm() {
                 type="button"
                 className={at === index ? 'film-tick here' : at < index ? 'film-tick past' : 'film-tick'}
                 style={{ left: `${timelinePosition(frame.year, frames) * 100}%` }}
-                title={frame.label}
-                aria-label={`Photo aérienne ${frame.label}`}
+                title={name(frame)}
+                aria-label={t('film.tick', { label: name(frame) })}
                 aria-current={at === index}
                 onClick={() => timeline.send({ type: 'timeline.seeked', index: at, by: 'frise' })}
               />
@@ -164,13 +166,11 @@ export function TimeFilm() {
           </div>
           <div className="film-ends">
             <span>{frames[0]?.year}</span>
-            <span className="film-hint">← → changer de photo · espace lire ou mettre en pause · Échap quitter</span>
+            <span className="film-hint">{t('film.hint')}</span>
             <span>{frames[last]?.year}</span>
           </div>
           {skipped.length > 0 && (
-            <p className="film-skipped">
-              Sans photo aérienne ici : {skipped.map((step) => step.label).join(', ')}
-            </p>
+            <p className="film-skipped">{t('film.skipped', { labels: skipped.map(name).join(', ') })}</p>
           )}
         </footer>
       )}

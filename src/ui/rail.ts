@@ -17,22 +17,22 @@ import { PointCloudIcon } from './components/PointCloudIcon.tsx';
 
 export interface RailItem {
   panel: PanelId;
-  /** Nom lu par les lecteurs d'écran et montré en infobulle : l'icône ne suffit jamais seule. */
-  label: string;
+  /** Clef de traduction du nom lu par les lecteurs d'écran et montré en infobulle : l'icône ne suffit jamais seule. */
+  label: `rail.${PanelId}`;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
 }
 
 export const RAIL_ITEMS: readonly RailItem[] = [
-  { panel: 'layers', label: 'Calques', Icon: Square3Stack3DIcon },
-  { panel: 'render', label: 'Rendu', Icon: SwatchIcon },
-  { panel: 'camera', label: 'Caméras', Icon: VideoCameraIcon },
-  { panel: 'imagery', label: 'Imagerie', Icon: PhotoIcon },
-  { panel: 'orthophoto', label: 'Ortho drone', Icon: GlobeEuropeAfricaIcon },
-  { panel: 'clouds', label: 'Nuages de points', Icon: PointCloudIcon },
-  { panel: 'drones', label: 'Vols de drone', Icon: DroneIcon },
-  { panel: 'videos', label: 'Vidéos', Icon: PlayCircleIcon },
-  { panel: 'aircraft', label: 'Avions', Icon: PaperAirplaneIcon },
-  { panel: 'vessels', label: 'Bateaux', Icon: LifebuoyIcon },
-  { panel: 'settings', label: 'Réglages', Icon: Cog6ToothIcon },
-  { panel: 'about', label: 'À propos', Icon: InformationCircleIcon },
+  { panel: 'layers', label: 'rail.layers', Icon: Square3Stack3DIcon },
+  { panel: 'render', label: 'rail.render', Icon: SwatchIcon },
+  { panel: 'camera', label: 'rail.camera', Icon: VideoCameraIcon },
+  { panel: 'imagery', label: 'rail.imagery', Icon: PhotoIcon },
+  { panel: 'orthophoto', label: 'rail.orthophoto', Icon: GlobeEuropeAfricaIcon },
+  { panel: 'clouds', label: 'rail.clouds', Icon: PointCloudIcon },
+  { panel: 'drones', label: 'rail.drones', Icon: DroneIcon },
+  { panel: 'videos', label: 'rail.videos', Icon: PlayCircleIcon },
+  { panel: 'aircraft', label: 'rail.aircraft', Icon: PaperAirplaneIcon },
+  { panel: 'vessels', label: 'rail.vessels', Icon: LifebuoyIcon },
+  { panel: 'settings', label: 'rail.settings', Icon: Cog6ToothIcon },
+  { panel: 'about', label: 'rail.about', Icon: InformationCircleIcon },
 ];

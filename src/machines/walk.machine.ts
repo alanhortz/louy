@@ -31,12 +31,14 @@ interface WalkContext {
   /** Lieu où l'on marche, ou vers lequel on descend. */
   scan: Scan | null;
   /** Pourquoi le dernier point désigné n'a mené nulle part. */
-  notice: string | null;
+  notice: WalkNotice | null;
 }
 
-const KILOMETRES = new Intl.NumberFormat('fr-BE', { maximumFractionDigits: 1 });
-const farAway = (distance: number): string =>
-  (distance < 1000 ? `${Math.round(distance / 10) * 10} m` : `${KILOMETRES.format(distance / 1000)} km`);
+/** Ce que le bandeau a à dire au visiteur ; l'interface le met en mots dans sa langue. */
+export type WalkNotice =
+  | { kind: 'noPlace' }
+  | { kind: 'nearest'; name: string; distance: number }
+  | { kind: 'notWalkable' };
 
 export const walkMachine = setup({
   types: {
@@ -56,12 +58,12 @@ export const walkMachine = setup({
       notice: null,
     }),
     explainMiss: assign({
-      notice: ({ event }) => {
-        if (event.type !== 'walk.missed' || !event.nearest) return 'Aucun lieu filmé où se poser';
-        return `Aucun lieu filmé ici — le plus proche : ${event.nearest.name}, à ${farAway(event.nearest.distance)}`;
+      notice: ({ event }): WalkNotice => {
+        if (event.type !== 'walk.missed' || !event.nearest) return { kind: 'noPlace' };
+        return { kind: 'nearest', name: event.nearest.name, distance: event.nearest.distance };
       },
     }),
-    explainFailure: assign({ notice: 'Ce lieu ne se visite pas à pied' }),
+    explainFailure: assign({ notice: { kind: 'notWalkable' } as WalkNotice }),
     forget: assign({ scan: null, notice: null }),
   },
 }).createMachine({

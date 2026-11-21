@@ -1,5 +1,6 @@
 import { useSelector } from '@xstate/react';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from './actors.ts';
 import { AboutPanel } from './components/AboutPanel.tsx';
 import { AircraftPanel } from './components/AircraftPanel.tsx';
@@ -32,6 +33,7 @@ import { UnsupportedNotice } from './components/UnsupportedNotice.tsx';
 
 /** L'écran suit l'état de la machine applicative : vérification, refus, ou viewer. */
 export function App() {
+  const { t } = useTranslation();
   const app = useApp();
   const phase = useSelector(app, (snapshot) => snapshot.value);
   const support = useSelector(app, (snapshot) => snapshot.context.support);
@@ -56,7 +58,7 @@ export function App() {
 
   if (phase === 'unsupported' && support) return <UnsupportedNotice report={support} />;
   if (phase !== 'running' || !started) {
-    return <div className="splash"><p className="splash-text">Vérification du navigateur…</p></div>;
+    return <div className="splash"><p className="splash-text">{t('app.checking')}</p></div>;
   }
 
   return (

@@ -10,6 +10,7 @@
  * survivent aux relevés, qui ne font que rafraîchir la liste.
  */
 
+import { locale, t } from '../i18n/index.ts';
 import { airframeType, attitude } from '../domain/airframes.ts';
 import { assign, fromPromise, sendParent, setup, type SnapshotFrom } from 'xstate';
 import {
@@ -57,14 +58,13 @@ const RETRY_MS = 15_000;
 /** Hauteur d'où regarder un appareil quand on demande à le situer sur la carte. */
 const LOCATE_HEIGHT = 2500;
 
-const metres = new Intl.NumberFormat('fr-BE', { maximumFractionDigits: 0 });
 
 const toFeature = (aircraft: Aircraft): AircraftFeature => ({
   id: aircraft.id,
   x: aircraft.x,
   y: aircraft.y,
   label: aircraft.callsign,
-  detail: aircraft.altitude === null ? 'au sol' : `${metres.format(aircraft.altitude)} m`,
+  detail: aircraft.altitude === null ? t('aircraft.onGround') : `${new Intl.NumberFormat(locale(), { maximumFractionDigits: 0 }).format(aircraft.altitude)} m`,
   track: aircraft.track,
   airframe: airframeType(aircraft.type, aircraft.category),
   attitude: attitude(aircraft),

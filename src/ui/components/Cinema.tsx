@@ -1,6 +1,7 @@
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useChild } from '../actors.ts';
 
 /**
@@ -8,6 +9,7 @@ import { useChild } from '../actors.ts';
  * derrière, telle qu'on l'a laissée : fermer la séance y ramène sans rien avoir déplacé.
  */
 export function Cinema() {
+  const { t } = useTranslation();
   const cinema = useChild('cinema');
   const clip = useSelector(cinema, (snapshot) => snapshot.context.clip);
   const credit = useSelector(cinema, (snapshot) => snapshot.context.credit);
@@ -28,19 +30,19 @@ export function Cinema() {
       className="cinema"
       role="dialog"
       aria-modal="true"
-      aria-label={`Séquence filmée : ${clip.name}`}
+      aria-label={t('cinema.label', { name: clip.name })}
       onClick={(event) => { if (event.target === event.currentTarget) cinema.send({ type: 'cinema.closed', by: 'backdrop' }); }}
     >
       <header className="cinema-header">
         <div className="cinema-title">
-          <span className="object-kicker">Séquence filmée sur place</span>
+          <span className="object-kicker">{t('cinema.kicker')}</span>
           <h2>{clip.name}</h2>
         </div>
         <button
           type="button"
           className="rail-item"
-          title="Revenir à la carte"
-          aria-label="Fermer la séquence et revenir à la carte"
+          title={t('cinema.back')}
+          aria-label={t('cinema.close')}
           onClick={() => cinema.send({ type: 'cinema.closed', by: 'button' })}
         >
           <XMarkIcon className="rail-glyph" aria-hidden="true" />
@@ -50,7 +52,7 @@ export function Cinema() {
       <video key={clip.src} className="cinema-screen" src={clip.src} autoPlay loop muted playsInline controls />
       {credit && (
         <footer className="cinema-footer">
-          Images <a href={credit.url} target="_blank" rel="noreferrer">{credit.author}</a> · {credit.licence} · « {credit.title} »
+          {t('cinema.images')} <a href={credit.url} target="_blank" rel="noreferrer">{credit.author}</a> · {credit.licence} · « {credit.title} »
         </footer>
       )}
     </div>

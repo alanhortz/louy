@@ -7,7 +7,8 @@
 import { isClip, type ClipKey } from './clips.ts';
 import type { ScanCredit } from './scans.ts';
 
-export const DRONES_LABEL = 'Vols de drone';
+/** Clef de traduction du nom du calque. */
+export const DRONES_LABEL = 'layer.drones';
 
 export interface DroneFlight {
   id: string;

@@ -11,6 +11,7 @@
  * des mètres et des secondes, la position passe en Lambert 2008.
  */
 
+import { t } from '../i18n/index.ts';
 import { toLambert } from './lambert2008.ts';
 import { WALLONIA_EXTENT } from './tiling.ts';
 import { POSE_LIMITS, type Pose } from './view.ts';
@@ -104,7 +105,7 @@ export const isBelgianAddress = (hex: string): boolean => { const value = parseI
 
 /** Mention discrète d'un appareil militaire ; `null` pour un civil. */
 export const militaryLabel = (aircraft: Pick<Aircraft, 'military'>): string | null =>
-  (aircraft.military === 'belgian' ? 'Militaire belge' : aircraft.military === 'foreign' ? 'Militaire étranger' : null);
+  (aircraft.military === 'belgian' ? t('aircraft.belgianMilitary') : aircraft.military === 'foreign' ? t('aircraft.foreignMilitary') : null);
 
 /** Marge autour de l'emprise : un avion en approche se voit avant de franchir la frontière. */
 const MARGIN = 12_000;
@@ -215,12 +216,12 @@ export function aircraftPhase(aircraft: Aircraft): AircraftPhase {
 
 export function phaseLabel(phase: AircraftPhase): string {
   switch (phase.kind) {
-    case 'ground': return phase.airfield ? `Au sol à ${phase.airfield.name}` : 'Au sol';
-    case 'approach': return `En approche de ${phase.airfield.name}`;
-    case 'departure': return `Au départ de ${phase.airfield.name}`;
-    case 'climb': return 'En montée';
-    case 'descent': return 'En descente';
-    case 'cruise': return 'En palier';
+    case 'ground': return phase.airfield ? t('aircraft.phase.groundAt', { airfield: phase.airfield.name }) : t('aircraft.phase.ground');
+    case 'approach': return t('aircraft.phase.approach', { airfield: phase.airfield.name });
+    case 'departure': return t('aircraft.phase.departure', { airfield: phase.airfield.name });
+    case 'climb': return t('aircraft.phase.climb');
+    case 'descent': return t('aircraft.phase.descent');
+    case 'cruise': return t('aircraft.phase.cruise');
   }
 }
 

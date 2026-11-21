@@ -28,21 +28,20 @@ export const CAMPAIGNS: readonly Campaign[] = [
   { id: '2013-2014', label: '2013–2014', token: '2013_2014', resolution: 1, maxLevel: 10, hasFlightDates: false },
 ];
 
+/** Libellé et explication : clefs `catalog.surface.<id>` et `catalog.surfaceHint.<id>` du dictionnaire (`src/i18n`). */
 export interface Surface {
   id: SurfaceId;
-  label: string;
-  hint: string;
 }
 
 export const SURFACES: readonly Surface[] = [
-  { id: 'mnt', label: 'Terrain', hint: 'Modèle numérique de terrain : le sol nu, sans bâti ni végétation' },
+  { id: 'mnt' },
   // « Surface », le terme des géomètres, ne disait rien de ce qu'on y voit de plus que dans « Terrain »
-  { id: 'mns', label: 'Bâti & arbres', hint: 'Modèle numérique de surface : le sol avec ses bâtiments et sa végétation' },
+  { id: 'mns' },
 ];
 
+/** Libellé : clef `catalog.tint.<id>` du dictionnaire. */
 export interface Tint {
   id: TintId;
-  label: string;
   icon: string;
   /** `service` : image drapée sur le relief ; `derived` : calculé depuis l'altitude. */
   kind: 'service' | 'derived';
@@ -51,16 +50,18 @@ export interface Tint {
 }
 
 export const TINTS: readonly Tint[] = [
-  { id: 'ortho', label: 'Photo', icon: '◯', kind: 'service', usesVintage: true },
-  { id: 'infrared', label: 'Infrarouge', icon: '🌡️', kind: 'service', usesVintage: true },
-  { id: 'hillshade', label: 'Ombrage', icon: '◐', kind: 'service', usesVintage: false },
-  { id: 'elevation', label: 'Altitude', icon: '▲', kind: 'derived', usesVintage: false },
-  { id: 'slope', label: 'Pente', icon: '◭', kind: 'derived', usesVintage: false },
+  { id: 'ortho', icon: '◯', kind: 'service', usesVintage: true },
+  { id: 'infrared', icon: '🌡️', kind: 'service', usesVintage: true },
+  { id: 'hillshade', icon: '◐', kind: 'service', usesVintage: false },
+  { id: 'elevation', icon: '▲', kind: 'derived', usesVintage: false },
+  { id: 'slope', icon: '◭', kind: 'derived', usesVintage: false },
 ];
 
 export interface Vintage {
   id: string;
+  /** Années du millésime ; la saison, quand il y en a une, est dite par `season` et traduite dans l'interface. */
   label: string;
+  season?: 'spring' | 'summer';
   /** Suffixe du service `IMAGERIE/ORTHO_<suffix>`. */
   suffix: string;
   /** Une version infrarouge de cette campagne existe-t-elle ? */
@@ -70,12 +71,13 @@ export interface Vintage {
 export const LATEST_VINTAGE = 'last';
 
 export const VINTAGES: readonly Vintage[] = [
-  { id: LATEST_VINTAGE, label: 'La plus récente', suffix: 'LAST', infrared: true },
-  { id: '2026', label: '2026 (printemps)', suffix: '2026_PRINTEMPS', infrared: true },
-  { id: '2025', label: '2025 (été)', suffix: '2025_ETE', infrared: true },
+  // libellé : clef `catalog.vintage.last`
+  { id: LATEST_VINTAGE, label: '', suffix: 'LAST', infrared: true },
+  { id: '2026', label: '2026', season: 'spring', suffix: '2026_PRINTEMPS', infrared: true },
+  { id: '2025', label: '2025', season: 'summer', suffix: '2025_ETE', infrared: true },
   { id: '2024', label: '2024', suffix: '2024', infrared: true },
-  { id: '2023', label: '2023 (été)', suffix: '2023_ETE', infrared: true },
-  { id: '2022', label: '2022 (été)', suffix: '2022_ETE', infrared: true },
+  { id: '2023', label: '2023', season: 'summer', suffix: '2023_ETE', infrared: true },
+  { id: '2022', label: '2022', season: 'summer', suffix: '2022_ETE', infrared: true },
   { id: '2021', label: '2021', suffix: '2021', infrared: true },
   { id: '2020', label: '2020', suffix: '2020', infrared: true },
   { id: '2019', label: '2019', suffix: '2019', infrared: true },

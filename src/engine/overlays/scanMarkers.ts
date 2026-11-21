@@ -6,6 +6,7 @@
  * représente et porte leur nombre.
  */
 
+import { t } from '../../i18n/index.ts';
 import { VIDEOS_LABEL } from '../../domain/videos.ts';
 import { AERIAL_LABEL, ART_LABEL, BACKED_LABEL, CLOUD_LABEL, FUN_LABEL, OBJECTS_LABEL, ORTHO_LABEL, SURVIVAL_LABEL } from '../../domain/scans.ts';
 import { DRONES_LABEL } from '../../domain/droneFlights.ts';
@@ -76,14 +77,17 @@ const VIEW_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36
     <circle cx="18" cy="28.5" r="3" fill="#c9f6ff" stroke="#dbfbff" stroke-width="0.6"/>
   </g>
 </svg>`;
-const VIEW_KICKER = 'Voir en volume';
+const VIEW_KICKER = 'marker.view';
+
+/** Clef de traduction d'une légende au pluriel (`{{count}} lieux`…). */
+type PluralKey = 'marker.orthophotos' | 'marker.clouds' | 'marker.sequences' | 'marker.flights' | 'marker.videos' | 'marker.places' | 'marker.objects' | 'marker.equipment' | 'marker.projects' | 'marker.artworks';
 
 interface MarkerKind {
   className: string;
-  /** Genre affiché en tête de légende. */
-  kicker: string;
-  /** Légende d'un marqueur qui rassemble `count` éléments. */
-  plural(count: number): string;
+  /** Clef de traduction du genre affiché en tête de légende. */
+  kicker: typeof AERIAL_LABEL | typeof ART_LABEL | typeof BACKED_LABEL | typeof CLOUD_LABEL | typeof FUN_LABEL | typeof OBJECTS_LABEL | typeof ORTHO_LABEL | typeof SURVIVAL_LABEL | typeof VIDEOS_LABEL | typeof DRONES_LABEL | typeof SPORTS_LABEL;
+  /** Clef de la légende d'un marqueur qui rassemble plusieurs éléments. */
+  plural: PluralKey;
   icon: string;
   /** Un objet posé dans la carte : touché, son marqueur propose d'ouvrir la visionneuse. */
   placed?: boolean;
@@ -104,14 +108,14 @@ function scanMarker({ className, kicker, plural, icon, placed = false }: MarkerK
       element.className = 'scan-marker';
       element.innerHTML =
         '<img class="scan-marker-icon" alt="" width="28" height="28" /><i class="scan-count" hidden></i>'
-        + `<span class="scan-caption"><b>${kicker}</b><span></span></span>`;
+        + '<span class="scan-caption"><b></b><span></span></span>';
       return element;
     },
     paint(element, scan, { active, members }) {
       const [image, badge, caption] = element.children as unknown as [HTMLImageElement, HTMLElement, HTMLElement];
-      const label = members.length > 1 ? plural(members.length) : scan.label;
+      const label = members.length > 1 ? t(plural, { count: members.length }) : scan.label;
       // un objet posé dans la carte, une fois touché : le marqueur devient le bouton de sa visionneuse
-      const heading = active && placed && members.length === 1 ? VIEW_KICKER : kicker;
+      const heading = t(active && placed && members.length === 1 ? VIEW_KICKER : kicker);
       element.setAttribute('aria-label', `${heading} : ${label}`);
       element.classList.toggle('active', active);
       image.src = active ? lit : idle;
@@ -143,11 +147,11 @@ const CLOUD_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="3
 </svg>`;
 
 export const orthoMarkerStyle = scanMarker({
-  className: 'overlay-orthophoto', kicker: ORTHO_LABEL, plural: (count) => `${count} orthophotos`, icon: ORTHO_ICON,
+  className: 'overlay-orthophoto', kicker: ORTHO_LABEL, plural: 'marker.orthophotos', icon: ORTHO_ICON,
 });
 
 export const cloudMarkerStyle = scanMarker({
-  className: 'overlay-clouds', kicker: CLOUD_LABEL, plural: (count) => `${count} nuages`, icon: CLOUD_ICON,
+  className: 'overlay-clouds', kicker: CLOUD_LABEL, plural: 'marker.clouds', icon: CLOUD_ICON,
 });
 
 /** Sports : un haltère, deux disques pleins sur leur barre. */
@@ -161,7 +165,7 @@ const SPORTS_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="
 </svg>`;
 
 export const sportsMarkerStyle = scanMarker({
-  className: 'overlay-sports', kicker: SPORTS_LABEL, plural: (count) => `${count} séquences`, icon: SPORTS_ICON,
+  className: 'overlay-sports', kicker: SPORTS_LABEL, plural: 'marker.sequences', icon: SPORTS_ICON,
 });
 
 /** Vol de drone : le drone vu du dessus — un corps, quatre rotors pleins. */
@@ -175,7 +179,7 @@ const DRONE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="3
 </svg>`;
 
 export const droneMarkerStyle = scanMarker({
-  className: 'overlay-drones', kicker: DRONES_LABEL, plural: (count) => `${count} vols`, icon: DRONE_ICON,
+  className: 'overlay-drones', kicker: DRONES_LABEL, plural: 'marker.flights', icon: DRONE_ICON,
 });
 
 /** Un écran et son triangle de lecture : la vidéo se regarde ailleurs, ce marqueur dit seulement où elle a été tournée. */
@@ -186,23 +190,23 @@ const VIDEO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="3
 </svg>`;
 
 export const videoMarkerStyle = scanMarker({
-  className: 'overlay-videos', kicker: VIDEOS_LABEL, plural: (count) => `${count} vidéos`, icon: VIDEO_ICON,
+  className: 'overlay-videos', kicker: VIDEOS_LABEL, plural: 'marker.videos', icon: VIDEO_ICON,
 });
 
 export const aerialMarkerStyle = scanMarker({
-  className: 'overlay-scans', kicker: AERIAL_LABEL, plural: (count) => `${count} lieux`, icon: AERIAL_ICON,
+  className: 'overlay-scans', kicker: AERIAL_LABEL, plural: 'marker.places', icon: AERIAL_ICON,
 });
 
 export const objectMarkerStyle = scanMarker({
-  className: 'overlay-objects', kicker: OBJECTS_LABEL, plural: (count) => `${count} objets`, icon: OBJECT_ICON, placed: true,
+  className: 'overlay-objects', kicker: OBJECTS_LABEL, plural: 'marker.objects', icon: OBJECT_ICON, placed: true,
 });
 
 export const survivalMarkerStyle = scanMarker({
-  className: 'overlay-survival', kicker: SURVIVAL_LABEL, plural: (count) => `${count} équipements`, icon: SURVIVAL_ICON, placed: true,
+  className: 'overlay-survival', kicker: SURVIVAL_LABEL, plural: 'marker.equipment', icon: SURVIVAL_ICON, placed: true,
 });
 
 export const funMarkerStyle = scanMarker({
-  className: 'overlay-fun', kicker: FUN_LABEL, plural: (count) => `${count} objets`, icon: FUN_ICON, placed: true,
+  className: 'overlay-fun', kicker: FUN_LABEL, plural: 'marker.objects', icon: FUN_ICON, placed: true,
 });
 
 /** Soutenu par la Wallonie : un écusson, et dedans la poignée de main réduite à deux traits qui se croisent. */
@@ -214,9 +218,9 @@ const BACKED_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="
 </svg>`;
 
 export const backedMarkerStyle = scanMarker({
-  className: 'overlay-backed', kicker: BACKED_LABEL, plural: (count) => `${count} projets`, icon: BACKED_ICON, placed: true,
+  className: 'overlay-backed', kicker: BACKED_LABEL, plural: 'marker.projects', icon: BACKED_ICON, placed: true,
 });
 
 export const artMarkerStyle = scanMarker({
-  className: 'overlay-art', kicker: ART_LABEL, plural: (count) => `${count} œuvres`, icon: ART_ICON, placed: true,
+  className: 'overlay-art', kicker: ART_LABEL, plural: 'marker.artworks', icon: ART_ICON, placed: true,
 });

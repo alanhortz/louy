@@ -28,8 +28,11 @@
     "@heroicons/react": "^2.2.0",
     "@sparkjsdev/spark": "^2.4.0",
     "@xstate/react": "^6.1.0",
+    "i18next": "^27.2.2",
+    "i18next-browser-languagedetector": "^8.3.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "react-i18next": "^18.0.3",
     "three": "^0.187.0",
     "xstate": "^5.33.4"
   },

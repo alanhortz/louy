@@ -4,6 +4,7 @@
  * l'icône est un cadran d'horloge, et le nom du lieu reste affiché sous elle.
  */
 
+import { t } from '../../i18n/index.ts';
 import { FILMS_LABEL } from '../../domain/timeline.ts';
 import type { OverlayFeature, OverlayStyle } from '../OverlayLayer.ts';
 import { TINT_ACTIVE, TINT_IDLE, tinted } from './tint.ts';
@@ -34,14 +35,15 @@ export const filmMarkerStyle: OverlayStyle<FilmFeature> = {
     element.className = 'scan-marker film-marker';
     element.innerHTML =
       '<img class="scan-marker-icon" alt="" width="28" height="28" />'
-      + '<span class="scan-caption"><b>Film du temps</b><span></span></span>';
+      + '<span class="scan-caption"><b></b><span></span></span>';
     return element;
   },
   paint(element, place, { active }) {
     const [icon, caption] = element.children as unknown as [HTMLImageElement, HTMLElement];
-    element.setAttribute('aria-label', `${FILMS_LABEL} : ${place.label}`);
+    element.setAttribute('aria-label', `${t(FILMS_LABEL)} : ${place.label}`);
     element.classList.toggle('active', active);
     icon.src = active ? ICON_ACTIVE : ICON_IDLE;
+    caption.firstElementChild!.textContent = t(FILMS_LABEL);
     caption.lastElementChild!.textContent = place.label;
   },
 };

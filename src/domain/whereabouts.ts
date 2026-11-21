@@ -3,6 +3,7 @@
  * visiteur, et celles de son appareil, à porter sur la carte.
  */
 
+import { t } from '../i18n/index.ts';
 import { toLambert, toWgs84, type LambertPoint } from './lambert2008.ts';
 import { inWallonia } from './walloniaOutline.ts';
 
@@ -72,14 +73,15 @@ export function speedKmh(previous: DevicePosition | null, next: DevicePosition, 
 
 /** Ce que dit le repère : où l'on est, et à quelle vitesse quand elle est connue. */
 export const locationLabel = (position: DevicePosition): string =>
-  (position.speed === undefined ? 'Vous êtes ici' : `Vous êtes ici · ${position.speed} km/h`);
+  (position.speed === undefined ? t('location.here') : t('location.hereSpeed', { speed: position.speed }));
 
 /** Hauteur de survol qui montre la position et son incertitude, sans descendre trop bas. */
 export const locationHeight = (position: DevicePosition): number =>
   Math.min(4000, Math.max(260, position.accuracy * 4));
 
-export const LOCATION_FAILURES: Record<LocationFailure, string> = {
-  denied: 'Localisation refusée par le navigateur',
-  unavailable: 'Position introuvable',
-  outside: 'Vous êtes hors de Wallonie',
-};
+/** Clefs de traduction de ce que l'on dit au visiteur quand on ne l'a pas trouvé. */
+export const LOCATION_FAILURES = {
+  denied: 'location.denied',
+  unavailable: 'location.unavailable',
+  outside: 'location.outside',
+} as const satisfies Record<LocationFailure, string>;

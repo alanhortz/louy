@@ -28,12 +28,13 @@ export interface RoadCamera {
   approximate: boolean;
 }
 
-const kilometres = new Intl.NumberFormat('fr-BE', { minimumFractionDigits: 1, maximumFractionDigits: 3 });
-
 /** « BK 61,4 » — ou l'aveu que la position n'est que celle de la localité. */
 export const positionLabel = (camera: RoadCamera): string =>
-  (camera.km === undefined ? 'position approx.' : `BK ${kilometres.format(camera.km)}`);
+  (camera.km === undefined
+    ? t('camera.approx')
+    : t('camera.km', { km: new Intl.NumberFormat(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 3 }).format(camera.km) }));
 
+import { locale, t } from '../i18n/index.ts';
 import { cameraEdgePath, type CameraPose } from '../domain/cameraView.ts';
 
 export const CAMERA_SOURCE = 'SPW Trafiroutes';

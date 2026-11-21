@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { airframeType } from '../../domain/airframes.ts';
 
 interface AirframePreviewProps {
@@ -17,6 +18,7 @@ const TURN_SECONDS = 9;
  * Le rendu 3D n'est chargé et démarré que lorsqu'une fiche est ouverte.
  */
 export function AirframePreview({ type, category }: AirframePreviewProps) {
+  const { t } = useTranslation();
   const canvas = useRef<HTMLCanvasElement>(null);
   const drawn = airframeType(type, category);
 
@@ -71,5 +73,5 @@ export function AirframePreview({ type, category }: AirframePreviewProps) {
     return () => { stopped = true; stop(); };
   }, [drawn]);
 
-  return <canvas ref={canvas} className="airframe-preview" role="img" aria-label={`Maquette du type ${drawn}`} />;
+  return <canvas ref={canvas} className="airframe-preview" role="img" aria-label={t('aircraft.model', { type: drawn })} />;
 }

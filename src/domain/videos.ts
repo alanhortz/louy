@@ -6,7 +6,8 @@
 
 import type { ScanCredit } from './scans.ts';
 
-export const VIDEOS_LABEL = 'Vidéos';
+/** Clef de traduction du nom du calque. */
+export const VIDEOS_LABEL = 'layer.videos';
 
 export interface WebVideo {
   id: string;

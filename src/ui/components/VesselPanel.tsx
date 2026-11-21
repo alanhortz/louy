@@ -1,26 +1,26 @@
 import { useSelector } from '@xstate/react';
+import { useTranslation } from 'react-i18next';
 import { VESSEL_ATTRIBUTION, vesselLabel, vesselStateLabel, type Vessel } from '../../domain/vessels.ts';
 import { selectedVessel, vesselsFeed } from '../../machines/vessels.machine.ts';
+import { t } from '../../i18n/index.ts';
 import { useChild } from '../actors.ts';
-import { ago } from '../format.ts';
+import { ago, tenth, whole } from '../format.ts';
 import { Panel } from './Panel.tsx';
-
-const whole = new Intl.NumberFormat('fr-BE', { maximumFractionDigits: 0 });
-const tenth = new Intl.NumberFormat('fr-BE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 /** Ce qu'un bateau annonce, ligne par ligne ; ce qu'il tait n'est pas montré. */
 function readings(vessel: Vessel): [string, string][] {
   const rows: [string, string][] = [];
-  if (vessel.length) rows.push(['Longueur', `${whole.format(vessel.length)} m`]);
-  if (vessel.beam) rows.push(['Largeur', `${tenth.format(vessel.beam)} m`]);
-  rows.push(['Vitesse', vessel.moving ? `${tenth.format(vessel.speed)} km/h` : 'à l’arrêt']);
-  if (vessel.moving) rows.push(['Route', `${whole.format(vessel.course)}°`]);
-  rows.push(['Position relevée', ago(vessel.seenAt)]);
+  if (vessel.length) rows.push([t('vessels.length'), `${whole().format(vessel.length)} m`]);
+  if (vessel.beam) rows.push([t('vessels.beam'), `${tenth().format(vessel.beam)} m`]);
+  rows.push([t('vessels.speed'), vessel.moving ? `${tenth().format(vessel.speed)} km/h` : t('vessels.stopped')]);
+  if (vessel.moving) rows.push([t('vessels.course'), `${whole().format(vessel.course)}°`]);
+  rows.push([t('vessels.seenAt'), ago(vessel.seenAt)]);
   return rows;
 }
 
 /** Trafic fluvial : les bateaux des voies navigables, et la fiche de celui que l'on choisit. */
 export function VesselPanel() {
+  const { t } = useTranslation();
   const actor = useChild('vessels');
   const feed = useSelector(actor, vesselsFeed);
   const list = useSelector(actor, (snapshot) => snapshot.context.list);
@@ -31,27 +31,27 @@ export function VesselPanel() {
   const listed = [...list].sort((a, b) => Number(b.moving) - Number(a.moving) || (b.length ?? 0) - (a.length ?? 0)).slice(0, 40);
 
   return (
-    <Panel id="vessels" title="Bateaux" className="aircraft-panel">
+    <Panel id="vessels" title={t('vessels.title')} className="aircraft-panel">
       {!enabled && (
         <div className="aircraft-empty">
-          <p>Les bateaux sur les voies navigables de Wallonie, en direct. Leurs positions sont anonymes : ni nom, ni numéro.</p>
+          <p>{t('vessels.pitch')}</p>
           <button type="button" className="scene-btn" onClick={() => actor.send({ type: 'vessels.toggled' })}>
-            AFFICHER LES BATEAUX
+            {t('vessels.show')}
           </button>
         </div>
       )}
 
       {enabled && vessel && (
-        <section className="aircraft-card" aria-label="Bateau sélectionné">
+        <section className="aircraft-card" aria-label={t('vessels.selected')}>
           <header className="aircraft-card-header">
             <div className="aircraft-card-title">
               <span className="aircraft-callsign">{vesselLabel(vessel)}</span>
-              <span className="aircraft-identity">{vessel.place ?? 'bateau de navigation intérieure'}</span>
+              <span className="aircraft-identity">{vessel.place ?? t('vessels.inland')}</span>
             </div>
             <button
               type="button"
               className="panel-collapse-btn"
-              aria-label="Désélectionner ce bateau"
+              aria-label={t('vessels.deselect')}
               onClick={() => actor.send({ type: 'vessels.dismissed' })}
             >
               ×
@@ -65,7 +65,7 @@ export function VesselPanel() {
           </dl>
           <div className="cctv-controls">
             <button type="button" className="scene-btn" onClick={() => actor.send({ type: 'vessels.locateRequested' })}>
-              SITUER SUR LA CARTE
+              {t('vessels.locate')}
             </button>
           </div>
         </section>
@@ -74,12 +74,12 @@ export function VesselPanel() {
       {enabled && (
         <>
           <p className="search-status" role="status">
-            {feed === 'loading' ? 'Relevé en cours…'
-              : feed === 'unavailable' ? 'EuRIS ne répond pas — nouvel essai dans un instant'
-              : list.length === 0 ? 'Aucun bateau signalé en Wallonie pour le moment'
-              : `${list.length} bateau${list.length > 1 ? 'x' : ''}, dont ${underway} en route`}
+            {feed === 'loading' ? t('vessels.polling')
+              : feed === 'unavailable' ? t('vessels.unavailable')
+              : list.length === 0 ? t('vessels.none')
+              : t('vessels.count', { count: list.length, underway })}
           </p>
-          <ul className="search-results aircraft-list" aria-label="Bateaux">
+          <ul className="search-results aircraft-list" aria-label={t('vessels.list')}>
             {listed.map((item) => (
               <li key={item.id}>
                 <button
@@ -94,7 +94,7 @@ export function VesselPanel() {
               </li>
             ))}
           </ul>
-          <p className="vessel-attribution">{VESSEL_ATTRIBUTION}</p>
+          <p className="vessel-attribution">{t(VESSEL_ATTRIBUTION)}</p>
         </>
       )}
     </Panel>

@@ -165,14 +165,15 @@
 /* Petit écran : la colonne des panneaux prend toute la largeur laissée par le rail. */
 @media (max-width: 720px) {
   .stacks {
-    top: calc(62px + var(--safe-top));
+    /* sous la marque et ses boutons de langue */
+    top: calc(84px + var(--safe-top));
     bottom: auto;
     right: calc(var(--edge) + var(--safe-right));
     width: auto;
   }
   /* Le panneau déplié défile lui-même : sur iOS, un conteneur sans événements de
      pointeur (la colonne) ne se laisse pas faire défiler au doigt. */
-  .panel:not(.collapsed) { max-height: calc(100dvh - 200px - var(--safe-top) - var(--safe-bottom)); }
+  .panel:not(.collapsed) { max-height: calc(100dvh - 222px - var(--safe-top) - var(--safe-bottom)); }
   .panel-body { -webkit-overflow-scrolling: touch; touch-action: pan-y; }
   .scene-btn { padding: 10px 9px; }
 }
