@@ -111,6 +111,8 @@ export interface Scan {
   clips?: ScanClip[];
   /** Ce qu'il y a à savoir de l'objet ou du lieu, en une phrase ou deux : affiché dans sa visionneuse ou sa fiche. */
   note?: string;
+  /** Un lien qui termine la note (l'auteur d'une œuvre, son site), ouvert dans un nouvel onglet. */
+  link?: { label: string; url: string };
   /** Photos de l'objet tel qu'on le trouve sur place, consultées dans sa visionneuse. */
   photos?: ScanPhoto[];
   /** Auteur et licence des images d'origine. */
@@ -209,6 +211,7 @@ const isScan = (value: unknown): value is Scan => {
     && (scan.walk === undefined || (typeof scan.splats === 'string' && Number.isFinite(scan.walk?.x) && Number.isFinite(scan.walk?.y)
       && (scan.walk?.azimuth === undefined || Number.isFinite(scan.walk.azimuth))))
     && (scan.note === undefined || typeof scan.note === 'string')
+    && (scan.link === undefined || (typeof scan.link?.label === 'string' && scan.link.label.length > 0 && typeof scan.link.url === 'string' && /^https:\/\//.test(scan.link.url)))
     && (scan.year === undefined || (typeof scan.splats === 'string' && Number.isInteger(scan.year) && scan.year >= 1900 && scan.year <= 2100))
     && (scan.trace === undefined || (typeof scan.splats === 'string' && typeof scan.trace === 'boolean'))
     && (scan.span === undefined || (typeof scan.splats === 'string' && Number.isFinite(scan.span) && scan.span > 0))

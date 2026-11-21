@@ -471,7 +471,8 @@
     "span": 1.4,
     "fine": true,
     "art": "street",
-    "note": "Relevé au téléphone, posé à sa place sur le relief LiDAR, à l'échelle : la fiche « objet » du même nom l'ouvre en volume, de près.",
+    "note": "Street Art by",
+    "link": { "label": "whoups.be", "url": "https://www.whoups.be/" },
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam du 13 novembre 2026",

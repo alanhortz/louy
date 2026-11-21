@@ -135,7 +135,12 @@ export function ObjectViewer() {
           )}
         </div>
 
-        {scan.note && <p className="object-note">{scan.note}</p>}
+        {(scan.note || scan.link) && (
+          <p className="object-note">
+            {scan.note}
+            {scan.link && <> <a href={scan.link.url} target="_blank" rel="noopener noreferrer">{scan.link.label}</a></>}
+          </p>
+        )}
 
         {photos.length > 0 && (
           <nav className="object-photos" aria-label="L’objet en 3D et ses photos">

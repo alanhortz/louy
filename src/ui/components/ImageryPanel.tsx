@@ -96,7 +96,10 @@ function DrawnPanel({ name }: { name: string }) {
               <dd><a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.title}</a></dd>
             </div>
           </dl>
-          <p className="imagery-note">{scan.note ?? kind.note}</p>
+          <p className="imagery-note">
+            {scan.note ?? kind.note}
+            {scan.link && <> <a href={scan.link.url} target="_blank" rel="noopener noreferrer">{scan.link.label}</a></>}
+          </p>
           <div className="cctv-controls">
             <button
               type="button"
