@@ -244,6 +244,7 @@ export const fr = {
     images: 'Images',
     licence: 'Licence',
     source: 'Source',
+    instagram: 'Instagram de {{author}}',
     pinnedHint: 'Affichée en permanence dans la carte — toucher pour ne plus la garder',
     pinHint: 'La laisser affichée dans la carte tant que le calque est allumé, même en sélectionnant autre chose',
     pinned: 'ÉPINGLÉE',

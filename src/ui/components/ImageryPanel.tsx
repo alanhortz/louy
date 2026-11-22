@@ -71,7 +71,23 @@ function DrawnPanel({ name }: { name: string }) {
             </button>
           </header>
           <dl className="aircraft-telemetry imagery-details">
-            <div><dt>{scan.trace ? t('imagery.data') : t('imagery.images')}</dt><dd>{scan.credit.author}</dd></div>
+            <div>
+              <dt>{scan.trace ? t('imagery.data') : t('imagery.images')}</dt>
+              <dd>
+                {scan.credit.author}
+                {scan.credit.instagram && (
+                  <a
+                    className="credit-instagram" href={scan.credit.instagram} target="_blank" rel="noopener noreferrer"
+                    title={t('imagery.instagram', { author: scan.credit.author })} aria-label={t('imagery.instagram', { author: scan.credit.author })}
+                  >
+                    {/* l'appareil photo d'Instagram, dessiné ici : rien n'est chargé d'Instagram */}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                      <rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4.2" /><circle cx="17.4" cy="6.6" r="0.9" fill="currentColor" stroke="none" />
+                    </svg>
+                  </a>
+                )}
+              </dd>
+            </div>
             <div><dt>{t('imagery.licence')}</dt><dd>{scan.credit.licence}</dd></div>
             <div className="imagery-source">
               <dt>{t('imagery.source')}</dt>

@@ -240,6 +240,7 @@ export const en = {
     images: 'Footage',
     licence: 'Licence',
     source: 'Source',
+    instagram: '{{author}} on Instagram',
     pinnedHint: 'Always shown on the map — touch to stop keeping it',
     pinHint: 'Keep it on the map while the layer is on, even when selecting something else',
     pinned: 'PINNED',

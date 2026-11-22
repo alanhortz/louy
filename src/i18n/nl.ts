@@ -240,6 +240,7 @@ export const nl = {
     images: 'Beelden',
     licence: 'Licentie',
     source: 'Bron',
+    instagram: '{{author}} op Instagram',
     pinnedHint: 'Altijd op de kaart getoond — aanraken om niet meer te behouden',
     pinHint: 'Op de kaart laten staan zolang de laag aan staat, ook als u iets anders selecteert',
     pinned: 'VASTGEZET',

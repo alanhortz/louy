@@ -421,3 +421,13 @@ describe('lien de balade au sol', () => {
     expect(decodeView('#c=1,2,3,4,5&walk=%3Cscript%3E').walk).toBeUndefined();
   });
 });
+
+describe("compte Instagram de l'auteur", () => {
+  it("n'accepte qu'une adresse Instagram", async () => {
+    const { parseScans } = await import('../src/domain/scans.ts');
+    const base = { id: 'lieu', name: 'Lieu', x: 1, y: 2, splats: '/scans/lieu.spz', credit: { author: 'A', title: 'T', url: 'https://www.youtube.com/watch?v=x', licence: '© A' } };
+    expect(parseScans([{ ...base, credit: { ...base.credit, instagram: 'https://www.instagram.com/ledronedalex/' } }])).toHaveLength(1);
+    expect(parseScans([{ ...base, credit: { ...base.credit, instagram: 'https://evil.example/instagram.com/x' } }])).toHaveLength(0);
+    expect(parseScans([base])).toHaveLength(1);
+  });
+});

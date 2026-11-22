@@ -129,6 +129,8 @@ export interface ScanCredit {
   url: string;
   /** Licence, en abrégé (« CC BY »). */
   licence: string;
+  /** Compte Instagram de l'auteur, montré par une icône à côté de son nom. */
+  instagram?: string;
 }
 
 export interface ScanPhoto {
@@ -246,7 +248,8 @@ const isCredit = (value: unknown): value is ScanCredit => {
   const credit = value as Partial<ScanCredit> | null;
   return typeof credit === 'object' && credit !== null
     && [credit.author, credit.title, credit.url, credit.licence].every((field) => typeof field === 'string')
-    && /^https:\/\//.test(credit.url!);
+    && /^https:\/\//.test(credit.url!)
+    && (credit.instagram === undefined || (typeof credit.instagram === 'string' && /^https:\/\/(www\.)?instagram\.com\/[\w.]+\/?$/.test(credit.instagram)));
 };
 
 /** Une photo vient du site lui-même : aucune adresse extérieure n'est chargée au nom du visiteur. */
