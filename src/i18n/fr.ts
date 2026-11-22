@@ -310,6 +310,10 @@ export const fr = {
     notWalkable: 'Ce lieu ne se visite pas à pied',
     metres: '{{n}} m',
     kilometres: '{{n}} km',
+    share: 'Partager cette visite',
+    shareHint: 'Partager cette visite : le lien fait descendre dans ce lieu, à son point de départ',
+    linkCopied: 'Lien de la visite copié',
+    linkShared: 'Visite partagée',
   },
   cockpit: { leave: 'Quitter le cockpit', leaveFlight: 'Quitter le cockpit du vol {{callsign}}', fallback: 'Cockpit' },
   videos: {

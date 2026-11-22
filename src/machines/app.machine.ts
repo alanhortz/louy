@@ -13,7 +13,7 @@
  *   films ──▶ viewer, timeline             timeline ⇄ viewer
  */
 
-import { assign, fromCallback, sendTo, setup, type ActorRefFrom, type SnapshotFrom, enqueueActions } from 'xstate';
+import { assign, fromCallback, raise, sendTo, setup, type ActorRefFrom, type SnapshotFrom, enqueueActions } from 'xstate';
 import { PROJECT } from '../config/project.ts';
 import { QUALITY_PROFILES } from '../domain/quality.ts';
 import { fitFlyover, isPlacedObject, scanFlyover, type Scan, scansWorthPreloading } from '../domain/scans.ts';
@@ -74,6 +74,8 @@ import { viewerMachine, type ViewerEmitted } from './viewer.machine.ts';
 
 export type AppEvent =
   | { type: 'app.shareRequested' }
+  /** Partager la balade au sol en cours : le lien fait descendre dans ce lieu, à son point de départ. */
+  | { type: 'app.walkShareRequested' }
   | { type: 'app.homeRequested' }
   /** Touche Échap sur la carte : plus aucun marqueur n'est sélectionné. */
   | { type: 'app.selectionDismissed' }
@@ -126,6 +128,8 @@ interface AppContext extends AppInput {
   tourScanId: string | null;
   /** Le lien d'arrivée demandait la vue cockpit : on y entre dès que son vol est connu, une seule fois. */
   cockpitPending: boolean;
+  /** Le lien d'arrivée demandait une balade au sol : on y descend dès que le lieu est connu, une seule fois. */
+  walkPending: boolean;
   /** Vols de drone publiés : montrés en vol quand leur calque est allumé. */
   droneFlights: DroneFlight[];
   /** Position de l'appareil, si le visiteur l'a demandée : en mémoire seulement, pour ne jamais l'écrire dans l'adresse. */
@@ -289,10 +293,19 @@ export const appMachine = setup({
       enqueue.sendTo('viewer', periodOf(context));
     }),
     drawPeriod: sendTo('viewer', ({ context }) => periodOf(context)),
+    /** Arrivé par un lien de balade : dès que le lieu demandé est connu, on s'y pose, à son point de départ, une fois. */
+    enterPendingWalk: enqueueActions(({ context, enqueue }) => {
+      if (!context.walkPending) return;
+      const scan = context.places.find((place) => place.id === context.view.walk);
+      if (!scan) return;
+      enqueue.assign({ walkPending: false });
+      const start = scan.walk ?? { x: scan.x, y: scan.y };
+      enqueue.sendTo('walk', { type: 'walk.placed', scan, x: start.x, y: start.y, azimuth: scan.walk?.azimuth });
+    }),
   },
 }).createMachine({
   id: 'app',
-  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] }, places: [], walk: null, tour: null, tourScanId: null, cockpitPending: input.view.cockpit === true, droneFlights: [], device: null, traces: [], shownObject: null, shownObjectFresh: false, drawn: {}, sport: null, definition: DEFAULT_DEFINITION, satellite: [] }),
+  context: ({ input }) => ({ ...input, support: null, imagery: { selected: null, kept: [] }, places: [], walk: null, tour: null, tourScanId: null, cockpitPending: input.view.cockpit === true, walkPending: typeof input.view.walk === 'string', droneFlights: [], device: null, traces: [], shownObject: null, shownObjectFresh: false, drawn: {}, sport: null, definition: DEFAULT_DEFINITION, satellite: [] }),
   initial: 'checking',
   states: {
     checking: {
@@ -643,9 +656,10 @@ export const appMachine = setup({
               assign({ places: ({ event }) => event.items }),
               // seulement les lieux proches de la vue, et dans la définition choisie : préparer l'autre serait la télécharger pour rien
               sendTo('viewer', ({ context, event }) => ({ type: 'viewer.scansPreloaded', scans: scansWorthPreloading(event.items as Scan[], context.view.pose).map((scan) => scanIn(scan, context.definition)) })),
+              'enterPendingWalk',
             ],
           },
-          { guard: ({ event }) => event.layer === AERIAL_LAYER, actions: [assign({ places: ({ event }) => event.items }), 'drawImagery'] },
+          { guard: ({ event }) => event.layer === AERIAL_LAYER, actions: [assign({ places: ({ event }) => event.items }), 'drawImagery', 'enterPendingWalk'] },
           { guard: ({ event }) => event.layer === DRONES_LAYER, actions: assign({ droneFlights: ({ event }) => event.items as DroneFlight[] }) },
         ],
         'layers.changed': {
@@ -841,13 +855,18 @@ export const appMachine = setup({
         // le lieu est dessiné même si son calque est éteint ; la balade commence dès qu'il est arrivé
         'walk.started': {
           actions: [
-            assign({ walk: ({ event }) => event.scan }),
+            // la balade entre dans l'adresse : partagée, elle fait descendre dans ce lieu à son point de départ
+            assign({ walk: ({ event }) => event.scan, view: ({ context, event }) => ({ ...context.view, walk: event.scan.id }) }),
+            'syncUrl',
             'drawImagery',
             sendTo('viewer', ({ event }) => ({ type: 'viewer.walkRequested', scanId: event.scan.id, x: event.x, y: event.y, azimuth: event.azimuth })),
           ],
         },
         'walk.ended': {
-          actions: [assign({ walk: null }), sendTo('viewer', { type: 'viewer.walkStopped' }), 'drawImagery'],
+          actions: [
+            assign({ walk: null, view: ({ context }) => { const { walk: _left, ...view } = context.view; return view; } }),
+            'syncUrl', sendTo('viewer', { type: 'viewer.walkStopped' }), 'drawImagery',
+          ],
         },
         /* ---- visite guidée : le vol du drone refait à sa vitesse ; en sortir rend la vue d'avant ---- */
         'tour.started': {
@@ -1062,6 +1081,26 @@ export const appMachine = setup({
         'app.shareRequested': {
           actions: sendTo('viewer', { type: 'viewer.poseCaptureRequested' }),
         },
+        /* ---- partage d'une balade : le lien fait descendre dans le lieu à son point de départ, non là où l'on en est ---- */
+        'app.walkShareRequested': [
+          {
+            guard: ({ context }) => context.walk !== null,
+            actions: sendTo('share', ({ context }) => {
+              const scan = context.walk!;
+              const start = scan.walk ?? { x: scan.x, y: scan.y };
+              return {
+                type: 'share.started',
+                request: {
+                  // la pose du lien regarde le point de départ d'un peu au-dessus : si la descente échoue, on voit au moins le lieu
+                  url: viewUrl({ ...context.view, pose: { x: start.x, y: start.y, distance: 90, azimuth: scan.walk?.azimuth ?? 0, tilt: 55 }, walk: scan.id }, location.href),
+                  title: `${PROJECT.name} — ${scan.name}`,
+                  text: `${PROJECT.name} — ${scan.name} : ${PROJECT.tagline}`,
+                },
+              };
+            }),
+          },
+          { actions: raise({ type: 'app.shareRequested' }) },
+        ],
         'viewer.poseCaptured': {
           actions: [
             assign({ view: ({ context, event }) => ({ ...context.view, pose: event.pose }) }),

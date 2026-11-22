@@ -1,4 +1,4 @@
-import { MapPinIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { MapPinIcon, ShareIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useSelector } from '@xstate/react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -50,6 +50,8 @@ export function WalkBar() {
   const copied = useSelector(useChild('coordinates'), (snapshot) => (
     snapshot.matches('copied') ? t('walk.copied', { text: snapshot.context.text ?? '' }) : snapshot.matches('shown') ? snapshot.context.text : null
   ));
+  // le lien de la balade vient d'être remis : on le dit à la place du conseil de marche
+  const shared = useSelector(useChild('share'), (snapshot) => (snapshot.matches('confirmed') ? snapshot.context.outcome : null));
   const phase = useSelector(walk, walkPhase);
   const place = useSelector(walk, (snapshot) => snapshot.context.scan?.name ?? null);
   const notice = useSelector(walk, (snapshot) => snapshot.context.notice);
@@ -66,7 +68,7 @@ export function WalkBar() {
         {phase === 'walking' && (
           <span className="walk-bar-hint" aria-live="polite">
             {/* sans clavier, on ne parle pas de ses flèches : le texte tient sur un téléphone */}
-            {copied ?? (touch ? t('walk.hintTouch') : t('walk.hintPointer'))}
+            {(shared && (shared === 'copied' ? t('walk.linkCopied') : t('walk.linkShared'))) ?? copied ?? (touch ? t('walk.hintTouch') : t('walk.hintPointer'))}
           </span>
         )}
       </div>
@@ -85,6 +87,17 @@ export function WalkBar() {
             <path d="M3.5 8.500h17a1.5 1.5 0 0 1 1.5 1.500v6a1.5 1.5 0 0 1-1.5 1.500h-4.200a1.5 1.5 0 0 1-1.2-.6l-1.4-1.800a1.5 1.5 0 0 0-2.4 0l-1.4 1.800a1.5 1.5 0 0 1-1.2.6H3.500A1.5 1.5 0 0 1 2 16v-6a1.5 1.5 0 0 1 1.5-1.500Z" />
             <circle cx="7.5" cy="12.5" r="1.6" /><circle cx="16.5" cy="12.5" r="1.6" />
           </svg>
+        </button>
+      )}
+      {phase === 'walking' && (
+        <button
+          type="button"
+          className="walk-bar-exit"
+          aria-label={t('walk.share')}
+          title={t('walk.shareHint')}
+          onClick={() => app.send({ type: 'app.walkShareRequested' })}
+        >
+          <ShareIcon aria-hidden="true" />
         </button>
       )}
       {phase === 'walking' && (

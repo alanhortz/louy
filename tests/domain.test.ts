@@ -408,3 +408,16 @@ describe('époque d’un lieu ancien', () => {
     expect(parseScans([{ ...scan, year: 214 }])).toHaveLength(0);
   });
 });
+
+describe('lien de balade au sol', () => {
+  it('garde le lieu de la balade dans l\'adresse, et le relit', async () => {
+    const { DEFAULT_VIEW, decodeView, encodeView } = await import('../src/domain/view.ts');
+    const fragment = encodeView({ ...DEFAULT_VIEW, walk: 'trakk-2014' });
+    expect(fragment).toContain('walk=trakk-2014');
+    expect(decodeView(fragment).walk).toBe('trakk-2014');
+    expect(decodeView(encodeView(DEFAULT_VIEW)).walk).toBeUndefined();
+    // un identifiant qui n'a pas la forme attendue n'entre pas dans l'adresse, ni n'en sort
+    expect(encodeView({ ...DEFAULT_VIEW, walk: 'a b/c' })).not.toContain('walk=');
+    expect(decodeView('#c=1,2,3,4,5&walk=%3Cscript%3E').walk).toBeUndefined();
+  });
+});

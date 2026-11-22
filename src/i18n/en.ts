@@ -306,6 +306,10 @@ export const en = {
     notWalkable: 'This place cannot be visited on foot',
     metres: '{{n}} m',
     kilometres: '{{n}} km',
+    share: 'Share this visit',
+    shareHint: 'Share this visit: the link lands in this place, at the visit’s starting point',
+    linkCopied: 'Visit link copied',
+    linkShared: 'Visit shared',
   },
   cockpit: { leave: 'Leave the cockpit', leaveFlight: 'Leave the cockpit of flight {{callsign}}', fallback: 'Cockpit' },
   videos: {

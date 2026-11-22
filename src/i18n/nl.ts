@@ -306,6 +306,10 @@ export const nl = {
     notWalkable: 'Deze plaats is niet te voet te bezoeken',
     metres: '{{n}} m',
     kilometres: '{{n}} km',
+    share: 'Dit bezoek delen',
+    shareHint: 'Dit bezoek delen: de link landt op deze plek, bij het vertrekpunt van het bezoek',
+    linkCopied: 'Link van het bezoek gekopieerd',
+    linkShared: 'Bezoek gedeeld',
   },
   cockpit: { leave: 'Cockpit verlaten', leaveFlight: 'De cockpit van vlucht {{callsign}} verlaten', fallback: 'Cockpit' },
   videos: {

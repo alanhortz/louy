@@ -34,6 +34,8 @@ export interface View {
   active?: Record<string, string>;
   /** On occupe la caméra du vol de drone actif : un lien partagé y fait entrer directement. */
   cockpit?: boolean;
+  /** Lieu filmé où l'on se promène au sol : un lien partagé y fait descendre, au point de départ de la visite. */
+  walk?: string;
 }
 
 export const POSE_LIMITS = {
@@ -122,6 +124,7 @@ export function encodeView(view: View): string {
   const active = Object.entries(view.active ?? {}).filter(([layer, id]) => ACTIVE_NAME.test(layer) && ACTIVE_NAME.test(id));
   if (active.length > 0) params.set('sel', active.map(([layer, id]) => `${layer}:${id}`).join(','));
   if (view.cockpit) params.set('cockpit', '1');
+  if (view.walk && ACTIVE_NAME.test(view.walk)) params.set('walk', view.walk);
   // les virgules et les points sont sûrs dans un fragment : on garde le lien lisible
   return params.toString().replaceAll('%2C', ',').replaceAll('%3A', ':');
 }
@@ -168,6 +171,7 @@ export function decodeView(fragment: string, fallback: View = DEFAULT_VIEW): Vie
     cameraId: cameraId && /^\d{1,6}$/.test(cameraId) ? cameraId : null,
     ...(sel.length > 0 ? { active: Object.fromEntries(sel) } : {}),
     ...(params.get('cockpit') === '1' ? { cockpit: true } : {}),
+    ...(ACTIVE_NAME.test(params.get('walk') ?? '') ? { walk: params.get('walk')! } : {}),
   };
 }
 
