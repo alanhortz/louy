@@ -2,7 +2,7 @@
  {
   "id": "vol-namur-sambre",
   "name": "Vol au-dessus de la Sambre, Namur",
-  "i18n": {"en": {"name": "Flight over the Sambre, Namur", "date": "2025"}, "nl": {"name": "Vlucht boven de Samber, Namen", "date": "2025"}},
+  "i18n": {"en": {"name": "Flight over the Sambre, Namur"}, "nl": {"name": "Vlucht boven de Samber, Namen"}},
   "x": 685317.28,
   "y": 628001.75,
   "scanId": "namur-sambre",
@@ -864,7 +864,7 @@
  {
   "id": "vol-esplanade-citadelle",
   "name": "Vol au-dessus de l’esplanade de la citadelle, Namur",
-  "i18n": {"en": {"name": "Flight over the citadel esplanade, Namur", "date": "2026"}, "nl": {"name": "Vlucht boven de esplanade van de citadel, Namen", "date": "2026"}},
+  "i18n": {"en": {"name": "Flight over the citadel esplanade, Namur"}, "nl": {"name": "Vlucht boven de esplanade van de citadel, Namen"}},
   "x": 684821.27,
   "y": 627501.2,
   "scanId": "esplanade-citadelle-namur",
