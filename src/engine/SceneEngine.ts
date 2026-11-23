@@ -763,8 +763,9 @@ export class SceneEngine {
    * millésime demandé ne couvre pas cet endroit.
    */
   capture(): Promise<{ blob: Blob | null; blank: boolean }> {
-    // l'image du canvas n'est garantie qu'au sein de la tâche qui vient de la dessiner
-    this.#render();
+    // l'image du canvas n'est garantie qu'au sein de la tâche qui vient de la dessiner ; le film du temps ne montre
+    // que le relief et la photo aérienne du millésime : ni splats, ni images de drone, ni maquettes, ni trajectoires
+    this.#render({ photoOnly: true });
     let blank = false;
     const probe = document.createElement('canvas');
     probe.width = probe.height = CAPTURE_PROBE;
@@ -1154,7 +1155,7 @@ export class SceneEngine {
     this.#reportActivity();
   }
 
-  #render(): void {
+  #render({ photoOnly = false }: { photoOnly?: boolean } = {}): void {
     // plans de coupe adaptés à l'altitude : indispensable sur 250 km d'étendue
     const distance = this.#controls.distance;
     // à pied, le premier plan est à portée de main
@@ -1202,6 +1203,11 @@ export class SceneEngine {
       this.#camera.updateProjectionMatrix();
     } else {
       this.#edl.render(this.#scene, this.#camera);
+    }
+    if (photoOnly) {
+      // une prise du film du temps : le relief et sa photo aérienne seulement, le reste attend l'image suivante
+      if (this.#beforeSatellite) this.#camera.fov = MAP_FOV;
+      return;
     }
     // les images de la vue satellite recouvrent le relief ; tout le reste se dessine par-dessus
     this.#satellite?.render(this.#camera);
