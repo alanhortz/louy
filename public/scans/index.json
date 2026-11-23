@@ -145,6 +145,27 @@
     }
   },
   {
+    "id": "veves",
+    "name": "Château de Vêves, Celles",
+    "x": 693807,
+    "y": 601258,
+    "splats": "/scans/veves.spz",
+    "note": "Un vol de drone autour du château, reconstruit en volume depuis la version 4K de la vidéo et calé sur le relief LiDAR.",
+    "credit": {
+      "author": "Skyfly_be",
+      "title": "The Castle of Vêves (Dinant - Belgium) - Drone footage Ultra HD 4K",
+      "url": "https://www.youtube.com/watch?v=Jj_Pm1r_8tA",
+      "licence": "© Skyfly_be, avec son accord",
+      "instagram": "https://www.instagram.com/skyfly_be/"
+    },
+    "view": {
+      "x": 693807,
+      "y": 601258,
+      "height": 95,
+      "azimuth": 200
+    }
+  },
+  {
     "id": "namur-escalier",
     "disabled": true,
     "name": "Escalier au pied de la citadelle, Namur",
