@@ -124,6 +124,27 @@
     }
   },
   {
+    "id": "maredsous",
+    "name": "Abbaye de Maredsous, Denée",
+    "x": 678359,
+    "y": 610205,
+    "splats": "/scans/maredsous.spz",
+    "note": "Un vol de drone autour de l'abbaye bénédictine, reconstruit en volume depuis la version 2K de la vidéo et calé sur le relief LiDAR.",
+    "credit": {
+      "author": "Alexandrone (Le Drone d'Alex)",
+      "title": "Visite aérienne de l'abbaye de Maredsous - Province de Namur, Belgique ! (4K Drone Footage)",
+      "url": "https://www.youtube.com/watch?v=Fch-7mkpgPo",
+      "licence": "© Alexandrone, avec son accord",
+      "instagram": "https://www.instagram.com/ledronedalex/"
+    },
+    "view": {
+      "x": 678362,
+      "y": 610248,
+      "height": 84,
+      "azimuth": 120
+    }
+  },
+  {
     "id": "namur-escalier",
     "disabled": true,
     "name": "Escalier au pied de la citadelle, Namur",
