@@ -2,14 +2,17 @@ import { useSelector } from '@xstate/react';
 import { useTranslation } from 'react-i18next';
 import { tourPhase } from '../../machines/tour.machine.ts';
 import { useApp, useChild } from '../actors.ts';
+import { useLocalized } from '../localized.ts';
 
 /** Barre de la visite guidée : le lieu survolé, pause ou lecture, et la sortie. On tourne la tête, on avance ou recule — toujours sur la route du drone. */
 export function TourBar() {
   const { t } = useTranslation();
+  const l = useLocalized();
   const app = useApp();
   const tour = useChild('tour');
   const phase = useSelector(tour, tourPhase);
-  const place = useSelector(tour, (snapshot) => snapshot.context.flight?.name ?? null);
+  const flight = useSelector(tour, (snapshot) => snapshot.context.flight);
+  const place = flight ? l(flight, 'name') : null;
   if (phase === 'idle') return null;
   const playing = phase === 'playing';
 

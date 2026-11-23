@@ -8,12 +8,14 @@ import { RETENTION_MS } from '../../services/telemetry.ts';
 import { useChild, useLayer } from '../actors.ts';
 import { bytes, date } from '../format.ts';
 import { Panel } from './Panel.tsx';
+import { useLocalized } from '../localized.ts';
 
 const RETENTION_DAYS = RETENTION_MS / 86_400_000;
 
 /** Sources des données, crédits, et la télémétrie locale que le visiteur peut lire ou effacer. */
 export function AboutPanel() {
   const { t } = useTranslation();
+  const l = useLocalized();
   const scans = useSelector(useLayer<Scan>(AERIAL_LAYER), (snapshot) => snapshot.context.items);
   const scanned = useSelector(useLayer<Scan>(OBJECTS_LAYER), (snapshot) => snapshot.context.items);
   const survival = useSelector(useLayer<Scan>(SURVIVAL_LAYER), (snapshot) => snapshot.context.items);
@@ -49,16 +51,16 @@ export function AboutPanel() {
         <li>{t('about.cameras')}</li>
         {scans.map((scan) => (
           <li key={scan.id}>
-            {t('about.scan', { kind: t(AERIAL_LABEL), name: scan.name })}{' '}
-            <a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.title}</a> {t('about.scanBy', { author: scan.credit.author })}
-            {scan.credit.licence.startsWith('CC') ? ` ${t('about.creativeCommons', { licence: scan.credit.licence })}` : ` ${scan.credit.licence}.`}
+            {t('about.scan', { kind: t(AERIAL_LABEL), name: l(scan, 'name') })}{' '}
+            <a href={scan.credit.url} target="_blank" rel="noreferrer">{l(scan.credit, 'title')}</a> {t('about.scanBy', { author: scan.credit.author })}
+            {scan.credit.licence.startsWith('CC') ? ` ${t('about.creativeCommons', { licence: scan.credit.licence })}` : ` ${l(scan.credit, 'licence')}.`}
           </li>
         ))}
         {objects.length > 0 && (
           <li>
             {t('about.objects', {
               kind: t(OBJECTS_LABEL),
-              names: objects.map((object) => object.name).join(' ; '),
+              names: objects.map((object) => l(object, 'name')).join(' ; '),
               authors: [...new Set(objects.map((object) => object.credit.author))].join(', '),
             })}
           </li>

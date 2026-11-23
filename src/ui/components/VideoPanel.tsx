@@ -5,6 +5,7 @@ import { VIDEOS_LAYER } from '../../machines/scans.layer.ts';
 import { layerFeed, layerSelection } from '../../machines/selectionLayer.machine.ts';
 import { useChild, useLayer } from '../actors.ts';
 import { Panel } from './Panel.tsx';
+import { useLocalized } from '../localized.ts';
 
 /**
  * Vidéos : la fiche de la vidéo signalée, et le lien vers sa page. Le site n'intègre pas le lecteur : la vidéo
@@ -12,6 +13,7 @@ import { Panel } from './Panel.tsx';
  */
 export function VideoPanel() {
   const { t } = useTranslation();
+  const l = useLocalized();
   const layers = useChild('layers');
   const layer = useLayer<WebVideo>(VIDEOS_LAYER);
   const feed = useSelector(layer, layerFeed);
@@ -31,17 +33,17 @@ export function VideoPanel() {
       )}
 
       {enabled && video && (
-        <section className="aircraft-card" aria-label={`${t(VIDEOS_LABEL)} : ${video.name}`}>
+        <section className="aircraft-card" aria-label={`${t(VIDEOS_LABEL)} : ${l(video, 'name')}`}>
           <header className="aircraft-card-header">
             <div className="aircraft-card-title">
               <span className="imagery-kicker">YouTube</span>
-              <span className="imagery-name">{video.name}</span>
+              <span className="imagery-name">{l(video, 'name')}</span>
             </div>
             <button type="button" className="panel-collapse-btn" aria-label={t('videos.deselect')} onClick={() => send({ type: 'layers.dismissed' })}>×</button>
           </header>
           <dl className="aircraft-telemetry imagery-details">
             <div><dt>{t('videos.author')}</dt><dd>{video.credit.author}</dd></div>
-            <div><dt>{t('videos.rights')}</dt><dd>{video.credit.licence}</dd></div>
+            <div><dt>{t('videos.rights')}</dt><dd>{l(video.credit, 'licence')}</dd></div>
           </dl>
           <p className="imagery-note">{video.credit.title}</p>
           <div className="cctv-controls">
@@ -57,7 +59,7 @@ export function VideoPanel() {
           {videos.map((item) => (
             <li key={item.id}>
               <button type="button" className="search-result" aria-current={item.id === video?.id} onClick={() => send({ type: 'layers.picked', id: item.id })}>
-                <span className="search-result-name">{item.name}</span>
+                <span className="search-result-name">{l(item, 'name')}</span>
                 <span className="search-result-meta">{item.credit.author}</span>
               </button>
             </li>

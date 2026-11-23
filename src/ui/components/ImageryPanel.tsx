@@ -6,6 +6,7 @@ import { layerFeed, layerKept, layerSelection } from '../../machines/selectionLa
 import { useApp, useChild, useLayer } from '../actors.ts';
 import type { PanelId } from '../../machines/chrome.machine.ts';
 import { Panel } from './Panel.tsx';
+import { useLocalized } from '../localized.ts';
 
 /**
  * Imagerie aérienne : la fiche du lieu sélectionné — ce que c'est, d'où viennent
@@ -30,6 +31,7 @@ export const CloudPanel = () => <DrawnPanel name={CLOUD_LAYER} />;
 
 function DrawnPanel({ name }: { name: string }) {
   const { t } = useTranslation();
+  const l = useLocalized();
   const app = useApp();
   const layers = useChild('layers');
   const walk = useChild('walk');
@@ -55,11 +57,11 @@ function DrawnPanel({ name }: { name: string }) {
       )}
 
       {enabled && scan && (
-        <section className="aircraft-card" aria-label={`${t(kind.label)} : ${scan.name}`}>
+        <section className="aircraft-card" aria-label={`${t(kind.label)} : ${l(scan, 'name')}`}>
           <header className="aircraft-card-header">
             <div className="aircraft-card-title">
               <span className="imagery-kicker">{t(kind.label)}</span>
-              <span className="imagery-name">{scan.name}</span>
+              <span className="imagery-name">{l(scan, 'name')}</span>
             </div>
             <button
               type="button"
@@ -88,14 +90,14 @@ function DrawnPanel({ name }: { name: string }) {
                 )}
               </dd>
             </div>
-            <div><dt>{t('imagery.licence')}</dt><dd>{scan.credit.licence}</dd></div>
+            <div><dt>{t('imagery.licence')}</dt><dd>{l(scan.credit, 'licence')}</dd></div>
             <div className="imagery-source">
               <dt>{t('imagery.source')}</dt>
-              <dd><a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.title}</a></dd>
+              <dd><a href={scan.credit.url} target="_blank" rel="noreferrer">{l(scan.credit, 'title')}</a></dd>
             </div>
           </dl>
           <p className="imagery-note">
-            {scan.note ?? t(`imagery.${kind.kind}.note`)}
+            {l(scan, 'note') ?? t(`imagery.${kind.kind}.note`)}
             {scan.link && <> <a href={scan.link.url} target="_blank" rel="noopener noreferrer">{scan.link.label}</a></>}
           </p>
           <div className="cctv-controls">
@@ -147,7 +149,7 @@ function DrawnPanel({ name }: { name: string }) {
                   title={t('imagery.clipHint')}
                   onClick={() => app.send({ type: 'app.clipRequested', clip })}
                 >
-                  {clip.name}
+                  {l(clip, 'name')}
                 </button>
               ))}
             </div>
@@ -165,7 +167,7 @@ function DrawnPanel({ name }: { name: string }) {
                 aria-current={item.id === scan?.id}
                 onClick={() => send({ type: 'layers.picked', id: item.id })}
               >
-                <span className="search-result-name">{item.name}</span>
+                <span className="search-result-name">{l(item, 'name')}</span>
                 <span className="search-result-meta">{kept.includes(item.id) ? t('imagery.shown') : item.credit.author}</span>
               </button>
             </li>

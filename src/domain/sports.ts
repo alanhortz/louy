@@ -4,6 +4,7 @@
  * devant l'écran qui la joue, dressé à la place de la caméra.
  */
 
+import type { Translations } from './localized.ts';
 import { isClip, type ScanClip } from './clips.ts';
 import type { ScanCredit } from './scans.ts';
 
@@ -11,6 +12,8 @@ import type { ScanCredit } from './scans.ts';
 export const SPORTS_LABEL = 'layer.sports';
 
 export interface SportSequence {
+  /** Traductions des textes ci-dessus (voir domain/localized.ts). */
+  i18n?: Translations;
   id: string;
   name: string;
   /** Où le marqueur se pose : Lambert 2008. */

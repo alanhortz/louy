@@ -7,6 +7,7 @@ import { layerFeed, layerSelection } from '../../machines/selectionLayer.machine
 import { tourPhase, tourSight } from '../../machines/tour.machine.ts';
 import { useChild, useLayer } from '../actors.ts';
 import { Panel } from './Panel.tsx';
+import { useLocalized } from '../localized.ts';
 
 /**
  * Ce que la caméra du drone a filmé, en petit, calé sur le vol tel qu'il se rejoue dans la carte :
@@ -55,6 +56,7 @@ function SightIcon() {
 /** Vols de drone : la fiche du vol actif, ce que voit sa caméra, et l'entrée dans cette caméra. */
 export function DronePanel() {
   const { t } = useTranslation();
+  const l = useLocalized();
   const layers = useChild('layers');
   const tour = useChild('tour');
   const layer = useLayer<DroneFlight>(DRONES_LAYER);
@@ -78,11 +80,11 @@ export function DronePanel() {
       )}
 
       {enabled && flight && summary && (
-        <section className="aircraft-card" aria-label={`${t(DRONES_LABEL)} : ${flight.name}`}>
+        <section className="aircraft-card" aria-label={`${t(DRONES_LABEL)} : ${l(flight, 'name')}`}>
           <header className="aircraft-card-header">
             <div className="aircraft-card-title">
               <span className="imagery-kicker">{flight.drone}</span>
-              <span className="imagery-name">{flight.name}</span>
+              <span className="imagery-name">{l(flight, 'name')}</span>
             </div>
             <button
               type="button"
@@ -100,8 +102,8 @@ export function DronePanel() {
           <dl className="aircraft-telemetry imagery-details">
             <div><dt>{t('drones.path')}</dt><dd>{Math.round(summary.metres)} m · {Math.round(summary.seconds)} s</dd></div>
             <div><dt>{t('drones.speed')}</dt><dd>{Math.round(summary.kmh)} km/h</dd></div>
-            <div><dt>{t('drones.date')}</dt><dd>{flight.date ?? t('drones.unknownDate')}</dd></div>
-            <div><dt>{t('drones.images')}</dt><dd>{flight.credit.author} · {flight.credit.licence}</dd></div>
+            <div><dt>{t('drones.date')}</dt><dd>{l(flight, 'date') ?? t('drones.unknownDate')}</dd></div>
+            <div><dt>{t('drones.images')}</dt><dd>{flight.credit.author} · {l(flight.credit, 'licence')}</dd></div>
           </dl>
           <div className="cctv-controls">
             <button
@@ -123,7 +125,7 @@ export function DronePanel() {
           {flights.map((item) => (
             <li key={item.id}>
               <button type="button" className="search-result" aria-current={item.id === flight?.id} onClick={() => send({ type: 'layers.picked', id: item.id })}>
-                <span className="search-result-name">{item.name}</span>
+                <span className="search-result-name">{l(item, 'name')}</span>
                 <span className="search-result-meta">{item.drone}</span>
               </button>
             </li>

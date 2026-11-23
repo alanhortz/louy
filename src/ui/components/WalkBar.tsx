@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { walkPhase, type WalkNotice } from '../../machines/walk.machine.ts';
 import { locale, t } from '../../i18n/index.ts';
 import { useApp, useChild } from '../actors.ts';
+import { useLocalized } from '../localized.ts';
 
 /**
  * Balade au sol : le bandeau du bas dit où l'on en est — désigner un point, y
@@ -40,6 +41,7 @@ export function walkNoticeText(notice: WalkNotice): string {
 
 export function WalkBar() {
   const { t } = useTranslation();
+  const l = useLocalized();
   const app = useApp();
   const touch = useSelector(app, (snapshot) => snapshot.context.support?.touch ?? false);
   const walk = useChild('walk');
@@ -53,7 +55,8 @@ export function WalkBar() {
   // le lien de la balade vient d'être remis : on le dit à la place du conseil de marche
   const shared = useSelector(useChild('share'), (snapshot) => (snapshot.matches('confirmed') ? snapshot.context.outcome : null));
   const phase = useSelector(walk, walkPhase);
-  const place = useSelector(walk, (snapshot) => snapshot.context.scan?.name ?? null);
+  const walked = useSelector(walk, (snapshot) => snapshot.context.scan);
+  const place = walked ? l(walked, 'name') : null;
   const notice = useSelector(walk, (snapshot) => snapshot.context.notice);
   if (phase === 'idle') return null;
 

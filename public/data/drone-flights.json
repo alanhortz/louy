@@ -2,6 +2,7 @@
  {
   "id": "vol-namur-sambre",
   "name": "Vol au-dessus de la Sambre, Namur",
+  "i18n": {"en": {"name": "Flight over the Sambre, Namur", "date": "2025"}, "nl": {"name": "Vlucht boven de Samber, Namen", "date": "2025"}},
   "x": 685317.28,
   "y": 628001.75,
   "scanId": "namur-sambre",
@@ -12,7 +13,8 @@
    "author": "Joeys Journeys",
    "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
    "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-   "licence": "© Joeys Journeys, avec son accord"
+   "licence": "© Joeys Journeys, avec son accord",
+   "i18n": {"en": {"licence": "© Joeys Journeys, with their permission"}, "nl": {"licence": "© Joeys Journeys, met diens toestemming"}}
   },
   "track": [
    {
@@ -862,6 +864,7 @@
  {
   "id": "vol-esplanade-citadelle",
   "name": "Vol au-dessus de l’esplanade de la citadelle, Namur",
+  "i18n": {"en": {"name": "Flight over the citadel esplanade, Namur", "date": "2026"}, "nl": {"name": "Vlucht boven de esplanade van de citadel, Namen", "date": "2026"}},
   "x": 684821.27,
   "y": 627501.2,
   "scanId": "esplanade-citadelle-namur",
@@ -871,6 +874,7 @@
   "credit": {
    "author": "Mathis Hortz",
    "title": "Prises de vue au drone, 2026",
+   "i18n": {"en": {"title": "Drone footage, 2026"}, "nl": {"title": "Dronebeelden, 2026"}},
    "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
    "licence": "© 2026"
   },

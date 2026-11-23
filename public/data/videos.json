@@ -2,6 +2,7 @@
   {
     "id": "spw-voyage-au-centre-du-grognon",
     "name": "Voyage au centre du Grognon",
+    "i18n": {"en": {"name": "Journey to the centre of the Grognon"}, "nl": {"name": "Reis naar het hart van de Grognon"}},
     "x": 685545,
     "y": 627972,
     "youtube": "LVxdUiKYWGs",
@@ -9,7 +10,8 @@
       "author": "Wallonie — SPW Territoire",
       "title": "SPW - Drone - Voyage au centre du Grognon - Namur",
       "url": "https://www.youtube.com/watch?v=LVxdUiKYWGs",
-      "licence": "© Service public de Wallonie — vidéo vue sur YouTube"
+      "licence": "© Service public de Wallonie — vidéo vue sur YouTube",
+      "i18n": {"en": {"licence": "© Public Service of Wallonia — video watched on YouTube"}, "nl": {"licence": "© Waalse Overheidsdienst — video bekeken op YouTube"}}
     }
   }
 ]

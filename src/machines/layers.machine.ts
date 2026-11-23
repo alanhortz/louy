@@ -20,9 +20,11 @@ import {
 type Addressed<E> = E extends { type: `layer.${infer Kind}` } ? Omit<E, 'type'> & { type: `layers.${Kind}`; layer: string } : never;
 
 export type LayersEvent =
-  | Addressed<Exclude<LayerEvent, { type: 'layer.viewChanged' }>>
+  | Addressed<Exclude<LayerEvent, { type: 'layer.viewChanged' | 'layer.relabeled' }>>
   /** La vue concerne tous les calques : elle leur est diffusée. */
   | { type: 'layers.viewChanged'; distance: number }
+  /** La langue aussi. */
+  | { type: 'layers.relabeled' }
   | LayerEmitted;
 
 /** Ce que les calques annoncent, relayé tel quel sous le nom de l'orchestrateur. */
@@ -65,6 +67,9 @@ export function createLayersMachine(specs: readonly SelectionLayerSpec<any>[]) {
         if (event.type !== 'layers.viewChanged') return;
         for (const layer of Object.values(context.layers)) enqueue.sendTo(layer, { type: 'layer.viewChanged', distance: event.distance });
       }),
+      broadcastLanguage: enqueueActions(({ context, enqueue }) => {
+        for (const layer of Object.values(context.layers)) enqueue.sendTo(layer, { type: 'layer.relabeled' });
+      }),
       relay: sendParent(({ event }) => ({ ...event, type: event.type.replace('layer.', 'layers.') })),
     },
   }).createMachine({
@@ -81,6 +86,7 @@ export function createLayersMachine(specs: readonly SelectionLayerSpec<any>[]) {
     on: {
       ...Object.fromEntries(GESTURES.map((kind) => [`layers.${kind}`, { actions: 'route' }])),
       'layers.viewChanged': { actions: 'broadcastView' },
+      'layers.relabeled': { actions: 'broadcastLanguage' },
       ...Object.fromEntries(REPORTS.map((kind) => [`layer.${kind}`, { actions: 'relay' }])),
     },
   });

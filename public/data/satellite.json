@@ -3,6 +3,7 @@
     "id": "namur-place-darmes",
     "disabled": true,
     "name": "Place d’Armes, Namur",
+    "i18n": {"en": {"name": "Place d’Armes, Namur"}, "nl": {"name": "Place d’Armes, Namen"}},
     "src": "/satellite/namur-place-darmes.webp",
     "west": 685369.5,
     "south": 628006.6,
@@ -13,13 +14,15 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "© Joeys Journeys, avec son accord"
+      "licence": "© Joeys Journeys, avec son accord",
+      "i18n": {"en": {"licence": "© Joeys Journeys, with their permission"}, "nl": {"licence": "© Joeys Journeys, met diens toestemming"}}
     }
   },
   {
     "id": "namur-rue-des-brasseurs",
     "disabled": true,
     "name": "Rue des Brasseurs et quai de Sambre, Namur",
+    "i18n": {"en": {"name": "Rue des Brasseurs and Quai de Sambre, Namur"}, "nl": {"name": "Rue des Brasseurs en Quai de Sambre, Namen"}},
     "src": "/satellite/namur-rue-des-brasseurs.webp",
     "west": 685031.9,
     "south": 627934.1,
@@ -30,7 +33,8 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "© Joeys Journeys, avec son accord"
+      "licence": "© Joeys Journeys, avec son accord",
+      "i18n": {"en": {"licence": "© Joeys Journeys, with their permission"}, "nl": {"licence": "© Joeys Journeys, met diens toestemming"}}
     }
   }
 ]

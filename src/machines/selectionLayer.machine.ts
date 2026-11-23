@@ -51,7 +51,9 @@ export type LayerEvent =
   | { type: 'layer.keepToggled'; id: string }
   /** Garder ces éléments à l'écran, sans toucher à ceux qui le sont déjà : le retour à la vue d'accueil. */
   | { type: 'layer.keepEnsured'; ids: readonly string[] }
-  | { type: 'layer.viewChanged'; distance: number };
+  | { type: 'layer.viewChanged'; distance: number }
+  /** La langue de l'interface a changé : les étiquettes des marqueurs se réécrivent. */
+  | { type: 'layer.relabeled' };
 
 export type LayerEmitted<T extends LayerItem = LayerItem> =
   /** La liste du calque vient d'arriver, qu'il soit allumé ou non : de quoi préparer ce qu'il montrera. */
@@ -229,6 +231,7 @@ export function createSelectionLayer<T extends LayerItem>(spec: SelectionLayerSp
           'layer.dismissed': { guard: 'hasSelection', actions: ['deselect', 'publish', 'announceSelection'] },
           'layer.keepToggled': { guard: 'keepsKnown', actions: ['toggleKeep', 'publish', 'announceKept'] },
           'layer.keepEnsured': { actions: ['ensureKeep', 'publish', 'announceKept'] },
+          'layer.relabeled': { actions: 'publish' },
         },
       },
     },

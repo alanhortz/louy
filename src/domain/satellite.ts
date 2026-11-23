@@ -10,10 +10,13 @@
  * Emprises en Lambert 2008, altitudes en mètres.
  */
 
+import type { Translations } from './localized.ts';
 import type { ScanCredit } from './scans.ts';
 import { POSE_LIMITS, type Pose } from './view.ts';
 
 export interface SatelliteImage {
+  /** Traductions des textes ci-dessus (voir domain/localized.ts). */
+  i18n?: Translations;
   id: string;
   name: string;
   /** Adresse de l'image, transparente hors de la prise de vue. */

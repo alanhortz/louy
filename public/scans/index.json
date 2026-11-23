@@ -2,6 +2,7 @@
   {
     "id": "namur",
     "name": "Citadelle de Namur",
+    "i18n": {"en": {"name": "Namur Citadel"}, "nl": {"name": "Citadel van Namen"}},
     "x": 685265,
     "y": 627878,
     "splats": "/scans/namur.spz",
@@ -13,7 +14,8 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "© Joeys Journeys, avec son accord"
+      "licence": "© Joeys Journeys, avec son accord",
+      "i18n": {"en": {"licence": "© Joeys Journeys, with their permission"}, "nl": {"licence": "© Joeys Journeys, met diens toestemming"}}
     },
     "view": {
       "x": 685325,
@@ -26,6 +28,7 @@
       {
         "id": "namur-telepherique",
         "name": "Le téléphérique au-dessus de la Sambre",
+        "i18n": {"en": {"name": "The cable car above the Sambre"}, "nl": {"name": "De kabelbaan boven de Samber"}},
         "src": "/scans/clips/namur-telepherique.mp4",
         "fov": 19.47,
         "aspect": 1.7778,
@@ -62,6 +65,7 @@
     "id": "namur-place-darmes",
     "disabled": true,
     "name": "Place d’Armes, Namur — vue du ciel",
+    "i18n": {"en": {"name": "Place d’Armes, Namur — seen from the sky", "note": "A vertical pass of the drone, reconstructed in 3D. Filmed only from above, it is best seen from above: from the side, the façades are missing."}, "nl": {"name": "Place d’Armes, Namen — vanuit de lucht", "note": "Een verticale doorgang van de drone, in 3D gereconstrueerd. Alleen van bovenaf gefilmd, bekijk je het best van bovenaf: van opzij ontbreken de gevels."}},
     "x": 685424,
     "y": 628131,
     "splats": "/scans/namur-place-darmes.spz",
@@ -73,7 +77,8 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "© Joeys Journeys, avec son accord"
+      "licence": "© Joeys Journeys, avec son accord",
+      "i18n": {"en": {"licence": "© Joeys Journeys, with their permission"}, "nl": {"licence": "© Joeys Journeys, met diens toestemming"}}
     },
     "view": {
       "x": 685424,
@@ -86,6 +91,7 @@
     "id": "namur-rue-des-brasseurs",
     "disabled": true,
     "name": "Rue des Brasseurs et quai de Sambre, Namur — vue du ciel",
+    "i18n": {"en": {"name": "Rue des Brasseurs and Quai de Sambre, Namur — seen from the sky", "note": "A vertical pass of the drone, reconstructed in 3D. Filmed only from above, it is best seen from above: from the side, the façades are missing."}, "nl": {"name": "Rue des Brasseurs en Quai de Sambre, Namen — vanuit de lucht", "note": "Een verticale doorgang van de drone, in 3D gereconstrueerd. Alleen van bovenaf gefilmd, bekijk je het best van bovenaf: van opzij ontbreken de gevels."}},
     "x": 685103.0,
     "y": 628024.0,
     "splats": "/scans/namur-rue-des-brasseurs.spz",
@@ -94,7 +100,8 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "© Joeys Journeys, avec son accord"
+      "licence": "© Joeys Journeys, avec son accord",
+      "i18n": {"en": {"licence": "© Joeys Journeys, with their permission"}, "nl": {"licence": "© Joeys Journeys, met diens toestemming"}}
     },
     "view": {
       "x": 685103.0,
@@ -106,6 +113,7 @@
   {
     "id": "trakk-2014",
     "name": "Centre sportif universitaire, futur TRAKK, Namur (2014)",
+    "i18n": {"en": {"name": "University sports centre, the future TRAKK, Namur (2014)"}, "nl": {"name": "Universitair sportcentrum, het latere TRAKK, Namen (2014)"}},
     "x": 684690.59,
     "y": 628057.22,
     "splats": "/scans/trakk-2014.spz",
@@ -120,12 +128,14 @@
       "author": "Fabrice Lambert",
       "title": "Trakk Namur 2014",
       "url": "https://www.youtube.com/watch?v=uDVtV5Q-7j0",
-      "licence": "© Fabrice Lambert, reproduit avec son accord"
+      "licence": "© Fabrice Lambert, reproduit avec son accord",
+      "i18n": {"en": {"licence": "© Fabrice Lambert, reproduced with their permission"}, "nl": {"licence": "© Fabrice Lambert, overgenomen met diens toestemming"}}
     }
   },
   {
     "id": "maredsous",
     "name": "Abbaye de Maredsous, Denée",
+    "i18n": {"en": {"name": "Maredsous Abbey, Denée", "note": "A drone flight around the Benedictine abbey, reconstructed in 3D from the 2K version of the video and aligned with the LiDAR relief."}, "nl": {"name": "Abdij van Maredsous, Denée", "note": "Een dronevlucht rond de benedictijnenabdij, in 3D gereconstrueerd uit de 2K-versie van de video en uitgelijnd op het LiDAR-reliëf."}},
     "x": 678359,
     "y": 610205,
     "splats": "/scans/maredsous.spz",
@@ -135,6 +145,7 @@
       "title": "Visite aérienne de l'abbaye de Maredsous - Province de Namur, Belgique ! (4K Drone Footage)",
       "url": "https://www.youtube.com/watch?v=Fch-7mkpgPo",
       "licence": "© Alexandrone, avec son accord",
+      "i18n": {"en": {"licence": "© Alexandrone, with their permission"}, "nl": {"licence": "© Alexandrone, met diens toestemming"}},
       "instagram": "https://www.instagram.com/ledronedalex/"
     },
     "view": {
@@ -147,6 +158,7 @@
   {
     "id": "veves",
     "name": "Château de Vêves, Celles",
+    "i18n": {"en": {"name": "Vêves Castle, Celles", "note": "A drone flight around the castle, reconstructed in 3D from the 4K version of the video and aligned with the LiDAR relief."}, "nl": {"name": "Kasteel van Vêves, Celles", "note": "Een dronevlucht rond het kasteel, in 3D gereconstrueerd uit de 4K-versie van de video en uitgelijnd op het LiDAR-reliëf."}},
     "x": 693807,
     "y": 601258,
     "splats": "/scans/veves.spz",
@@ -156,6 +168,7 @@
       "title": "The Castle of Vêves (Dinant - Belgium) - Drone footage Ultra HD 4K",
       "url": "https://www.youtube.com/watch?v=Jj_Pm1r_8tA",
       "licence": "© Skyfly_be, avec son accord",
+      "i18n": {"en": {"licence": "© Skyfly_be, with their permission"}, "nl": {"licence": "© Skyfly_be, met diens toestemming"}},
       "instagram": "https://www.instagram.com/skyfly_be/"
     },
     "walk": { "x": 693805, "y": 601321, "azimuth": 180 },
@@ -170,6 +183,7 @@
     "id": "namur-escalier",
     "disabled": true,
     "name": "Escalier au pied de la citadelle, Namur",
+    "i18n": {"en": {"name": "Staircase at the foot of the citadel, Namur"}, "nl": {"name": "Trap aan de voet van de citadel, Namen"}},
     "x": 685407,
     "y": 627928,
     "splats": "/scans/namur-escalier.spz",
@@ -177,7 +191,8 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "© Joeys Journeys, avec son accord"
+      "licence": "© Joeys Journeys, avec son accord",
+      "i18n": {"en": {"licence": "© Joeys Journeys, with their permission"}, "nl": {"licence": "© Joeys Journeys, met diens toestemming"}}
     },
     "walk": {
       "x": 685405.8,
@@ -188,6 +203,7 @@
   {
     "id": "namur-sambre",
     "name": "La Sambre et la Halle al’Chair, Namur",
+    "i18n": {"en": {"name": "The Sambre and the Halle al’Chair, Namur", "note": "A low, oblique flight over the Sambre, reconstructed in 3D and aligned with the LiDAR relief."}, "nl": {"name": "De Samber en de Halle al’Chair, Namen", "note": "Een lage, schuine vlucht boven de Samber, in 3D gereconstrueerd en uitgelijnd op het LiDAR-reliëf."}},
     "x": 685412.0,
     "y": 628032.0,
     "splats": "/scans/namur-sambre.spz",
@@ -201,7 +217,8 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "© Joeys Journeys, avec son accord"
+      "licence": "© Joeys Journeys, avec son accord",
+      "i18n": {"en": {"licence": "© Joeys Journeys, with their permission"}, "nl": {"licence": "© Joeys Journeys, met diens toestemming"}}
     },
     "view": {
       "x": 685412.0,
@@ -214,6 +231,7 @@
     "id": "ortho-place-darmes",
     "disabled": true,
     "name": "Place d’Armes, Namur — orthophoto",
+    "i18n": {"en": {"name": "Place d’Armes, Namur — orthophoto", "note": "A pass filmed straight down, rectified cell by cell on the LiDAR surface and laid on the relief: an orthophoto of the day of the flight, not a volume."}, "nl": {"name": "Place d’Armes, Namen — orthofoto", "note": "Een loodrecht gefilmde doorgang, vak per vak rechtgezet op het LiDAR-oppervlak en op het reliëf gelegd: een orthofoto van de dag van de vlucht, geen volume."}},
     "x": 685424,
     "y": 628131,
     "splats": "/scans/ortho-place-darmes.spz",
@@ -227,7 +245,8 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "© Joeys Journeys, avec son accord"
+      "licence": "© Joeys Journeys, avec son accord",
+      "i18n": {"en": {"licence": "© Joeys Journeys, with their permission"}, "nl": {"licence": "© Joeys Journeys, met diens toestemming"}}
     },
     "view": {
       "x": 685424,
@@ -240,6 +259,7 @@
     "id": "ortho-rue-des-brasseurs",
     "disabled": true,
     "name": "Rue des Brasseurs et quai de Sambre, Namur — orthophoto",
+    "i18n": {"en": {"name": "Rue des Brasseurs and Quai de Sambre, Namur — orthophoto", "note": "A pass filmed straight down, rectified cell by cell on the LiDAR surface and laid on the relief: an orthophoto of the day of the flight, not a volume."}, "nl": {"name": "Rue des Brasseurs en Quai de Sambre, Namen — orthofoto", "note": "Een loodrecht gefilmde doorgang, vak per vak rechtgezet op het LiDAR-oppervlak en op het reliëf gelegd: een orthofoto van de dag van de vlucht, geen volume."}},
     "x": 685103,
     "y": 628013,
     "splats": "/scans/ortho-rue-des-brasseurs.spz",
@@ -253,7 +273,8 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "© Joeys Journeys, avec son accord"
+      "licence": "© Joeys Journeys, avec son accord",
+      "i18n": {"en": {"licence": "© Joeys Journeys, with their permission"}, "nl": {"licence": "© Joeys Journeys, met diens toestemming"}}
     },
     "view": {
       "x": 685103,
@@ -265,6 +286,7 @@
   {
     "id": "nuage-namur",
     "name": "Citadelle de Namur — nuage de points",
+    "i18n": {"en": {"name": "Namur Citadel — point cloud", "note": "162,400 points found in the images and aligned with the LiDAR relief. The gaussian splats are trained from this cloud."}, "nl": {"name": "Citadel van Namen — puntenwolk", "note": "162.400 punten teruggevonden in de beelden en uitgelijnd op het LiDAR-reliëf. Van deze wolk vertrekt de training van de gaussian splats."}},
     "x": 685265.0,
     "y": 627878.0,
     "splats": "/scans/nuage-namur.spz",
@@ -278,7 +300,8 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "© Joeys Journeys, avec son accord"
+      "licence": "© Joeys Journeys, avec son accord",
+      "i18n": {"en": {"licence": "© Joeys Journeys, with their permission"}, "nl": {"licence": "© Joeys Journeys, met diens toestemming"}}
     },
     "view": {
       "x": 685265.0,
@@ -290,6 +313,7 @@
   {
     "id": "nuage-esplanade-citadelle-namur",
     "name": "Esplanade de la citadelle, Namur — nuage de points",
+    "i18n": {"en": {"name": "Citadel esplanade, Namur — point cloud", "note": "158,314 points found in the images and aligned with the LiDAR relief. The gaussian splats are trained from this cloud."}, "nl": {"name": "Esplanade van de citadel, Namen — puntenwolk", "note": "158.314 punten teruggevonden in de beelden en uitgelijnd op het LiDAR-reliëf. Van deze wolk vertrekt de training van de gaussian splats."}},
     "x": 684783.0,
     "y": 627522.0,
     "splats": "/scans/nuage-esplanade-citadelle-namur.spz",
@@ -302,6 +326,7 @@
     "credit": {
       "author": "Mathis Hortz",
       "title": "Prises de vue au drone, 2026",
+      "i18n": {"en": {"title": "Drone footage, 2026"}, "nl": {"title": "Dronebeelden, 2026"}},
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     },
@@ -315,6 +340,7 @@
   {
     "id": "nuage-crossfit-hawks-nest",
     "name": "CrossFit Hawks Nest — nuage de points",
+    "i18n": {"en": {"name": "CrossFit Hawks Nest — point cloud", "note": "195,621 points found in the images and aligned with the LiDAR relief. The gaussian splats are trained from this cloud."}, "nl": {"name": "CrossFit Hawks Nest — puntenwolk", "note": "195.621 punten teruggevonden in de beelden en uitgelijnd op het LiDAR-reliëf. Van deze wolk vertrekt de training van de gaussian splats."}},
     "x": 636186.0,
     "y": 619125.0,
     "splats": "/scans/nuage-crossfit-hawks-nest.spz",
@@ -327,6 +353,7 @@
     "credit": {
       "author": "Alan Hortz",
       "title": "Prises de vue au drone, 2026",
+      "i18n": {"en": {"title": "Drone footage, 2026"}, "nl": {"title": "Dronebeelden, 2026"}},
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     },
@@ -341,6 +368,7 @@
     "id": "nuage-namur-place-darmes",
     "disabled": true,
     "name": "Place d’Armes, Namur — nuage de points",
+    "i18n": {"en": {"name": "Place d’Armes, Namur — point cloud", "note": "31,555 points found in the images and aligned with the LiDAR relief. The gaussian splats are trained from this cloud."}, "nl": {"name": "Place d’Armes, Namen — puntenwolk", "note": "31.555 punten teruggevonden in de beelden en uitgelijnd op het LiDAR-reliëf. Van deze wolk vertrekt de training van de gaussian splats."}},
     "x": 685424.0,
     "y": 628131.0,
     "splats": "/scans/nuage-namur-place-darmes.spz",
@@ -357,7 +385,8 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "© Joeys Journeys, avec son accord"
+      "licence": "© Joeys Journeys, avec son accord",
+      "i18n": {"en": {"licence": "© Joeys Journeys, with their permission"}, "nl": {"licence": "© Joeys Journeys, met diens toestemming"}}
     },
     "view": {
       "x": 685424.0,
@@ -370,6 +399,7 @@
     "id": "nuage-namur-rue-des-brasseurs",
     "disabled": true,
     "name": "Rue des Brasseurs et quai de Sambre, Namur — nuage de points",
+    "i18n": {"en": {"name": "Rue des Brasseurs and Quai de Sambre, Namur — point cloud", "note": "29,053 points found in the images and aligned with the LiDAR relief. The gaussian splats are trained from this cloud."}, "nl": {"name": "Rue des Brasseurs en Quai de Sambre, Namen — puntenwolk", "note": "29.053 punten teruggevonden in de beelden en uitgelijnd op het LiDAR-reliëf. Van deze wolk vertrekt de training van de gaussian splats."}},
     "x": 685103.0,
     "y": 628024.0,
     "splats": "/scans/nuage-namur-rue-des-brasseurs.spz",
@@ -386,7 +416,8 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "© Joeys Journeys, avec son accord"
+      "licence": "© Joeys Journeys, avec son accord",
+      "i18n": {"en": {"licence": "© Joeys Journeys, with their permission"}, "nl": {"licence": "© Joeys Journeys, met diens toestemming"}}
     },
     "view": {
       "x": 685103.0,
@@ -398,6 +429,7 @@
   {
     "id": "nuage-namur-sambre",
     "name": "La Sambre et la Halle al’Chair, Namur — nuage de points",
+    "i18n": {"en": {"name": "The Sambre and the Halle al’Chair, Namur — point cloud", "note": "32,187 points found in the images and aligned with the LiDAR relief. The gaussian splats are trained from this cloud."}, "nl": {"name": "De Samber en de Halle al’Chair, Namen — puntenwolk", "note": "32.187 punten teruggevonden in de beelden en uitgelijnd op het LiDAR-reliëf. Van deze wolk vertrekt de training van de gaussian splats."}},
     "x": 685412.0,
     "y": 628032.0,
     "splats": "/scans/nuage-namur-sambre.spz",
@@ -411,7 +443,8 @@
       "author": "Joeys Journeys",
       "title": "Namur in 4K | Walking + Drone Tour of Belgium’s Hidden Gem",
       "url": "https://www.youtube.com/watch?v=hbZ72BQ3Q78",
-      "licence": "© Joeys Journeys, avec son accord"
+      "licence": "© Joeys Journeys, avec son accord",
+      "i18n": {"en": {"licence": "© Joeys Journeys, with their permission"}, "nl": {"licence": "© Joeys Journeys, met diens toestemming"}}
     },
     "view": {
       "x": 685412.0,
@@ -423,6 +456,7 @@
   {
     "id": "esplanade-citadelle-namur",
     "name": "Esplanade de la citadelle, Namur",
+    "i18n": {"en": {"name": "Citadel esplanade, Namur"}, "nl": {"name": "Esplanade van de citadel, Namen"}},
     "x": 684783,
     "y": 627522,
     "splats": "/scans/esplanade-citadelle-namur.spz",
@@ -434,6 +468,7 @@
     "credit": {
       "author": "Mathis Hortz",
       "title": "Prises de vue au drone, 2026",
+      "i18n": {"en": {"title": "Drone footage, 2026"}, "nl": {"title": "Dronebeelden, 2026"}},
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     },
@@ -452,6 +487,7 @@
     "credit": {
       "author": "Alan Hortz",
       "title": "Prises de vue au drone, 2026",
+      "i18n": {"en": {"title": "Drone footage, 2026"}, "nl": {"title": "Dronebeelden, 2026"}},
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     }
@@ -459,6 +495,7 @@
   {
     "id": "lettres-namur",
     "name": "Lettres « NAMUR », esplanade de la Confluence",
+    "i18n": {"en": {"name": "“NAMUR” letters, Confluence esplanade", "note": "The letters and the esplanade floor they stand on, scanned with a phone and set in place on the LiDAR relief."}, "nl": {"name": "„NAMUR”-letters, esplanade van de Confluence", "note": "De letters en de vloer van de esplanade waarop ze staan, met een telefoon gescand en op hun plaats op het LiDAR-reliëf gezet."}},
     "x": 685570,
     "y": 627961,
     "splats": "/scans/lettres-namur-esplanade.spz",
@@ -470,6 +507,7 @@
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam, 2026",
+      "i18n": {"en": {"title": "Polycam scan, 2026"}, "nl": {"title": "Polycam-scan, 2026"}},
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     },
@@ -483,6 +521,7 @@
   {
     "id": "detail-facade-namur",
     "name": "Détail de façade, Namur",
+    "i18n": {"en": {"name": "Façade detail, Namur", "note": "Scanned with a phone and set in place on the LiDAR relief, to scale: the “object” entry of the same name opens it in 3D, up close."}, "nl": {"name": "Geveldetail, Namen", "note": "Met een telefoon gescand en op zijn plaats op het LiDAR-reliëf gezet, op schaal: de „object”-fiche met dezelfde naam opent het in 3D, van dichtbij."}},
     "x": 685183,
     "y": 628502,
     "splats": "/scans/detail-facade-namur-carte.spz",
@@ -494,6 +533,7 @@
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam, 2026",
+      "i18n": {"en": {"title": "Polycam scan, 2026"}, "nl": {"title": "Polycam-scan, 2026"}},
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     },
@@ -507,6 +547,7 @@
   {
     "id": "mur-peint-namur",
     "name": "Fragment de mur peint, Namur",
+    "i18n": {"en": {"name": "Fragment of a painted wall, Namur", "note": "Street art by"}, "nl": {"name": "Fragment van een beschilderde muur, Namen", "note": "Street art door"}},
     "x": 685373,
     "y": 628058,
     "splats": "/scans/mur-peint-namur-carte.spz",
@@ -519,6 +560,7 @@
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam, 2026",
+      "i18n": {"en": {"title": "Polycam scan, 2026"}, "nl": {"title": "Polycam-scan, 2026"}},
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     },
@@ -532,6 +574,7 @@
   {
     "id": "camion-police-brasseurs",
     "name": "Vieux camion de police, rue des Brasseurs",
+    "i18n": {"en": {"name": "Old police truck, rue des Brasseurs", "note": "Truck used during the filming of the series “Bookish”, season 3."}, "nl": {"name": "Oude politievrachtwagen, rue des Brasseurs", "note": "Vrachtwagen gebruikt bij de opnames van de serie „Bookish”, seizoen 3."}},
     "x": 684950,
     "y": 628207,
     "splats": "/scans/camion-police-brasseurs-carte.spz",
@@ -542,6 +585,7 @@
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam, 2026",
+      "i18n": {"en": {"title": "Polycam scan, 2026"}, "nl": {"title": "Polycam-scan, 2026"}},
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     },
@@ -555,6 +599,7 @@
   {
     "id": "cluster-eco-construction",
     "name": "Cluster Eco-construction asbl",
+    "i18n": {"en": {"name": "Cluster Eco-construction (non-profit)", "note": "Scanned with a phone and set in place on the LiDAR relief, to scale: the “object” entry of the same name opens it in 3D, up close."}, "nl": {"name": "Cluster Eco-construction vzw", "note": "Met een telefoon gescand en op zijn plaats op het LiDAR-reliëf gezet, op schaal: de „object”-fiche met dezelfde naam opent het in 3D, van dichtbij."}},
     "x": 680463,
     "y": 630760,
     "splats": "/scans/cluster-eco-construction-carte.spz",
@@ -566,6 +611,7 @@
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam, 2026",
+      "i18n": {"en": {"title": "Polycam scan, 2026"}, "nl": {"title": "Polycam-scan, 2026"}},
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     },
@@ -579,6 +625,7 @@
   {
     "id": "defibrillateur-crossfit-hawks-nest",
     "name": "Défibrillateur — CrossFit Hawks Nest",
+    "i18n": {"en": {"name": "Defibrillator — CrossFit Hawks Nest", "note": "Scanned with a phone and set in place on the LiDAR relief, to scale: the “object” entry of the same name opens it in 3D, up close."}, "nl": {"name": "Defibrillator — CrossFit Hawks Nest", "note": "Met een telefoon gescand en op zijn plaats op het LiDAR-reliëf gezet, op schaal: de „object”-fiche met dezelfde naam opent het in 3D, van dichtbij."}},
     "x": 636210,
     "y": 619128,
     "splats": "/scans/defibrillateur-crossfit-hawks-nest-carte.spz",
@@ -590,6 +637,7 @@
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam, 2026",
+      "i18n": {"en": {"title": "Polycam scan, 2026"}, "nl": {"title": "Polycam-scan, 2026"}},
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     },
@@ -597,7 +645,8 @@
       {
         "src": "/scans/photos/defibrillateur-crossfit-hawks-nest-1.jpg",
         "thumb": "/scans/photos/defibrillateur-crossfit-hawks-nest-1.vignette.jpg",
-        "caption": "Le défibrillateur dans son boîtier, au mur de la salle"
+        "caption": "Le défibrillateur dans son boîtier, au mur de la salle",
+        "i18n": {"en": {"caption": "The defibrillator in its cabinet, on the gym wall"}, "nl": {"caption": "De defibrillator in zijn kast, aan de muur van de zaal"}}
       }
     ],
     "view": {
@@ -610,6 +659,7 @@
   {
     "id": "borne-arcade-ibis-suarlee",
     "name": "Borne d’arcade — Ibis Styles Namur, Suarlée",
+    "i18n": {"en": {"name": "Arcade cabinet — Ibis Styles Namur, Suarlée", "note": "Scanned with a phone and set in place on the LiDAR relief, to scale: the “object” entry of the same name opens it in 3D, up close."}, "nl": {"name": "Arcadekast — Ibis Styles Namur, Suarlée", "note": "Met een telefoon gescand en op zijn plaats op het LiDAR-reliëf gezet, op schaal: de „object”-fiche met dezelfde naam opent het in 3D, van dichtbij."}},
     "x": 680290,
     "y": 630583,
     "splats": "/scans/borne-arcade-ibis-suarlee-carte.spz",
@@ -621,6 +671,7 @@
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam, 2026",
+      "i18n": {"en": {"title": "Polycam scan, 2026"}, "nl": {"title": "Polycam-scan, 2026"}},
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     },
@@ -634,6 +685,7 @@
   {
     "id": "poteau-autocollants-saint-aubain",
     "name": "Poteau — autocollants",
+    "i18n": {"en": {"name": "Post — stickers", "note": "Scanned with a phone and set in place on the LiDAR relief, to scale: the “object” entry of the same name opens it in 3D, up close."}, "nl": {"name": "Paal — stickers", "note": "Met een telefoon gescand en op zijn plaats op het LiDAR-reliëf gezet, op schaal: de „object”-fiche met dezelfde naam opent het in 3D, van dichtbij."}},
     "x": 684573,
     "y": 628265,
     "splats": "/scans/poteau-autocollants-saint-aubain-carte.spz",
@@ -645,6 +697,7 @@
     "credit": {
       "author": "Alan Hortz",
       "title": "Relevé Polycam, 2026",
+      "i18n": {"en": {"title": "Polycam scan, 2026"}, "nl": {"title": "Polycam-scan, 2026"}},
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     },
@@ -658,6 +711,7 @@
   {
     "id": "autoroutes-wallonie",
     "name": "Autoroutes de Wallonie",
+    "i18n": {"en": {"name": "Motorways of Wallonia", "note": "The motorways and ring roads of Wallonia, laid on the LiDAR relief. These are not images: each splat is generated from the regional road network."}, "nl": {"name": "Autosnelwegen van Wallonië", "note": "Het tracé van de autosnelwegen en ringwegen van Wallonië, op het LiDAR-reliëf gelegd. Dit zijn geen beelden: elke vlek is gemaakt uit het gewestelijke wegennet."}},
     "x": 676000,
     "y": 595000,
     "splats": "/scans/autoroutes-wallonie.spz",
@@ -666,6 +720,7 @@
     "credit": {
       "author": "Service public de Wallonie",
       "title": "Réseau routier régional — autoroutes et rings",
+      "i18n": {"en": {"title": "Regional road network — motorways and ring roads"}, "nl": {"title": "Gewestelijk wegennet — autosnelwegen en ringwegen"}},
       "url": "https://geoportail.wallonie.be",
       "licence": "CC-BY 4.0"
     },

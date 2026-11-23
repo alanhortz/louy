@@ -8,10 +8,14 @@ import { assign, sendParent, setup, type SnapshotFrom } from 'xstate';
 import { FILM_PLACES, type FilmPlace } from '../domain/timeline.ts';
 import type { FilmFeature } from '../engine/overlays/filmMarkers.ts';
 import type { LayerFeed } from './places.machine.ts';
+import { localized } from '../domain/localized.ts';
+import { currentLanguage } from '../i18n/index.ts';
 
 export type FilmsEvent =
   | { type: 'films.toggled' }
-  | { type: 'films.picked'; id: string };
+  | { type: 'films.picked'; id: string }
+  /** La langue de l'interface a changé : les noms des lieux se réécrivent. */
+  | { type: 'films.relabeled' };
 
 export type FilmsEmitted =
   | { type: 'films.markersChanged'; features: FilmFeature[]; activeId: string | null }
@@ -23,7 +27,7 @@ interface FilmsContext {
   focus: string | null;
 }
 
-const toFeature = (place: FilmPlace): FilmFeature => ({ id: place.id, x: place.x, y: place.y, label: place.name, rank: 1 });
+const toFeature = (place: FilmPlace): FilmFeature => ({ id: place.id, x: place.x, y: place.y, label: localized(place, 'name', currentLanguage()), rank: 1 });
 
 export const filmsMachine = setup({
   types: {
@@ -56,6 +60,7 @@ export const filmsMachine = setup({
       on: {
         'films.toggled': 'hidden',
         'films.picked': { guard: 'picksKnownPlace', actions: ['focusPicked', 'mark', 'play'] },
+        'films.relabeled': { actions: 'mark' },
       },
     },
     hidden: {

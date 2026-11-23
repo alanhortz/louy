@@ -71,9 +71,14 @@ import { clipViewPose, type ScanClip } from '../domain/clips.ts';
 const filmFraming = (): FilmFraming =>
   (typeof window !== 'undefined' && window.innerHeight > window.innerWidth ? 'portrait' : 'paysage');
 import { viewerMachine, type ViewerEmitted } from './viewer.machine.ts';
+import { localized } from '../domain/localized.ts';
+import { currentLanguage } from '../i18n/index.ts';
+import i18next from '../i18n/index.ts';
 
 export type AppEvent =
   | { type: 'app.shareRequested' }
+  /** La langue de l'interface a changé. */
+  | { type: 'app.languageChanged' }
   /** Partager la balade au sol en cours : le lien fait descendre dans ce lieu, à son point de départ. */
   | { type: 'app.walkShareRequested' }
   | { type: 'app.homeRequested' }
@@ -247,6 +252,12 @@ export const appMachine = setup({
       const reload = () => location.reload();
       window.addEventListener('hashchange', reload);
       return () => window.removeEventListener('hashchange', reload);
+    }),
+    /** La langue de l'interface : à chaque changement, les textes tirés des données se réécrivent. */
+    languageWatcher: fromCallback(({ sendBack }) => {
+      const changed = () => sendBack({ type: 'app.languageChanged' });
+      i18next.on('languageChanged', changed);
+      return () => i18next.off('languageChanged', changed);
     }),
   },
   guards: {
@@ -422,6 +433,7 @@ export const appMachine = setup({
         { id: 'activity', src: 'activity' },
         { id: 'share', src: 'share' },
         { id: 'linkWatcher', src: 'linkWatcher' },
+        { id: 'languageWatcher', src: 'languageWatcher' },
       ],
 
       on: {
@@ -848,7 +860,7 @@ export const appMachine = setup({
           {
             actions: sendTo('walk', ({ context, event }) => {
               const nearest = nearestPlace(context.places, event.x, event.y);
-              return { type: 'walk.missed', nearest: nearest && { name: nearest.scan.name, distance: nearest.distance } };
+              return { type: 'walk.missed', nearest: nearest && { name: localized(nearest.scan, 'name', currentLanguage()), distance: nearest.distance } };
             }),
           },
         ],
@@ -1078,6 +1090,10 @@ export const appMachine = setup({
         },
 
         /* ---- partage : on capture d'abord la pose exacte, orbite comprise ---- */
+        // les étiquettes posées sur la carte suivent la langue : chaque calque les réécrit
+        'app.languageChanged': {
+          actions: [sendTo('layers', { type: 'layers.relabeled' }), sendTo('films', { type: 'films.relabeled' })],
+        },
         'app.shareRequested': {
           actions: sendTo('viewer', { type: 'viewer.poseCaptureRequested' }),
         },
@@ -1093,8 +1109,8 @@ export const appMachine = setup({
                 request: {
                   // la pose du lien regarde le point de départ d'un peu au-dessus : si la descente échoue, on voit au moins le lieu
                   url: viewUrl({ ...context.view, pose: { x: start.x, y: start.y, distance: 90, azimuth: scan.walk?.azimuth ?? 0, tilt: 55 }, walk: scan.id }, location.href),
-                  title: `${PROJECT.name} — ${scan.name}`,
-                  text: `${PROJECT.name} — ${scan.name} : ${PROJECT.tagline}`,
+                  title: `${PROJECT.name} — ${localized(scan, 'name', currentLanguage())}`,
+                  text: `${PROJECT.name} — ${localized(scan, 'name', currentLanguage())} : ${PROJECT.tagline}`,
                 },
               };
             }),

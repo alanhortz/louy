@@ -4,6 +4,7 @@
  * la position et le regard de la caméra y sont connus image par image.
  */
 
+import type { Translations } from './localized.ts';
 import { isClip, type ClipKey } from './clips.ts';
 import type { ScanCredit } from './scans.ts';
 
@@ -11,6 +12,8 @@ import type { ScanCredit } from './scans.ts';
 export const DRONES_LABEL = 'layer.drones';
 
 export interface DroneFlight {
+  /** Traductions des textes ci-dessus (voir domain/localized.ts). */
+  i18n?: Translations;
   id: string;
   name: string;
   /** Où le marqueur se pose : le point de départ du vol, en Lambert 2008. */

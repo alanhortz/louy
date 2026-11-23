@@ -28,6 +28,7 @@ import { PointCloudIcon } from './PointCloudIcon.tsx';
 import { DRONES_LABEL } from '../../domain/droneFlights.ts';
 import { SPORTS_LABEL } from '../../domain/sports.ts';
 import { VIDEOS_LABEL } from '../../domain/videos.ts';
+import { useLocalized } from '../localized.ts';
 
 interface LayerRowProps {
   icon: ReactNode;
@@ -228,6 +229,7 @@ function MotorwaysRow() {
 /** Films du temps : les lieux dont l'évolution, d'une photo aérienne à l'autre, vaut d'être regardée. */
 function FilmsRow() {
   const { t } = useTranslation();
+  const l = useLocalized();
   const films = useChild('films');
   const feed = useSelector(films, filmsFeed);
   const places = useSelector(films, (snapshot) => snapshot.context.places);
@@ -238,7 +240,7 @@ function FilmsRow() {
       name={t(FILMS_LABEL)}
       count={places.length}
       feed={feed}
-      meta={t('layers.filmsMeta', { places: places.map((place) => place.name).join(' — ') })}
+      meta={t('layers.filmsMeta', { places: places.map((place) => l(place, 'name')).join(' — ') })}
       onToggle={() => films.send({ type: 'films.toggled' })}
     />
   );

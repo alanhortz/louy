@@ -3,6 +3,7 @@ import { useSelector } from '@xstate/react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChild } from '../actors.ts';
+import { useLocalized } from '../localized.ts';
 
 /**
  * Vue « cinéma » : la séquence filmée d'un lieu, en grand, sur fond noir. La carte reste
@@ -10,6 +11,7 @@ import { useChild } from '../actors.ts';
  */
 export function Cinema() {
   const { t } = useTranslation();
+  const l = useLocalized();
   const cinema = useChild('cinema');
   const clip = useSelector(cinema, (snapshot) => snapshot.context.clip);
   const credit = useSelector(cinema, (snapshot) => snapshot.context.credit);
@@ -30,13 +32,13 @@ export function Cinema() {
       className="cinema"
       role="dialog"
       aria-modal="true"
-      aria-label={t('cinema.label', { name: clip.name })}
+      aria-label={t('cinema.label', { name: l(clip, 'name') })}
       onClick={(event) => { if (event.target === event.currentTarget) cinema.send({ type: 'cinema.closed', by: 'backdrop' }); }}
     >
       <header className="cinema-header">
         <div className="cinema-title">
           <span className="object-kicker">{t('cinema.kicker')}</span>
-          <h2>{clip.name}</h2>
+          <h2>{l(clip, 'name')}</h2>
         </div>
         <button
           type="button"
@@ -52,7 +54,7 @@ export function Cinema() {
       <video key={clip.src} className="cinema-screen" src={clip.src} autoPlay loop muted playsInline controls />
       {credit && (
         <footer className="cinema-footer">
-          {t('cinema.images')} <a href={credit.url} target="_blank" rel="noreferrer">{credit.author}</a> · {credit.licence} · « {credit.title} »
+          {t('cinema.images')} <a href={credit.url} target="_blank" rel="noreferrer">{credit.author}</a> · {l(credit, 'licence')} · « {l(credit, 'title')} »
         </footer>
       )}
     </div>

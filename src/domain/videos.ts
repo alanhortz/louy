@@ -4,12 +4,15 @@
  * hébergeur tant que le visiteur n'a pas choisi d'y aller.
  */
 
+import type { Translations } from './localized.ts';
 import type { ScanCredit } from './scans.ts';
 
 /** Clef de traduction du nom du calque. */
 export const VIDEOS_LABEL = 'layer.videos';
 
 export interface WebVideo {
+  /** Traductions des textes ci-dessus (voir domain/localized.ts). */
+  i18n?: Translations;
   id: string;
   name: string;
   /** Où le marqueur se pose : Lambert 2008. */

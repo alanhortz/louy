@@ -2,17 +2,20 @@
   {
     "id": "sport-esplanade-citadelle",
     "name": "Haltérophilie sur l’esplanade de la citadelle",
+    "i18n": {"en": {"name": "Weightlifting on the citadel esplanade"}, "nl": {"name": "Gewichtheffen op de esplanade van de citadel"}},
     "x": 684670.23,
     "y": 627474.57,
     "credit": {
       "author": "Alan Hortz",
       "title": "Vidéo au téléphone, esplanade de la citadelle de Namur",
+      "i18n": {"en": {"title": "Phone video, Namur citadel esplanade"}, "nl": {"title": "Telefoonvideo, esplanade van de citadel van Namen"}},
       "url": "https://github.com/alanhortz/louy/blob/main/NOTICE.md",
       "licence": "© 2026"
     },
     "clip": {
       "id": "sport-esplanade-citadelle",
       "name": "Haltérophilie sur l’esplanade de la citadelle",
+      "i18n": {"en": {"name": "Weightlifting on the citadel esplanade"}, "nl": {"name": "Gewichtheffen op de esplanade van de citadel"}},
       "src": "/scans/clips/sport-esplanade-citadelle.mp4",
       "fov": 96.4,
       "aspect": 0.55,

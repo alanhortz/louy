@@ -25,6 +25,8 @@ import { loadDroneFlights } from '../services/droneFlights.ts';
 import type { WebVideo } from '../domain/videos.ts';
 import { loadVideos } from '../services/videos.ts';
 import type { SelectionLayerSpec } from './selectionLayer.machine.ts';
+import { localized } from '../domain/localized.ts';
+import { currentLanguage } from '../i18n/index.ts';
 
 export const AERIAL_LAYER = 'scans';
 export const OBJECTS_LAYER = 'objects';
@@ -51,7 +53,7 @@ export const OBJECT_LAYERS: readonly string[] = [OBJECTS_LAYER, SURVIVAL_LAYER, 
 const MARKER_CLEARANCE = 1200;
 
 const toFeature = (scan: Scan): ScanFeature =>
-  ({ id: scan.id, x: scan.marker?.x ?? scan.x, y: scan.marker?.y ?? scan.y, label: scan.name, rank: 1 });
+  ({ id: scan.id, x: scan.marker?.x ?? scan.x, y: scan.marker?.y ?? scan.y, label: localized(scan, 'name', currentLanguage()), rank: 1 });
 
 export const aerialLayer: SelectionLayerSpec<Scan> = {
   name: AERIAL_LAYER,
@@ -136,7 +138,7 @@ export const artLayer: SelectionLayerSpec<Scan> = {
 export const sportsLayer: SelectionLayerSpec<SportSequence> = {
   name: SPORTS_LAYER,
   load: (signal) => loadSports(signal),
-  markers: (items) => items.map((item): ScanFeature => ({ id: item.id, x: item.x, y: item.y, label: item.name, rank: 1 })),
+  markers: (items) => items.map((item): ScanFeature => ({ id: item.id, x: item.x, y: item.y, label: localized(item, 'name', currentLanguage()), rank: 1 })),
   opensTogether: (members) => members.length === 1,
 };
 
@@ -144,7 +146,7 @@ export const sportsLayer: SelectionLayerSpec<SportSequence> = {
 export const dronesLayer: SelectionLayerSpec<DroneFlight> = {
   name: DRONES_LAYER,
   load: (signal) => loadDroneFlights(signal),
-  markers: (items) => items.map((item): ScanFeature => ({ id: item.id, x: item.x, y: item.y, label: item.name, rank: 1 })),
+  markers: (items) => items.map((item): ScanFeature => ({ id: item.id, x: item.x, y: item.y, label: localized(item, 'name', currentLanguage()), rank: 1 })),
   opensTogether: (members) => members.length === 1,
 };
 
@@ -152,7 +154,7 @@ export const dronesLayer: SelectionLayerSpec<DroneFlight> = {
 export const videosLayer: SelectionLayerSpec<WebVideo> = {
   name: VIDEOS_LAYER,
   load: (signal) => loadVideos(signal),
-  markers: (items) => items.map((item): ScanFeature => ({ id: item.id, x: item.x, y: item.y, label: item.name, rank: 1 })),
+  markers: (items) => items.map((item): ScanFeature => ({ id: item.id, x: item.x, y: item.y, label: localized(item, 'name', currentLanguage()), rank: 1 })),
   opensTogether: (members) => members.length === 1,
 };
 

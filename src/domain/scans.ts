@@ -16,6 +16,7 @@
  * scan porte le crédit de son auteur, affiché partout où le scan l'est.
  */
 
+import { isTranslations, type Translations } from './localized.ts';
 import { isClip, type ScanClip } from './clips.ts';
 
 export interface Scan {
@@ -117,11 +118,15 @@ export interface Scan {
   photos?: ScanPhoto[];
   /** Auteur et licence des images d'origine. */
   credit: ScanCredit;
+  /** Traductions des textes ci-dessus (voir domain/localized.ts). */
+  i18n?: Translations;
   /** Cadrage d'ouverture ; à défaut, la caméra se place au-dessus de l'ancrage. */
   view?: ScanView;
 }
 
 export interface ScanCredit {
+  /** Traductions des textes ci-dessus (voir domain/localized.ts). */
+  i18n?: Translations;
   author: string;
   /** Titre de la vidéo d'origine. */
   title: string;
@@ -134,6 +139,8 @@ export interface ScanCredit {
 }
 
 export interface ScanPhoto {
+  /** Traductions des textes ci-dessus (voir domain/localized.ts). */
+  i18n?: Translations;
   /** Adresse de la photo, servie par le site. */
   src: string;
   /** Vignette de la même photo ; à défaut, la photo elle-même en tient lieu. */
@@ -206,6 +213,7 @@ const isScan = (value: unknown): value is Scan => {
     && Number.isFinite(scan.x) && Number.isFinite(scan.y)
     // un lieu a ses splats, un objet son maillage ; un objet relevé de près peut aussi être posé dans la carte, et a les deux
     && (typeof scan.splats === 'string' || typeof scan.mesh === 'string') && isCredit(scan.credit)
+    && isTranslations(scan.i18n) && isTranslations(scan.credit.i18n)
     && (scan.view === undefined || isView(scan.view))
     // une séquence filmée se replace dans un lieu, pas autour d'un objet
     && (scan.clips === undefined || (typeof scan.splats === 'string' && Array.isArray(scan.clips) && scan.clips.every(isClip)))

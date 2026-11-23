@@ -8,6 +8,7 @@ import { objectLabel, scanPhotos } from '../../domain/scans.ts';
 import { objectPage, objectPhase } from '../../machines/object.machine.ts';
 import { useApp, useChild } from '../actors.ts';
 import { count } from '../format.ts';
+import { useLocalized } from '../localized.ts';
 
 /**
  * Visionneuse d'objet : un scan maillé, que le visiteur fait tourner et
@@ -17,6 +18,7 @@ import { count } from '../format.ts';
  */
 export function ObjectViewer() {
   const { t } = useTranslation();
+  const l = useLocalized();
   const object = useChild('object');
   const phase = useSelector(object, objectPhase);
   const scan = useSelector(object, (snapshot) => snapshot.context.scan);
@@ -62,11 +64,11 @@ export function ObjectViewer() {
       className="object-backdrop"
       onClick={(event) => { if (event.target === event.currentTarget) object.send({ type: 'object.closed', by: 'backdrop' }); }}
     >
-      <section className="object-viewer" role="dialog" aria-modal="true" aria-label={`${kicker} : ${scan.name}`}>
+      <section className="object-viewer" role="dialog" aria-modal="true" aria-label={`${kicker} : ${l(scan, 'name')}`}>
         <header className="object-header">
           <div className="object-title">
             <span className="object-kicker">{kicker}</span>
-            <h2>{scan.name}</h2>
+            <h2>{l(scan, 'name')}</h2>
           </div>
           <div className="object-actions">
             <button
@@ -105,7 +107,7 @@ export function ObjectViewer() {
         </header>
 
         <div className="object-stage" data-phase={phase}>
-          <canvas ref={canvas} tabIndex={0} aria-label={t('object.canvas', { name: scan.name })} />
+          <canvas ref={canvas} tabIndex={0} aria-label={t('object.canvas', { name: l(scan, 'name') })} />
           {photo && (
             <figure
               className="object-photo"
@@ -117,8 +119,8 @@ export function ObjectViewer() {
               }}
               onPointerCancel={() => { swipe.current = null; }}
             >
-              <img src={photo.src} alt={photo.caption ?? t('object.photoOf', { name: scan.name })} draggable={false} />
-              {photo.caption && <figcaption>{photo.caption}</figcaption>}
+              <img src={photo.src} alt={l(photo, 'caption') ?? t('object.photoOf', { name: l(scan, 'name') })} draggable={false} />
+              {photo.caption && <figcaption>{l(photo, 'caption')}</figcaption>}
             </figure>
           )}
           {!viewingPhoto && phase === 'loading' && (
@@ -140,7 +142,7 @@ export function ObjectViewer() {
 
         {(scan.note || scan.link) && (
           <p className="object-note">
-            {scan.note}
+            {l(scan, 'note')}
             {scan.link && <> <a href={scan.link.url} target="_blank" rel="noopener noreferrer">{scan.link.label}</a></>}
           </p>
         )}
@@ -164,8 +166,8 @@ export function ObjectViewer() {
                 type="button"
                 className="object-thumb"
                 aria-pressed={photoIndex === index}
-                title={item.caption ?? t('object.photo', { n: index + 1 })}
-                aria-label={`${t('object.seePhoto', { n: index + 1, total: photos.length })}${item.caption ? ` : ${item.caption}` : ''}`}
+                title={l(item, 'caption') ?? t('object.photo', { n: index + 1 })}
+                aria-label={`${t('object.seePhoto', { n: index + 1, total: photos.length })}${item.caption ? ` : ${l(item, 'caption')}` : ''}`}
                 onClick={() => object.send({ type: 'object.photoOpened', index })}
               >
                 <img src={item.thumb ?? item.src} alt="" loading="lazy" draggable={false} />
@@ -205,7 +207,7 @@ export function ObjectViewer() {
           </span>
           <span>
             {stats && `${t('object.triangles', { n: count(stats.triangles) })} · `}
-            <a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.author}</a> {scan.credit.licence}
+            <a href={scan.credit.url} target="_blank" rel="noreferrer">{scan.credit.author}</a> {l(scan.credit, 'licence')}
           </span>
         </footer>
       </section>

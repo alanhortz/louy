@@ -5,6 +5,7 @@
  * que le lieu — et l'écran qui porte la séquence la suit quand elle bouge.
  */
 
+import type { Translations } from './localized.ts';
 /** Pose de la caméra à un instant de la séquence. */
 export interface ClipKey {
   /** Instant, en secondes depuis le début de la séquence. */
@@ -23,6 +24,8 @@ export interface ClipKey {
 export interface ScanClip {
   id: string;
   name: string;
+  /** Traductions des textes ci-dessus (voir domain/localized.ts). */
+  i18n?: Translations;
   /** Adresse de la séquence, servie par le site. */
   src: string;
   /** Champ vertical de la caméra, en degrés, et rapport largeur / hauteur de l'image. */

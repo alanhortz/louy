@@ -3,6 +3,7 @@
  * sont les millésimes d'orthophotos du SPW, du plus ancien au plus récent.
  */
 
+import type { Translations } from './localized.ts';
 import { LATEST_VINTAGE, VINTAGES, type TintId } from './catalog.ts';
 import type { Pose } from './view.ts';
 
@@ -46,6 +47,8 @@ export const FILMS_LABEL = 'layer.films';
 
 /** Un lieu choisi pour son film : où poser le marqueur, et d'où regarder. */
 export interface FilmPlace {
+  /** Traductions des textes ci-dessus (voir domain/localized.ts). */
+  i18n?: Translations;
   id: string;
   name: string;
   /** Position du marqueur (Lambert 2008). */
@@ -96,6 +99,7 @@ export const FILM_PLACES: readonly FilmPlace[] = [
   {
     id: 'grognon',
     name: 'Le Grognon, Namur',
+    i18n: { en: { name: 'The Grognon, Namur' }, nl: { name: 'De Grognon, Namen' } },
     x: 685487,
     y: 627968,
     // le confluent de la Sambre et de la Meuse : parking à ciel ouvert, chantier, puis esplanade
@@ -105,6 +109,7 @@ export const FILM_PLACES: readonly FilmPlace[] = [
   {
     id: 'trakk',
     name: 'Le TRAKK, Namur',
+    i18n: { en: { name: 'The TRAKK, Namur' }, nl: { name: 'Het TRAKK, Namen' } },
     x: 684690,
     y: 628057,
     // le centre sportif universitaire de 2014, son chantier, puis le TRAKK : la photo aérienne de 2012 à 2026
