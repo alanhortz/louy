@@ -23,6 +23,14 @@ const KEY = (l, i, j) => `${l}/${i}/${j}`;
  * vue neuve en demande cent.
  */
 const RETRY_MS = 20_000;
+/**
+ * Préchargement en anneau : autour du point regardé, on rejoue la sélection pour huit caméras virtuelles, tournées de
+ * 45° en 45° à la même distance et à la même inclinaison, et l'on charge à l'avance ce qu'elles verraient. Une rotation
+ * de la caméra trouve alors ses tuiles déjà là. Ces chargements passent après tout ce qui est à l'écran.
+ */
+const RING_VIEWS = 8;
+const RING_PRIORITY = 1e6;         // toujours après les tuiles visibles dans la file du chargeur
+const TILE_POINTS = C.TILE_GRID * C.TILE_GRID;
 /** Au-dela (une douzaine de minutes), on n'insiste plus : la tuile garde le relief du service pour la session. */
 const MAX_RETRIES = 8;
 
@@ -110,7 +118,7 @@ export class TileTree {
     const box = this.#worldBox(tile, ctx.exaggeration, this._box);
     if (!this._frustum.intersectsBox(box)) return true;   // hors champ : rien a couvrir
 
-    tile.lastUsed = this.frame;
+    if (!ctx.dry) tile.lastUsed = this.frame;
     if (tile.state === 'empty') return true;
 
     // pas d'echantillonnage projete, en pixels
@@ -139,12 +147,76 @@ export class TileTree {
       // filles incompletes : on maintient ce niveau a l'affichage
     }
 
+    if (ctx.dry) {
+      // caméra virtuelle de l'anneau : on note la tuile voulue et sa distance, sans rien afficher ni demander
+      const avant = ctx.collect.get(tile.key);
+      if (avant === undefined || dist < avant) ctx.collect.set(tile.key, dist);
+      ctx.points += tile.count || TILE_POINTS;
+      return tile.state === 'ready';
+    }
     this.#want(tile, dist, ctx);
     if (tile.state === 'ready') {
       this.#show(tile, ctx);
       return true;
     }
     return false;
+  }
+
+  /** Seconde passe : les tuiles que verraient les caméras tournées autour du point regardé (voir RING_VIEWS). */
+  #prefetchRing(camera, opts, ctx) {
+    const t = opts.target, cam = ctx.camPos;
+    const pose = [t.x, t.y, t.z, cam.x - t.x, cam.y - t.y, cam.z - t.z];
+    const portee = Math.hypot(pose[3], pose[4], pose[5]);
+    const garde = this._ring;
+    // la liste ne se recalcule que si la vue a nettement changé (ou toutes les quatre secondes environ)
+    // pendant un zoom ou un déplacement continu, au plus une fois par demi-seconde : la sélection des huit caméras
+    // virtuelles ne doit jamais coûter une image
+    const change = !garde || this.frame - garde.frame > 240 || (this.frame - garde.frame > 30 && (false
+      || Math.hypot(pose[0] - garde.pose[0], pose[2] - garde.pose[2]) > 0.08 * portee
+      || Math.abs(portee - garde.portee) > 0.1 * portee || Math.abs(pose[4] / portee - garde.pose[4] / garde.portee) > 0.06));
+    if (change) {
+      const t0 = performance.now();
+      this._ring = { frame: this.frame, pose, portee, keys: this.#ringKeys(camera, opts, ctx) };
+      this.stats.ringMs = performance.now() - t0;
+    }
+    let points = 0;
+    for (const key of this._ring.keys) {
+      if (points >= opts.ringPoints) break;
+      const tile = this.tiles.get(key);
+      if (!tile || tile.state === 'empty') continue;
+      tile.lastUsed = this.frame;                          // une tuile de l'anneau reste en mémoire
+      points += tile.count || TILE_POINTS;
+      if (ctx.wanted.has(key) || ctx.keep.has(key) || tile.state === 'ready') continue;
+      if (tile.state === 'error' && this.frame - (tile.errorAt || 0) < 600) continue;
+      ctx.wanted.add(key);
+      const box = this.#worldBox(tile, ctx.exaggeration, this._box);
+      const priority = RING_PRIORITY + box.distanceToPoint(ctx.camPos);
+      if (tile.state === 'loading') { this.loader.enqueue(key, null, priority); continue; }
+      tile.state = 'loading';
+      this.loader.enqueue(key, ctx.describe(tile), priority);
+      this.stats.requested++;
+    }
+    this.stats.ring = points;
+  }
+
+  /** Les tuiles que choisirait la sélection ordinaire pour chacune des caméras tournées, de la plus proche à la plus lointaine. */
+  #ringKeys(camera, opts, ctx) {
+    const t = opts.target, virtuelle = camera.clone();
+    const decalage = new Vector3().subVectors(ctx.camPos, t), axe = new Vector3(0, 1, 0);
+    const vus = new Map();
+    for (let k = 1; k < RING_VIEWS; k++) {
+      virtuelle.position.copy(t).add(decalage.clone().applyAxisAngle(axe, (2 * Math.PI * k) / RING_VIEWS));
+      virtuelle.lookAt(t);
+      virtuelle.updateMatrixWorld();
+      this._m.multiplyMatrices(virtuelle.projectionMatrix, virtuelle.matrixWorldInverse);
+      this._frustum.setFromProjectionMatrix(this._m);
+      const essai = { ...ctx, camPos: virtuelle.position, points: 0, visible: 0, visited: 0, wanted: new Set(), keep: new Set(), dry: true, collect: vus };
+      this.#visit(this.#get(0, 0, 0), essai);
+    }
+    // le cône de la vraie caméra est rétabli pour la suite de l'image
+    this._m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    this._frustum.setFromProjectionMatrix(this._m);
+    return [...vus.entries()].sort((a, b) => a[1] - b[1]).map(([key]) => key);
   }
 
   #want(tile, dist, ctx) {
@@ -271,6 +343,7 @@ export class TileTree {
     };
 
     this.#visit(this.#get(0, 0, 0), ctx);
+    if (opts.target && opts.ringPoints > 0) this.#prefetchRing(camera, opts, ctx);
 
     // retire de la scene ce qui n'a pas ete selectionne cette image
     for (const tile of this.tiles.values()) {

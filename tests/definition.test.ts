@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createActor, createMachine, sendTo, type AnyEventObject } from 'xstate';
-import { hasHighDefinition, isDefinition, satelliteIn, scanIn } from '../src/domain/definition.ts';
+import { defaultDefinition, hasHighDefinition, isDefinition, satelliteIn, scanIn } from '../src/domain/definition.ts';
 import { isSatelliteImage } from '../src/domain/satellite.ts';
 import { settingsMachine } from '../src/machines/settings.machine.ts';
 
@@ -59,5 +59,23 @@ describe('relevé partagé en plusieurs fichiers', () => {
     expect(scanIn(scan!, 'high')).toMatchObject({ splats: '/scans/lieu-hd.spz', more: ['/scans/lieu-hd-2.spz'] });
     // une suite hors du site est refusée
     expect(parseScans([{ id: 'lieu', name: 'Lieu', x: 1, y: 2, splats: '/scans/lieu.spz', more: ['https://ailleurs.example/x.spz'], credit }])).toHaveLength(0);
+  });
+});
+
+describe('définition sur téléphone', () => {
+  const light = { id: 'b', name: 'B', x: 0, y: 0, splats: '/scans/b.spz', light: '/scans/b-leger.spz', hd: { splats: '/scans/b-hd.spz' }, credit: { author: 'x', title: 't', url: 'https://x', licence: 'l' } } as unknown as Parameters<typeof scanIn>[0];
+  it('la standard y devient la légère, la haute y devient la standard', () => {
+    expect(scanIn(light, 'standard', 'mobile').splats).toBe('/scans/b-leger.spz');
+    expect(scanIn(light, 'high', 'mobile').splats).toBe('/scans/b.spz');
+    expect(scanIn(light, 'high', 'desktop').splats).toBe('/scans/b-hd.spz');
+    expect(scanIn(light, 'standard', 'desktop').splats).toBe('/scans/b.spz');
+  });
+  it('sans version légère, un téléphone prend la standard', () => {
+    const { light: _, ...sans } = light as unknown as Record<string, unknown>;
+    expect(scanIn(sans as never, 'standard', 'mobile').splats).toBe('/scans/b.spz');
+  });
+  it('à défaut de choix : haute sur ordinateur, standard sur téléphone', () => {
+    expect(defaultDefinition('desktop')).toBe('high');
+    expect(defaultDefinition('mobile')).toBe('standard');
   });
 });

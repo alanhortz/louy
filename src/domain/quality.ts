@@ -22,6 +22,8 @@ export interface QualityProfile {
   pointSize: number;
   /** Suréchantillonnage couleur au dernier niveau (25 cm). */
   superSample: number;
+  /** Points préchargés autour du point regardé, pour qu'une rotation de la caméra ne recharge rien (0 : aucun). */
+  ringPoints: number;
 }
 
 const cores = () => (typeof navigator === 'undefined' ? 4 : navigator.hardwareConcurrency || 4);
@@ -38,6 +40,7 @@ export const QUALITY_PROFILES: Record<QualityProfileId, () => QualityProfile> = 
     maxPixelRatio: 1.5,
     pointSize: 1.75,
     superSample: 2,
+    ringPoints: 18_000_000,
   }),
   mobile: () => ({
     id: 'mobile',
@@ -50,5 +53,6 @@ export const QUALITY_PROFILES: Record<QualityProfileId, () => QualityProfile> = 
     maxPixelRatio: 1.25,
     pointSize: 2.1,
     superSample: 1,
+    ringPoints: 1_500_000,
   }),
 };

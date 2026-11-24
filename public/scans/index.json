@@ -6,6 +6,7 @@
     "x": 685265,
     "y": 627878,
     "splats": "/scans/namur.spz",
+    "light": "/scans/namur-leger.spz",
     "hd": {
       "splats": "/scans/namur-hd.spz"
     },
@@ -139,6 +140,8 @@
     "x": 678359,
     "y": 610205,
     "splats": "/scans/maredsous.spz",
+    "preview": "/scans/maredsous-apercu.spz",
+    "light": "/scans/maredsous-leger.spz",
     "note": "Un vol de drone autour de l'abbaye bénédictine, reconstruit en volume depuis la version 2K de la vidéo et calé sur le relief LiDAR.",
     "credit": {
       "author": "Alexandrone (Le Drone d'Alex)",
@@ -162,6 +165,8 @@
     "x": 693807,
     "y": 601258,
     "splats": "/scans/veves.spz",
+    "preview": "/scans/veves-apercu.spz",
+    "light": "/scans/veves-leger.spz",
     "note": "Un vol de drone autour du château, reconstruit en volume depuis la version 4K de la vidéo et calé sur le relief LiDAR.",
     "credit": {
       "author": "Skyfly_be",
@@ -207,6 +212,7 @@
     "x": 685412.0,
     "y": 628032.0,
     "splats": "/scans/namur-sambre.spz",
+    "light": "/scans/namur-sambre-leger.spz",
     "hd": {
       "splats": "/scans/namur-sambre-hd.spz",
       "more": ["/scans/namur-sambre-hd-2.spz"]
@@ -460,6 +466,7 @@
     "x": 684783,
     "y": 627522,
     "splats": "/scans/esplanade-citadelle-namur.spz",
+    "light": "/scans/esplanade-citadelle-namur-leger.spz",
     "hd": {
       "splats": "/scans/esplanade-citadelle-namur-hd.spz",
       "more": ["/scans/esplanade-citadelle-namur-hd-2.spz"]
@@ -484,6 +491,8 @@
     "x": 636186,
     "y": 619125,
     "splats": "/scans/crossfit-hawks-nest.spz",
+    "preview": "/scans/crossfit-hawks-nest-apercu.spz",
+    "light": "/scans/crossfit-hawks-nest-leger.spz",
     "credit": {
       "author": "Alan Hortz",
       "title": "Prises de vue au drone, 2026",

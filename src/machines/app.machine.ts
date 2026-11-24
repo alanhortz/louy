@@ -299,7 +299,7 @@ export const appMachine = setup({
           ...context.traces,
           // l'objet relevé de près dont le marqueur a été touché : posé à sa place, à l'échelle
           ...(context.shownObject ? [context.shownObject] : []),
-        ].map((scan) => scanIn(scan, context.definition)),
+        ].map((scan) => scanIn(scan, context.definition, context.support?.profile)),
       });
       enqueue.sendTo('viewer', periodOf(context));
     }),
@@ -327,7 +327,8 @@ export const appMachine = setup({
           {
             guard: 'isSupported',
             target: 'running',
-            actions: assign({ support: ({ event }) => event.output }),
+            // la définition par défaut dépend de l'appareil : elle se règle quand on le connaît
+            actions: assign({ support: ({ event }) => event.output, definition: ({ event }) => readDefinition((event.output as SupportReport).profile) }),
           },
           { target: 'unsupported', actions: assign({ support: ({ event }) => event.output }) },
         ],
@@ -424,7 +425,7 @@ export const appMachine = setup({
         { id: 'motorways', src: 'motorways', input: ({ context }) => ({ visible: context.view.overlays.motorways }) },
         { id: 'satellite', src: 'satellite' },
         { id: 'tour', src: 'tour' },
-        { id: 'settings', src: 'settings', input: () => ({ definition: readDefinition() }) },
+        { id: 'settings', src: 'settings', input: ({ context }) => ({ definition: readDefinition(context.support?.profile) }) },
         {
           id: 'acquisition',
           src: 'acquisition',
@@ -667,7 +668,7 @@ export const appMachine = setup({
             actions: [
               assign({ places: ({ event }) => event.items }),
               // seulement les lieux proches de la vue, et dans la définition choisie : préparer l'autre serait la télécharger pour rien
-              sendTo('viewer', ({ context, event }) => ({ type: 'viewer.scansPreloaded', scans: scansWorthPreloading(event.items as Scan[], context.view.pose).map((scan) => scanIn(scan, context.definition)) })),
+              sendTo('viewer', ({ context, event }) => ({ type: 'viewer.scansPreloaded', scans: scansWorthPreloading(event.items as Scan[], context.view.pose).map((scan) => scanIn(scan, context.definition, context.support?.profile)) })),
               'enterPendingWalk',
             ],
           },

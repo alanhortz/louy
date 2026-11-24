@@ -90,6 +90,11 @@ export interface Scan {
    */
   preview?: string;
   /**
+   * Version légère du relevé, pour les téléphones : environ 350 000 splats (6 à 7 Mo), là où la version standard
+   * en a près d'un million. Elle remplace la standard sur un appareil de poche, sauf si le visiteur demande la haute.
+   */
+  light?: string;
+  /**
    * Où poser le marqueur, quand ce n'est pas sur l'ancrage : plusieurs relevés d'un même lieu
    * (volume, orthophoto, nuage de points) ont le même ancrage, et leurs marqueurs se recouvriraient.
    */
@@ -230,6 +235,7 @@ const isScan = (value: unknown): value is Scan => {
     && (scan.hd === undefined || (typeof scan.splats === 'string' && typeof scan.hd?.splats === 'string' && /^\/(?!\/)/.test(scan.hd.splats) && isSiteList(scan.hd.more)))
     && (scan.more === undefined || (typeof scan.splats === 'string' && isSiteList(scan.more)))
     && (scan.preview === undefined || (typeof scan.splats === 'string' && typeof scan.preview === 'string' && /^\/(?!\/)/.test(scan.preview)))
+    && (scan.light === undefined || (typeof scan.splats === 'string' && typeof scan.light === 'string' && /^\/(?!\/)/.test(scan.light)))
     && (scan.cloud === undefined || (typeof scan.splats === 'string' && typeof scan.cloud === 'boolean'))
     && (scan.marker === undefined || (Number.isFinite(scan.marker?.x) && Number.isFinite(scan.marker?.y)))
     && (scan.legend === undefined || (Array.isArray(scan.legend)

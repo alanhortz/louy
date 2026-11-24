@@ -1190,6 +1190,9 @@ export class SceneEngine {
       stopAt: (tile: TileLike) => inPeriod(this.#period, tile),
       cacheSize: this.#quality.cacheTiles,
       cachePoints: this.#quality.cachePoints,
+      // l'anneau préchargé autour du point regardé ; pas pendant la visite à pied ni la vue satellite
+      target: this.#walk || this.#beforeSatellite ? undefined : this.#controls.target,
+      ringPoints: this.#quality.ringPoints,
       describe: (tile: TileLike) => this.#describe(tile),
     });
     if (this.#walk) {
