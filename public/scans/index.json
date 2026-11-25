@@ -211,6 +211,31 @@
     }
   },
   {
+    "id": "chevremont",
+    "name": "Basilique de Chèvremont, Chaudfontaine",
+    "i18n": {"en": {"name": "Chèvremont Basilica, Chaudfontaine", "note": "A drone flight around the basilica, reconstructed in 3D from the 4K version of the video and aligned with the LiDAR relief."}, "nl": {"name": "Basiliek van Chèvremont, Chaudfontaine", "note": "Een dronevlucht rond de basiliek, in 3D gereconstrueerd uit de 4K-versie van de video en uitgelijnd op het LiDAR-reliëf."}},
+    "x": 740040.4,
+    "y": 643797.3,
+    "splats": "/scans/chevremont.spz",
+    "preview": "/scans/chevremont-apercu.spz",
+    "light": "/scans/chevremont-leger.spz",
+    "note": "Un vol de drone autour de la basilique, reconstruit en volume depuis la version 4K de la vidéo et calé sur le relief LiDAR.",
+    "credit": {
+      "author": "Skyfly_be",
+      "title": "Basilica of Our Lady of Chèvremont (Belgium) - Drone footage Ultra HD 4K",
+      "url": "https://www.youtube.com/watch?v=IlU5d_b6SOw",
+      "licence": "© Skyfly_be, avec son accord",
+      "i18n": {"en": {"licence": "© Skyfly_be, with their permission"}, "nl": {"licence": "© Skyfly_be, met diens toestemming"}},
+      "instagram": "https://www.instagram.com/skyfly_be/"
+    },
+    "view": {
+      "x": 740055,
+      "y": 643808,
+      "height": 170,
+      "azimuth": 20
+    }
+  },
+  {
     "id": "namur-escalier",
     "disabled": true,
     "name": "Escalier au pied de la citadelle, Namur",
