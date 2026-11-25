@@ -202,7 +202,7 @@
       "i18n": {"en": {"licence": "© Skyfly_be, with their permission"}, "nl": {"licence": "© Skyfly_be, met diens toestemming"}},
       "instagram": "https://www.instagram.com/skyfly_be/"
     },
-    "walk": { "x": 717500, "y": 597752, "azimuth": 180 },
+    "walk": { "x": 717465, "y": 597633, "azimuth": 23 },
     "view": {
       "x": 717500,
       "y": 597687,
