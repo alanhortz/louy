@@ -185,6 +185,32 @@
     }
   },
   {
+    "id": "jemeppe",
+    "name": "Château de Jemeppe, Hargimont",
+    "i18n": {"en": {"name": "Jemeppe Castle, Hargimont", "note": "A drone flight around the castle, reconstructed in 3D from the 4K version of the video and aligned with the LiDAR relief."}, "nl": {"name": "Kasteel van Jemeppe, Hargimont", "note": "Een dronevlucht rond het kasteel, in 3D gereconstrueerd uit de 4K-versie van de video en uitgelijnd op het LiDAR-reliëf."}},
+    "x": 717485,
+    "y": 597672,
+    "splats": "/scans/jemeppe.spz",
+    "preview": "/scans/jemeppe-apercu.spz",
+    "light": "/scans/jemeppe-leger.spz",
+    "note": "Un vol de drone autour du château, reconstruit en volume depuis la version 4K de la vidéo et calé sur le relief LiDAR.",
+    "credit": {
+      "author": "Skyfly_be",
+      "title": "Castle of Jemeppe (Marche - Belgium) - Drone footage Ultra HD 4K",
+      "url": "https://www.youtube.com/watch?v=E6naUvqGtTw",
+      "licence": "© Skyfly_be, avec son accord",
+      "i18n": {"en": {"licence": "© Skyfly_be, with their permission"}, "nl": {"licence": "© Skyfly_be, met diens toestemming"}},
+      "instagram": "https://www.instagram.com/skyfly_be/"
+    },
+    "walk": { "x": 717500, "y": 597752, "azimuth": 180 },
+    "view": {
+      "x": 717500,
+      "y": 597687,
+      "height": 95,
+      "azimuth": 200
+    }
+  },
+  {
     "id": "namur-escalier",
     "disabled": true,
     "name": "Escalier au pied de la citadelle, Namur",
