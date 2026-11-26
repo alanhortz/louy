@@ -236,6 +236,31 @@
     }
   },
   {
+    "id": "fallais",
+    "name": "Château de Fallais, Braives",
+    "i18n": {"en": {"name": "Fallais Castle, Braives", "note": "A drone flight around the castle and its moat, reconstructed in 3D from the 4K version of the video and aligned with the LiDAR relief."}, "nl": {"name": "Kasteel van Fallais, Braives", "note": "Een dronevlucht rond het kasteel en zijn slotgracht, in 3D gereconstrueerd uit de 4K-versie van de video en uitgelijnd op het LiDAR-reliëf."}},
+    "x": 706787.3,
+    "y": 644461.9,
+    "splats": "/scans/fallais.spz",
+    "preview": "/scans/fallais-apercu.spz",
+    "light": "/scans/fallais-leger.spz",
+    "note": "Un vol de drone autour du château et de ses douves, reconstruit en volume depuis la version 4K de la vidéo et calé sur le relief LiDAR.",
+    "credit": {
+      "author": "Skyfly_be",
+      "title": "Castle of Fallais (Fallais - Belgium) - Drone footage Ultra HD 4K",
+      "url": "https://www.youtube.com/watch?v=65l_JVSCKZ0",
+      "licence": "© Skyfly_be, avec son accord",
+      "i18n": {"en": {"licence": "© Skyfly_be, with their permission"}, "nl": {"licence": "© Skyfly_be, met diens toestemming"}},
+      "instagram": "https://www.instagram.com/skyfly_be/"
+    },
+    "view": {
+      "x": 706775,
+      "y": 644475,
+      "height": 160,
+      "azimuth": 20
+    }
+  },
+  {
     "id": "namur-escalier",
     "disabled": true,
     "name": "Escalier au pied de la citadelle, Namur",
