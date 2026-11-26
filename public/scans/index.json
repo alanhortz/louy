@@ -261,6 +261,31 @@
     }
   },
   {
+    "id": "val-dieu",
+    "name": "Abbaye du Val-Dieu, Aubel",
+    "i18n": {"en": {"name": "Val-Dieu Abbey, Aubel", "note": "A drone flight around the abbey, its cloister and its gardens, reconstructed in 3D from the 4K version of the video and aligned with the LiDAR relief."}, "nl": {"name": "Abdij van Val-Dieu, Aubel", "note": "Een dronevlucht rond de abdij, haar kloostergang en haar tuinen, in 3D gereconstrueerd uit de 4K-versie van de video en uitgelijnd op het LiDAR-reliëf."}},
+    "x": 751579.0,
+    "y": 655029.0,
+    "splats": "/scans/val-dieu.spz",
+    "preview": "/scans/val-dieu-apercu.spz",
+    "light": "/scans/val-dieu-leger.spz",
+    "note": "Un vol de drone autour de l’abbaye, de son cloître et de ses jardins, reconstruit en volume depuis la version 4K de la vidéo et calé sur le relief LiDAR.",
+    "credit": {
+      "author": "Skyfly_be",
+      "title": "Val-Dieu Abbey (Aubel - Belgium) - Drone footage Ultra HD 4K",
+      "url": "https://www.youtube.com/watch?v=X0_BDdVne-w",
+      "licence": "© Skyfly_be, avec son accord",
+      "i18n": {"en": {"licence": "© Skyfly_be, with their permission"}, "nl": {"licence": "© Skyfly_be, met diens toestemming"}},
+      "instagram": "https://www.instagram.com/skyfly_be/"
+    },
+    "view": {
+      "x": 751490,
+      "y": 655175,
+      "height": 170,
+      "azimuth": 315
+    }
+  },
+  {
     "id": "namur-escalier",
     "disabled": true,
     "name": "Escalier au pied de la citadelle, Namur",
