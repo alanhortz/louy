@@ -320,6 +320,27 @@ describe('relief exact', () => {
     expect(parseExactPath('/relief/MNP/11/1153/1282.bin')).toBeNull();
   });
 
+  it('écarte les points hors de l’image du SPW, qui couperaient sa réponse, et donne une adresse neuve aux tuiles du bord', async () => {
+    const { crossesEdge, exactReliefUrl, exactStageRequest, MODEL_EXTENT, parseExactPath, stageCoverage } = await import('../src/domain/exactRelief.ts');
+    // à cheval sur la frontière allemande, près de Malmedy ; sa voisine de l'ouest est tout entière dans l'image
+    const edge = { model: 'MNT' as const, level: 6, i: 62, j: 39 };
+    const inner = { ...edge, i: 61 };
+    expect(crossesEdge(edge)).toBe(true);
+    expect(crossesEdge(inner)).toBe(false);
+    expect(exactReliefUrl(new Map(), 'RELIEF/WALLONIE_MNT_2021_2022', 6, 62, 39)).toBe('/edge/v1/relief/MNT/6/62/39.b2.bin');
+    expect(exactReliefUrl(new Map(), 'RELIEF/WALLONIE_MNT_2021_2022', 6, 61, 39)).toBe('/edge/v1/relief/MNT/6/61/39.bin');
+    expect(parseExactPath('/relief/MNT/6/62/39.b2.bin')).toEqual(edge);
+    // une seule adresse par tuile : l'ancienne d'une tuile du bord, ou la révision d'une tuile intérieure, sont refusées
+    expect(parseExactPath('/relief/MNT/6/62/39.bin')).toBeNull();
+    expect(parseExactPath('/relief/MNT/6/61/39.b2.bin')).toBeNull();
+    expect(stageCoverage(edge, 0)).toBe('some');
+    expect(stageCoverage(inner, 0)).toBe('all');
+    const points = (geo: boolean) => JSON.parse(new URLSearchParams(exactStageRequest(edge, 0, geo).body).get('geometry')!).points as [number, number][];
+    const image = MODEL_EXTENT.MNT;
+    expect(points(true).length).toBeLessThan(points(false).length);
+    expect(points(true).every(([x, y]) => x > image.xmin && x < image.xmax && y > image.ymin && y < image.ymax)).toBe(true);
+  });
+
   it('demande une étape de 17 lignes, première ligne au nord, et code la réponse complète', async () => {
     const { encodeExactValues, exactStagePoints, exactStageRequest, EXACT_STAGE_COUNT, EXACT_STAGE_ROWS, EXACT_STAGES } = await import('../src/domain/exactRelief.ts');
     const { paddedExtent, REQUEST_PX } = await import('../src/domain/tiling.ts');

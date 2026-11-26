@@ -34,7 +34,7 @@
  * 16 m, demandées d'un coup au SPW (`identify`) et gardées sans fin (voir src/domain/altitudes.ts).
  *
  * Et `/edge/v1/relief/<MNT|MNS>/<niveau>/<i>/<j>.bin`, le relief exact d'une tuile entière du viewer (272 × 272
- * altitudes, voir src/domain/exactRelief.ts). La première demande reçoit « 202, en préparation » et le Worker
+ * altitudes, voir src/domain/exactRelief.ts ; `<j>.b2.bin` pour les tuiles qui débordent de l'image du SPW). La première demande reçoit « 202, en préparation » et le Worker
  * prépare la tuile en arrière-plan, par seize étapes qu'il s'adresse à lui-même (`?etape=k`, liaison SELF) : une
  * invocation ne lit qu'un seizième de tuile, ce qui tient dans le temps de calcul du plan gratuit. La tuile
  * assemblée est gardée sans fin. Le viewer, lui, dessine en attendant la tuile du service et revient un peu plus
@@ -53,7 +53,7 @@
 
 import { FLIGHT_CELL, flightDatesUrl } from '../src/domain/acquisition.ts';
 import { altitudeRequest, compactAltitudes, parseAltitudePath } from '../src/domain/altitudes.ts';
-import { assembleExactTile, encodeExactValues, encodeExactValuesByPosition, EXACT_STAGES, exactStageRequest, parseExactPath, type ExactTile } from '../src/domain/exactRelief.ts';
+import { assembleExactTile, encodeExactValues, encodeExactValuesByPosition, EXACT_STAGE_COUNT, EXACT_STAGES, exactStageRequest, parseExactPath, stageCoverage, type ExactTile } from '../src/domain/exactRelief.ts';
 import { AIRCRAFT_CACHE_SECONDS, AIRCRAFT_EDGE_PATH, AIRCRAFT_FEEDS, AIRCRAFT_SOURCE_HEADER } from '../src/domain/aircraft.ts';
 import { CAMERA_EDGE_ROUTE, CAMERA_IMAGE_CACHE_SECONDS, cameraSourceUrl } from '../src/domain/cameraView.ts';
 import { LATEST_VINTAGE, VINTAGES } from '../src/domain/catalog.ts';
@@ -324,14 +324,20 @@ async function release(origin: string, route: string, lane: number, cache: Cache
 /**
  * Les valeurs d'une étape : du cache si elle est faite, sinon demandées au SPW et rangées. Un appel ; un second,
  * avec la position de chaque point, seulement au bord de la couverture, où la première réponse est incomplète.
- * `null` si le SPW n'a pas répondu.
+ * Une étape qui sort de l'emprise de l'image passe directement au second, et une étape tout entière au-delà ne
+ * demande rien. `null` si le SPW n'a pas répondu.
  */
 async function stageValues(tile: ExactTile, stage: number, key: Request, cache: Cache): Promise<Uint16Array | null> {
   const kept = await cache.match(key);
   if (kept) return new Uint16Array(await kept.arrayBuffer());
-  const whole = await identify(exactStageRequest(tile, stage));
-  if (whole === null) return null;
-  let values = encodeExactValues(whole);
+  const coverage = stageCoverage(tile, stage);
+  let values: Uint16Array | null = null;
+  if (coverage === 'none') values = new Uint16Array(EXACT_STAGE_COUNT);
+  else if (coverage === 'all') {
+    const whole = await identify(exactStageRequest(tile, stage));
+    if (whole === null) return null;
+    values = encodeExactValues(whole);
+  }
   if (!values) {
     const placed = await identify(exactStageRequest(tile, stage, true));
     if (placed === null) return null;

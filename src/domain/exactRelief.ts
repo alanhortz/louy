@@ -19,7 +19,7 @@
  */
 
 import { identifyUrl, type AltitudeModel } from './altitudes.ts';
-import { intersectsCoverage, isValidAddress, MAX_LEVEL, paddedExtent, REQUEST_PX, tileSpacing } from './tiling.ts';
+import { intersectsCoverage, isValidAddress, MAX_LEVEL, paddedExtent, REQUEST_PX, tileSpacing, type Extent } from './tiling.ts';
 
 export const EXACT_RELIEF_ROOT = '/relief';
 export const EXACT_RELIEF_INDEX = `${EXACT_RELIEF_ROOT}/index.json`;
@@ -42,6 +42,28 @@ export const EXACT_STAGE_ROWS = REQUEST_PX / EXACT_STAGES;
 export const EXACT_STAGE_COUNT = EXACT_STAGE_ROWS * REQUEST_PX;
 /** Seule campagne servie : le service 2013-2014 ne répond qu'au premier point d'une demande groupée. */
 const CAMPAIGN = '2021_2022';
+/**
+ * Emprise de l'image de chaque modèle, telle que le SPW la déclare. Un point demandé au-delà ne reçoit rien, et
+ * interrompt la réponse : tous les points suivants restent sans réponse, même ceux qui tombent dans l'image.
+ */
+export const MODEL_EXTENT: Readonly<Record<AltitudeModel, Extent>> = {
+  MNT: { xmin: 542146.5, ymin: 521073.5, xmax: 795501.5, ymax: 668001.5 },
+  MNS: { xmin: 542189.5, ymin: 520998.5, xmax: 795501.5, ymax: 667756.5 },
+};
+/**
+ * Révision des tuiles qui débordent de l'emprise de leur modèle. Les premières, préparées avant que les points
+ * hors de l'emprise soient écartés, n'avaient que la première ligne de chaque étape : elles sont gardées sans fin
+ * dans les caches, d'où une adresse nouvelle. Les tuiles intérieures, justes, gardent la leur.
+ */
+const EDGE_REVISION = 'b2';
+
+const inside = (e: Extent, x: number, y: number): boolean => x > e.xmin && x < e.xmax && y > e.ymin && y < e.ymax;
+
+/** La tuile élargie de sa marge déborde-t-elle de l'emprise de son modèle ? */
+export function crossesEdge(tile: ExactTile): boolean {
+  const p = paddedExtent(tile), e = MODEL_EXTENT[tile.model];
+  return p.xmin < e.xmin || p.xmax > e.xmax || p.ymin < e.ymin || p.ymax > e.ymax;
+}
 
 /** Tuiles relevées d'avance, par service : des clefs « niveau/i/j ». */
 export type ExactReliefIndex = ReadonlyMap<string, ReadonlySet<string>>;
@@ -66,25 +88,31 @@ export function exactReliefUrl(index: ExactReliefIndex, service: string, level: 
   if (index.get(name)?.has(`${level}/${i}/${j}`)) return `${EXACT_RELIEF_ROOT}/${name}/${level}/${i}/${j}.bin`;
   const match = /^WALLONIE_(MNT|MNS)_(\d{4}_\d{4})$/.exec(name);
   if (!match || match[2] !== CAMPAIGN || level < EXACT_LEVELS.min || level > EXACT_LEVELS.max) return null;
-  return `${EXACT_EDGE_ROOT}/${match[1]}/${level}/${i}/${j}.bin`;
+  const tile = { model: match[1] as AltitudeModel, level, i, j };
+  return `${EXACT_EDGE_ROOT}${exactTilePath(tile).slice(EXACT_RELIEF_ROOT.length)}`;
 }
 
 /* ------------------------------------------------------------------------------------- côté relais --- */
 
-export const EXACT_ROUTE = /^\/relief\/(MNT|MNS)\/(\d{1,2})\/(\d{1,6})\/(\d{1,6})\.bin$/;
+export const EXACT_ROUTE = /^\/relief\/(MNT|MNS)\/(\d{1,2})\/(\d{1,6})\/(\d{1,6})(\.b2)?\.bin$/;
 
 export interface ExactTile { model: AltitudeModel; level: number; i: number; j: number }
 
-/** La tuile que désigne un chemin du relais, ou `null` : niveau hors de portée, adresse inexistante, hors de Wallonie. */
+/**
+ * La tuile que désigne un chemin du relais, ou `null` : niveau hors de portée, adresse inexistante, hors de Wallonie,
+ * ou révision qui n'est pas la sienne (une seule adresse par tuile, pour ne pas la préparer deux fois).
+ */
 export function parseExactPath(path: string): ExactTile | null {
   const match = EXACT_ROUTE.exec(path);
   if (!match) return null;
   const tile = { model: match[1] as AltitudeModel, level: Number(match[2]), i: Number(match[3]), j: Number(match[4]) };
   if (tile.level < EXACT_LEVELS.min || tile.level > EXACT_LEVELS.max || !isValidAddress(tile)) return null;
-  return intersectsCoverage(paddedExtent(tile)) ? tile : null;
+  if (!intersectsCoverage(paddedExtent(tile)) || (match[5] !== undefined) !== crossesEdge(tile)) return null;
+  return tile;
 }
 
-export const exactTilePath = ({ model, level, i, j }: ExactTile): string => `/relief/${model}/${level}/${i}/${j}.bin`;
+export const exactTilePath = (tile: ExactTile): string =>
+  `/relief/${tile.model}/${tile.level}/${tile.i}/${tile.j}${crossesEdge(tile) ? `.${EDGE_REVISION}` : ''}.bin`;
 
 /** Un nombre au millimètre, sans traîne. */
 const mm = (value: number): number => Math.round(value * 1000) / 1000;
@@ -104,19 +132,31 @@ export function exactStagePoints(tile: ExactTile, stage: number): [number, numbe
   return points;
 }
 
+/** Combien des points d'une étape tombent dans l'emprise de l'image de son modèle : tous, certains ou aucun. */
+export function stageCoverage(tile: ExactTile, stage: number): 'all' | 'some' | 'none' {
+  const points = exactStagePoints(tile, stage), e = MODEL_EXTENT[tile.model];
+  const n = points.filter(([x, y]) => inside(e, x, y)).length;
+  return n === points.length ? 'all' : n === 0 ? 'none' : 'some';
+}
+
 /**
  * La demande au SPW pour une étape : tous ses points à la fois. Le service ne répond qu'aux points qui ont une
  * donnée, dans l'ordre demandé : sans géométrie, la réponse ne se lit que si elle est complète. `withGeometry`
- * fait rendre chaque point avec sa position, pour les étapes qui débordent de la couverture.
+ * fait rendre chaque point avec sa position, pour les étapes qui débordent de la couverture ; seuls y sont
+ * demandés les points dans l'emprise de l'image, un point au-delà coupant la réponse.
  * Le corps est écrit directement, sans passer par un objet : c'est ce qui coûte le plus en calcul.
  */
 export function exactStageRequest(tile: ExactTile, stage: number, withGeometry = false): { url: string; body: string } {
   const { xmin, ymin, xmax, ymax } = paddedExtent(tile);
   const spacing = tileSpacing(tile.level);
+  const image = MODEL_EXTENT[tile.model];
   let geometry = '{"points":[';
   for (let row = stage * EXACT_STAGE_ROWS; row < (stage + 1) * EXACT_STAGE_ROWS; row++) {
     const y = mm(ymax - (row + 0.5) * spacing);
-    for (let col = 0; col < REQUEST_PX; col++) geometry += `[${mm(xmin + (col + 0.5) * spacing)},${y}],`;
+    for (let col = 0; col < REQUEST_PX; col++) {
+      const x = mm(xmin + (col + 0.5) * spacing);
+      if (!withGeometry || inside(image, x, y)) geometry += `[${x},${y}],`;
+    }
   }
   geometry = `${geometry.slice(0, -1)}],"spatialReference":{"wkid":3812}}`;
   const body = `geometry=${encodeURIComponent(geometry)}&geometryType=esriGeometryMultipoint&sr=3812&layers=all&tolerance=1`
