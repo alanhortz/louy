@@ -286,6 +286,81 @@
     }
   },
   {
+    "id": "franchimont",
+    "name": "Château de Franchimont, Theux",
+    "i18n": {"en": {"name": "Franchimont Castle, Theux", "note": "An 11th-century fortress on a spur above the Hoëgne valley, one of the strongholds of the Prince-Bishopric of Liège. Demilitarised in the 17th century, it has been restored since 1967 by the Compagnons de Franchimont."}, "nl": {"name": "Kasteel van Franchimont, Theux", "note": "Een burcht uit de 11e eeuw op een rotsuitloper boven de vallei van de Hoëgne, een van de vestingen van het prinsbisdom Luik. In de 17e eeuw gedemilitariseerd, sinds 1967 gerestaureerd door de Compagnons de Franchimont."}},
+    "x": 753181.0,
+    "y": 636230.0,
+    "splats": "/scans/franchimont.spz",
+    "preview": "/scans/franchimont-apercu.spz",
+    "light": "/scans/franchimont-leger.spz",
+    "note": "Château fort du XIe siècle sur un éperon dominant la vallée de la Hoëgne, l’une des places fortes de la principauté de Liège. Démilitarisé au XVIIe siècle, il est restauré depuis 1967 par les Compagnons de Franchimont.",
+    "credit": {
+      "author": "Skyfly_be",
+      "title": "Castle of Franchimont (Theux - Belgium) - Drone footage Ultra HD 4K",
+      "url": "https://www.youtube.com/watch?v=z6-URRmbjLE",
+      "licence": "© Skyfly_be, avec son accord",
+      "i18n": {"en": {"licence": "© Skyfly_be, with their permission"}, "nl": {"licence": "© Skyfly_be, met diens toestemming"}},
+      "instagram": "https://www.instagram.com/skyfly_be/"
+    },
+    "view": {
+      "x": 753181,
+      "y": 636230,
+      "height": 170,
+      "azimuth": 290
+    }
+  },
+  {
+    "id": "lavaux-sainte-anne",
+    "name": "Château de Lavaux-Sainte-Anne, Rochefort",
+    "i18n": {"en": {"name": "Lavaux-Sainte-Anne Castle, Rochefort", "note": "A moated fortress in the Famenne. Jean II de Berlo ordered its construction in 1450; century after century, it was strengthened and renovated."}, "nl": {"name": "Kasteel van Lavaux-Sainte-Anne, Rochefort", "note": "Een omgrachte burcht in de Famenne. Jan II van Berlo liet hem in 1450 bouwen; eeuw na eeuw werd hij versterkt en vernieuwd."}},
+    "x": 701702.6,
+    "y": 589681.8,
+    "splats": "/scans/lavaux-sainte-anne.spz",
+    "preview": "/scans/lavaux-sainte-anne-apercu.spz",
+    "light": "/scans/lavaux-sainte-anne-leger.spz",
+    "note": "Château fort de la Famenne, entouré de douves. Jean II de Berlo en ordonna la construction en 1450 ; de siècle en siècle, l’édifice fut renforcé et rénové.",
+    "credit": {
+      "author": "Skyfly_be",
+      "title": "Castle of Lavaux-Sainte-Anne (Namur - Belgium) - Drone footage Ultra HD 4K",
+      "url": "https://www.youtube.com/watch?v=U6O1mbY8g9k",
+      "licence": "© Skyfly_be, avec son accord",
+      "i18n": {"en": {"licence": "© Skyfly_be, with their permission"}, "nl": {"licence": "© Skyfly_be, met diens toestemming"}},
+      "instagram": "https://www.instagram.com/skyfly_be/"
+    },
+    "view": {
+      "x": 701703,
+      "y": 589682,
+      "height": 170,
+      "azimuth": 20
+    }
+  },
+  {
+    "id": "mardasson",
+    "name": "Mémorial du Mardasson, Bastogne",
+    "i18n": {"en": {"name": "Mardasson Memorial, Bastogne", "note": "A star-shaped monument inaugurated in 1950 on a hill north-east of Bastogne: the Belgian people’s tribute to the American soldiers who fell in the Battle of the Bulge, in the winter of 1944–1945."}, "nl": {"name": "Mardassonmonument, Bastenaken", "note": "Een stervormig monument, in 1950 ingehuldigd op een heuvel ten noordoosten van Bastenaken: de dank van het Belgische volk aan de Amerikaanse soldaten die sneuvelden in de Slag om de Ardennen, in de winter van 1944-1945."}},
+    "x": 748222.7,
+    "y": 578479.6,
+    "splats": "/scans/mardasson.spz",
+    "preview": "/scans/mardasson-apercu.spz",
+    "light": "/scans/mardasson-leger.spz",
+    "note": "Monument en forme d’étoile, inauguré en 1950 sur une colline au nord-est de Bastogne : la reconnaissance du peuple belge aux soldats américains tombés lors de la bataille des Ardennes, à l’hiver 1944-1945.",
+    "credit": {
+      "author": "Skyfly_be",
+      "title": "The Mardasson Memorial (Bastogne - Belgium) - Drone footage Ultra HD 4K",
+      "url": "https://www.youtube.com/watch?v=nWF3TkI9k4c",
+      "licence": "© Skyfly_be, avec son accord",
+      "i18n": {"en": {"licence": "© Skyfly_be, with their permission"}, "nl": {"licence": "© Skyfly_be, met diens toestemming"}},
+      "instagram": "https://www.instagram.com/skyfly_be/"
+    },
+    "view": {
+      "x": 748223,
+      "y": 578480,
+      "height": 150,
+      "azimuth": 110
+    }
+  },
+  {
     "id": "namur-escalier",
     "disabled": true,
     "name": "Escalier au pied de la citadelle, Namur",
